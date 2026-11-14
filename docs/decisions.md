@@ -9,3 +9,6 @@
 - **Tendance du début des pluies.** Annoncée seulement si elle tient avec les durées maximales de séquence sèche de 7, 10 et 14 jours. Ce n'est le cas dans aucun des deux lieux.
 - **Égalités.** Deux rotations de totaux égaux partagent leur rang, sans départage arbitraire.
 - **Stabilité.** Le message nomme le scénario qui change le classement.
+- **Égalité départagée.** Quand un scénario ne fait que départager des rotations à égalité, sans inverser aucun écart du classement de référence, le classement est déclaré stable et les rotations à égalité sont présentées comme équivalentes.
+- **Voix.** Un enregistrement humain placé dans `app/audio` remplace la voix du téléphone. Le texte exact à enregistrer est produit par le moteur.
+- **Mise en ligne.** L'application est publiée par GitHub Pages, pour la première ouverture avec connexion.
