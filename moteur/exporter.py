@@ -126,18 +126,30 @@ def enregistrement(cle: str) -> str | None:
     return None
 
 
+def respecte(reference: list[list[str]], scenario: list[list[str]]) -> bool:
+    """Vrai si le scénario garde chaque écart strict du classement de référence."""
+    rang_ref = {r: i for i, g in enumerate(reference) for r in g}
+    rang_sc = {r: i for i, g in enumerate(scenario) for r in g}
+    return all(rang_sc[a] < rang_sc[b] for a in rang_ref for b in rang_ref if rang_ref[a] < rang_ref[b])
+
+
 def texte_stabilite(ordres: dict, sensibilite_config: dict) -> str:
     """Dit lesquels des scénarios de sensibilité changent le classement de référence."""
     scenarios = {
         "pluie_reduite": f"si la pluie baisse de {nombre(100 * (1 - sensibilite_config['facteur_pluie']))} %",
         "semis_retarde": f"si les pluies démarrent {sensibilite_config['retard_jours']} jours plus tard",
     }
-    changent = [texte for nom, texte in scenarios.items() if ordres[nom] != ordres["reference"]]
-    tiennent = [texte for nom, texte in scenarios.items() if ordres[nom] == ordres["reference"]]
-    if not changent:
-        return f"Ce classement tient {' et '.join(tiennent)}."
-    phrase = f"Attention, ce classement change {' et '.join(changent)}."
-    return phrase + (f" Il tient {' et '.join(tiennent)}." if tiennent else "")
+    reference = ordres["reference"]
+    changent = [t for n, t in scenarios.items() if not respecte(reference, ordres[n])]
+    departagent = [t for n, t in scenarios.items() if respecte(reference, ordres[n]) and ordres[n] != reference]
+    if changent:
+        tiennent = [t for t in scenarios.values() if t not in changent]
+        return (f"Attention, ce classement change {' et '.join(changent)}."
+                + (f" Il tient {' et '.join(tiennent)}." if tiennent else ""))
+    if departagent:
+        return (f"Ce classement tient {' et '.join(scenarios.values())}. Les rotations à égalité se départagent "
+                f"alors, différemment selon le scénario, et doivent être considérées comme équivalentes.")
+    return f"Ce classement tient {' et '.join(scenarios.values())}."
 
 
 def construire(config: dict) -> dict:

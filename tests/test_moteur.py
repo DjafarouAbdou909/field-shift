@@ -77,6 +77,16 @@ class TestCriteres(unittest.TestCase):
         self.assertIn("change si la pluie baisse de 20 %", texte)
         self.assertIn("tient si les pluies démarrent 14 jours plus tard", texte)
 
+    def test_egalite_departagee_sans_changer_le_classement(self):
+        s = {"facteur_pluie": 0.8, "retard_jours": 14}
+        ordres = {"reference": [["a", "b"], ["c"]], "pluie_reduite": [["b"], ["a"], ["c"]],
+                  "semis_retarde": [["a"], ["b"], ["c"]]}
+        texte = texte_stabilite(ordres, s)
+        self.assertTrue(texte.startswith("Ce classement tient"))
+        self.assertIn("équivalentes", texte)
+        ordres["pluie_reduite"] = [["c"], ["a", "b"]]
+        self.assertIn("change si la pluie baisse", texte_stabilite(ordres, s))
+
     def test_resume_signale_les_egalites(self):
         strategies = [{"rang": 1, "nom": "A", "actuelle": False}, {"rang": 1, "nom": "B", "actuelle": False},
                       {"rang": 3, "nom": "C", "actuelle": True}]
