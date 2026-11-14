@@ -36,10 +36,17 @@ function icone(nom) {
   return svg;
 }
 
-// Mode voix. Chaque message est lu à voix haute, et un bouton se touche une fois pour
-// entendre son nom, une seconde fois pour le choisir.
+// Mode voix, pour les personnes qui ne lisent pas. Chaque question est lue, puis chaque
+// réponse possible avec la couleur de son bouton. Un seul toucher choisit la réponse,
+// et l'application confirme à voix haute ce qui a été choisi.
 let modeVoix = false;
-try { modeVoix = localStorage.getItem("modeVoix") === "1"; } catch (e) { /* stockage indisponible */ }
+let dernierTexteDit = "";
+let aConfirmer = "";
+const COULEURS = [
+  ["vert", "#2e7d32", "#ffffff"], ["orange", "#e65100", "#ffffff"], ["bleu", "#1565c0", "#ffffff"],
+  ["violet", "#6a1b9a", "#ffffff"], ["rouge", "#c62828", "#ffffff"], ["marron", "#6d4c41", "#ffffff"],
+  ["jaune", "#f9a825", "#1d1814"],
+];
 
 const SANS_VOIX = "Aucune voix française n'est installée sur ce téléphone. Installez-la dans les réglages, "
   + "rubrique synthèse vocale, ou faites enregistrer les messages par votre équipe.";
@@ -55,6 +62,7 @@ function parler(texte) {
   const { connues, francaise } = voixFrancaise();
   if (connues && !francaise) return false;
   speechSynthesis.cancel();
+  window.dernierePhraseLue = texte;
   const enonce = new SpeechSynthesisUtterance(texte);
   enonce.lang = "fr-FR";
   if (francaise) enonce.voice = francaise;
@@ -71,7 +79,7 @@ boutonVoix.addEventListener("click", () => {
   modeVoix = !modeVoix;
   try { localStorage.setItem("modeVoix", modeVoix ? "1" : "0"); } catch (e) { /* stockage indisponible */ }
   afficherModeVoix();
-  if (modeVoix) parler("Mode voix activé. Touchez une image une fois pour entendre son nom, deux fois pour la choisir.");
+  if (modeVoix) parler("Mode voix activé. Écoutez les choix, puis touchez le bouton de la bonne couleur.");
   else if ("speechSynthesis" in window) speechSynthesis.cancel();
 });
 
@@ -101,24 +109,38 @@ function preuve(parent, element) {
   parent.appendChild(bloc);
 }
 
+function annonce(options) {
+  return options.map(([libelle], i) => `${libelle}, touchez le bouton ${COULEURS[i % COULEURS.length][0]}.`).join(" ");
+}
+
 function proposer(options) {
-  choix.replaceChildren(...options.map(([libelle, action, nomIcone]) => {
+  const boutons = options.map(([libelle, action, nomIcone], i) => {
+    const [, fond, texte] = COULEURS[i % COULEURS.length];
     const bouton = document.createElement("button");
     bouton.type = "button";
+    bouton.className = "colore";
+    bouton.style.background = fond;
+    bouton.style.color = texte;
+    bouton.style.borderColor = fond;
     bouton.append(icone(nomIcone), libelle);
     bouton.addEventListener("click", () => {
-      if (modeVoix && !bouton.classList.contains("entendu")) {
-        choix.querySelectorAll(".entendu").forEach((b) => b.classList.remove("entendu"));
-        bouton.classList.add("entendu");
-        parler(libelle);
-        return;
-      }
       bulle(libelle, "agri");
       choix.replaceChildren();
+      aConfirmer = modeVoix ? `Vous avez choisi ${libelle}. ` : "";
       action();
     });
     return bouton;
-  }));
+  });
+  if (modeVoix) {
+    const reecouter = document.createElement("button");
+    reecouter.type = "button";
+    reecouter.className = "reecouter";
+    reecouter.append(icone("ecouter"), "Réécouter");
+    reecouter.addEventListener("click", () => parler(`${dernierTexteDit}\n${annonce(options)}`));
+    boutons.push(reecouter);
+    parler(`${dernierTexteDit}\n${annonce(options)}`);
+  }
+  choix.replaceChildren(...boutons);
 }
 
 function boutonRelire(element, texte) {
@@ -137,7 +159,9 @@ function dire(texte, ensuite) {
     saisie.remove();
     const b = bulle(texte);
     boutonRelire(b, texte);
-    if (modeVoix) parler(texte);
+    dernierTexteDit = aConfirmer + texte;
+    aConfirmer = "";
+    if (modeVoix) parler(dernierTexteDit);
     if (ensuite) ensuite(b);
   }, 450);
 }
@@ -279,7 +303,7 @@ function choisirLieu(id) {
     ["Coton puis maïs", demanderPriorite, "coton"],
     ["Autre chose", () => dire("Pour l'instant, je ne compare que des rotations à partir de coton puis maïs. "
       + "Laissez un message vocal à votre conseiller ANADER pour votre cas.", () => proposer([
-      ["Message vocal pour mon conseiller", enregistrer, "micro"], ["Recommencer", accueil, "recommencer"]]))],
+      ["Message vocal pour mon conseiller", enregistrer, "micro"], ["Recommencer", accueil, "recommencer"]]), "autre")],
   ]));
 }
 
@@ -516,7 +540,22 @@ async function demarrer() {
     bulle("Les données ne sont pas encore installées. Ouvrez l'application une première fois avec une connexion.");
     return;
   }
-  accueil();
+  ecranDemarrage();
+}
+
+// Premier écran. Le téléphone n'accepte de parler qu'après un premier toucher.
+function ecranDemarrage() {
+  const ecran = document.getElementById("demarrage");
+  const lancer = (avecVoix) => {
+    modeVoix = avecVoix;
+    afficherModeVoix();
+    ecran.hidden = true;
+    if (avecVoix) parler("Bonjour.");
+    accueil();
+  };
+  document.getElementById("commencer-voix").addEventListener("click", () => lancer(true), { once: true });
+  document.getElementById("commencer-texte").addEventListener("click", () => lancer(false), { once: true });
+  ecran.hidden = false;
 }
 
 demarrer();

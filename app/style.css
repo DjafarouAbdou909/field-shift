@@ -69,3 +69,21 @@ footer button.entendu { outline: 3px solid var(--accent); outline-offset: 2px; }
   font: inherit; font-weight: 600; cursor: pointer;
 }
 .lire-note svg { width: 22px; height: 22px; fill: currentColor; }
+
+footer button.colore { font-size: 17px; }
+footer button.reecouter { background: var(--bouton); color: var(--texte); }
+#demarrage {
+  position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 20px; background: var(--fond); color: var(--texte);
+}
+#demarrage[hidden] { display: none; }
+#commencer-voix {
+  width: 180px; height: 180px; border-radius: 50%; border: none; background: #2e7d32; color: #ffffff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); cursor: pointer;
+}
+#commencer-voix svg { width: 96px; height: 96px; fill: currentColor; }
+#demarrage p { margin: 0; font-size: 20px; font-weight: 600; }
+#commencer-texte {
+  min-height: 44px; padding: 8px 18px; border-radius: 22px; border: 1px solid var(--bord);
+  background: var(--bouton); color: var(--texte); font: inherit; cursor: pointer;
+}
