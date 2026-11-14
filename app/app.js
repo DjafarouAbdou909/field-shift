@@ -326,6 +326,7 @@ function actionsResultat() {
     ["Pourquoi ?", pourquoi, "pourquoi"],
     ["Le climat de ma zone", climat, "climat"],
     ["Écouter", ecouter, "ecouter"],
+    ["Envoyer le conseil à mon conseiller", () => partager(null), "envoyer"],
     ["Message vocal pour mon conseiller", enregistrer, "micro"],
     ["Mes messages vocaux", mesNotes, "ecouter"],
     ...(ficheDiagnostic ? [["Photo d'une feuille de maïs", photographier, "pourquoi"]] : []),
@@ -476,17 +477,61 @@ async function mesNotes() {
   });
 }
 
-async function partager(note) {
-  const extension = note.type.includes("ogg") ? "ogg" : note.type.includes("mp4") ? "m4a" : "webm";
-  const fichier = new File([note], `message-vocal.${extension}`, { type: note.type });
-  if (navigator.canShare && navigator.canShare({ files: [fichier] })) {
-    try {
-      await navigator.share({ files: [fichier], title: "Message vocal pour mon conseiller" });
-    } catch (e) { /* partage annulé */ }
-    suite();
-  } else {
-    dire("Le partage n'est pas disponible sur ce téléphone. Faites écouter le message à votre conseiller.", suite);
+// Résumé de l'échange, envoyé au conseiller avec l'accord de l'agriculteur.
+function resumeEchange() {
+  const lignes = ["Message envoyé depuis l'application Conseil Rotation."];
+  if (etat.lieu) lignes.push(`Zone, ${donnees.lieux[etat.lieu].nom}.`);
+  if (etat.priorite) {
+    lignes.push(`Priorité, ${donnees.priorites[etat.priorite].toLowerCase()}.`);
+    lignes.push(`Conseil reçu.\n${donnees.lieux[etat.lieu].resultats[etat.priorite].resume}`);
   }
+  return lignes.join("\n");
+}
+
+// Chrome sur Android ne partage un fichier audio que si son extension et son type sont reconnus.
+const EXTENSIONS_AUDIO = { "audio/webm": "weba", "audio/ogg": "ogg", "audio/mp4": "m4a", "audio/mpeg": "mp3" };
+
+function fichierAudio(note) {
+  const type = (note.type || "audio/webm").split(";")[0];
+  return new File([note], `message-vocal.${EXTENSIONS_AUDIO[type] || "weba"}`, { type });
+}
+
+function telechargerNote(fichier) {
+  const lien = document.createElement("a");
+  lien.href = URL.createObjectURL(fichier);
+  lien.download = fichier.name;
+  document.body.appendChild(lien);
+  lien.click();
+  lien.remove();
+}
+
+async function partager(note) {
+  const texte = resumeEchange();
+  const fichier = note ? fichierAudio(note) : null;
+  try {
+    if (fichier && navigator.canShare && navigator.canShare({ files: [fichier] })) {
+      await navigator.share({ files: [fichier], text: texte, title: "Message pour mon conseiller" });
+      suite();
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ text: texte, title: "Message pour mon conseiller" });
+      if (fichier) {
+        telechargerNote(fichier);
+        dire("Le résumé est envoyé. Le message vocal est enregistré dans les téléchargements du téléphone. "
+          + "Envoyez-le aussi à votre conseiller, par exemple par WhatsApp.", suite);
+        return;
+      }
+      suite();
+      return;
+    }
+  } catch (e) {
+    if (e.name === "AbortError") { suite(); return; }
+  }
+  if (fichier) telechargerNote(fichier);
+  dire("Le partage direct n'est pas disponible sur ce téléphone. "
+    + (fichier ? "Le message vocal est enregistré dans les téléchargements. " : "")
+    + "Envoyez-le à votre conseiller par WhatsApp, ou faites-lui écouter.", suite);
 }
 
 // Vrai quand l'application et ses recommandations sont dans le cache du téléphone.
