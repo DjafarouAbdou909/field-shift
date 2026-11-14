@@ -192,6 +192,7 @@ function demanderLieu() {
   for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
   options.push(["Message vocal pour mon conseiller", enregistrer, "micro"]);
   options.push(["Mes messages vocaux", mesNotes, "ecouter"]);
+  if (ficheDiagnostic) options.push(["Photo d'une feuille de maïs", photographier, "pourquoi"]);
   proposer(options);
 }
 
@@ -327,6 +328,7 @@ function actionsResultat() {
     ["Écouter", ecouter, "ecouter"],
     ["Message vocal pour mon conseiller", enregistrer, "micro"],
     ["Mes messages vocaux", mesNotes, "ecouter"],
+    ...(ficheDiagnostic ? [["Photo d'une feuille de maïs", photographier, "pourquoi"]] : []),
     ["Recommencer", accueil, "recommencer"],
   ]);
 }
@@ -500,6 +502,106 @@ async function verifierHorsLigne() {
   afficherReseau();
 }
 
+// Diagnostic d'une photo de feuille de maïs, sans connexion. Le modèle et son moteur
+// d'exécution sont dans app/diagnostic. Sans eux, l'option n'est pas proposée.
+const DOSSIER_DIAGNOSTIC = "diagnostic/";
+let ficheDiagnostic;
+let sessionDiagnostic = null;
+const MESSAGES_DIAGNOSTIC = {
+  saine: "Je ne reconnais sur cette feuille aucune des maladies que je connais. Si la plante va mal, "
+    + "montrez-la à votre conseiller ANADER.",
+  striure: "Maladie possible, la striure du maïs. À faire confirmer par votre conseiller ANADER. "
+    + "Je ne propose aucun traitement.",
+  helminthosporiose_nord: "Maladie possible, l'helminthosporiose du maïs. À faire confirmer par votre "
+    + "conseiller ANADER. Je ne propose aucun traitement.",
+  inconnu: "Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille de maïs, à la "
+    + "lumière du jour, ou montrez la plante à votre conseiller ANADER.",
+};
+
+async function chargerFicheDiagnostic() {
+  if (ficheDiagnostic !== undefined) return ficheDiagnostic;
+  try {
+    const enCache = window.caches ? await caches.match(DOSSIER_DIAGNOSTIC + "modele.json") : null;
+    const reponse = enCache || await fetch(DOSSIER_DIAGNOSTIC + "modele.json");
+    ficheDiagnostic = reponse.ok ? await reponse.json() : null;
+  } catch (e) {
+    ficheDiagnostic = null;
+  }
+  return ficheDiagnostic;
+}
+
+function chargerScript(adresse) {
+  return new Promise((resoudre, rejeter) => {
+    const script = document.createElement("script");
+    script.src = adresse;
+    script.onload = resoudre;
+    script.onerror = rejeter;
+    document.head.appendChild(script);
+  });
+}
+
+async function session() {
+  if (sessionDiagnostic) return sessionDiagnostic;
+  if (!window.ort) await chargerScript(DOSSIER_DIAGNOSTIC + "ort.min.js");
+  ort.env.wasm.wasmPaths = DOSSIER_DIAGNOSTIC;
+  ort.env.wasm.numThreads = 1;
+  sessionDiagnostic = await ort.InferenceSession.create(DOSSIER_DIAGNOSTIC + "modele.onnx",
+    { executionProviders: ["wasm"] });
+  return sessionDiagnostic;
+}
+
+// Même préparation que l'évaluation de l'entraînement, petit côté à 256, centre de 224, normalisation.
+function tenseurImage(image, fiche) {
+  const echelle = fiche.redimension / Math.min(image.width, image.height);
+  const largeur = Math.round(image.width * echelle), hauteur = Math.round(image.height * echelle);
+  const canevas = document.createElement("canvas");
+  canevas.width = canevas.height = fiche.taille;
+  const contexte = canevas.getContext("2d");
+  contexte.drawImage(image, (fiche.taille - largeur) / 2, (fiche.taille - hauteur) / 2, largeur, hauteur);
+  const pixels = contexte.getImageData(0, 0, fiche.taille, fiche.taille).data;
+  const n = fiche.taille * fiche.taille;
+  const donneesTenseur = new Float32Array(3 * n);
+  for (let i = 0; i < n; i++) {
+    for (let c = 0; c < 3; c++) {
+      donneesTenseur[c * n + i] = (pixels[4 * i + c] / 255 - fiche.moyenne[c]) / fiche.ecart_type[c];
+    }
+  }
+  return new ort.Tensor("float32", donneesTenseur, [1, 3, fiche.taille, fiche.taille]);
+}
+
+function photographier() {
+  const champ = document.createElement("input");
+  champ.type = "file";
+  champ.accept = "image/*";
+  champ.capture = "environment";
+  champ.addEventListener("change", () => champ.files[0] ? analyser(champ.files[0]) : suite());
+  champ.click();
+}
+
+async function analyser(fichier) {
+  const fiche = await chargerFicheDiagnostic();
+  const image = await createImageBitmap(fichier);
+  const apercu = document.createElement("img");
+  apercu.src = URL.createObjectURL(fichier);
+  apercu.alt = "Photo envoyée";
+  apercu.className = "photo";
+  bulle("", "agri").appendChild(apercu);
+  try {
+    const modele = await session();
+    const entree = tenseurImage(image, fiche);
+    const sortie = (await modele.run({ [modele.inputNames[0]]: entree }))[modele.outputNames[0]].data;
+    const maximum = Math.max(...sortie);
+    const exp = Array.from(sortie, (v) => Math.exp(v - maximum));
+    const somme = exp.reduce((a, b) => a + b, 0);
+    const probabilites = exp.map((v) => v / somme);
+    const meilleure = probabilites.indexOf(Math.max(...probabilites));
+    const classe = probabilites[meilleure] >= fiche.seuil ? fiche.classes[meilleure] : "inconnu";
+    dire(MESSAGES_DIAGNOSTIC[classe] || MESSAGES_DIAGNOSTIC.inconnu, suite);
+  } catch (e) {
+    dire("Le diagnostic n'a pas pu tourner sur ce téléphone.", suite);
+  }
+}
+
 function afficherReseau() {
   if (!navigator.onLine) etatReseau.textContent = pretHorsLigne || donnees ? "Hors connexion, tout fonctionne" : "Hors connexion";
   else if (!window.isSecureContext) etatReseau.textContent = "Adresse non sécurisée, mode hors connexion impossible";
@@ -540,6 +642,7 @@ async function demarrer() {
     bulle("Les données ne sont pas encore installées. Ouvrez l'application une première fois avec une connexion.");
     return;
   }
+  await chargerFicheDiagnostic();
   ecranDemarrage();
 }
 

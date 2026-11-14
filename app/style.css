@@ -87,3 +87,4 @@ footer button.reecouter { background: var(--bouton); color: var(--texte); }
   min-height: 44px; padding: 8px 18px; border-radius: 22px; border: 1px solid var(--bord);
   background: var(--bouton); color: var(--texte); font: inherit; cursor: pointer;
 }
+.bulle img.photo { display: block; max-width: 220px; border-radius: 8px; }
