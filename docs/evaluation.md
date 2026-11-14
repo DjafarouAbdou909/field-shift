@@ -43,7 +43,7 @@ Les classements sont recalculés par la fonction qui construit chaque recommanda
 | 2. Chaque chiffre reproductible par une commande, avec sa plage et sa source | Atteint pour IMERG et POWER, reproductions vérifiées par réexécution. Les données de surface attendent AppEEARS |
 | 3. Bon sens, dont un écart entre villes qui suit les données ou dont l'absence est expliquée | Partiellement atteint. Le mil échoue sur la couverture à Korhogo, la tolérance à la sécheresse n'est pas représentée, l'absence d'écart de classement entre villes est expliquée |
 | 4. Le scénario qui change le classement est nommé | Atteint, dans l'avertissement et les lacunes de chaque recommandation |
-| 5. Parcours WhatsApp complet sur données réelles, sous le garde-fou | Non atteint. Le dialogue du bot n'est pas écrit, et son gabarit annonce à tort une saison plus sèche quand le classement est instable |
+| 5. Parcours WhatsApp complet sur données réelles, sous le garde-fou | Non atteint. Le dialogue du bot n'est pas écrit. Les messages de chaque étape et le garde-fou étendu à l'alerte et au diagnostic sont écrits sur la branche bot-langage, où le gabarit ne prête plus de cause au classement instable |
 | 6. Relecture par un agronome ou un conseiller ANADER | Non atteint, aucune relecture à ce jour |
 | 7. Chaque règle de calcul explicable par chaque membre | À vérifier par l'équipe, les règles étant écrites en tête de chaque module |
 
