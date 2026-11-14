@@ -192,7 +192,7 @@ function demanderLieu() {
   for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
   options.push(["Message vocal pour mon conseiller", enregistrer, "micro"]);
   options.push(["Mes messages vocaux", mesNotes, "ecouter"]);
-  if (ficheDiagnostic) options.push(["Photo d'une feuille de maïs", photographier, "pourquoi"]);
+  options.push(["Photo d'une feuille de maïs", photographier, "pourquoi"]);
   proposer(options);
 }
 
@@ -329,7 +329,7 @@ function actionsResultat() {
     ["Envoyer le conseil à mon conseiller", () => partager(null), "envoyer"],
     ["Message vocal pour mon conseiller", enregistrer, "micro"],
     ["Mes messages vocaux", mesNotes, "ecouter"],
-    ...(ficheDiagnostic ? [["Photo d'une feuille de maïs", photographier, "pourquoi"]] : []),
+    ["Photo d'une feuille de maïs", photographier, "pourquoi"],
     ["Recommencer", accueil, "recommencer"],
   ]);
 }
@@ -657,12 +657,34 @@ function detailFiabilite(fiche, classe) {
   return lignes.join(" ");
 }
 
-function photographier() {
+async function photographier() {
+  const fiche = ficheDiagnostic || (ficheDiagnostic = undefined, await chargerFicheDiagnostic());
+  if (!fiche) {
+    dire("Le diagnostic n'est pas encore installé sur ce téléphone. Ouvrez l'application une fois avec une "
+      + "connexion pour le recevoir.", suite);
+    return;
+  }
+  dire("Prenez en photo une seule feuille de maïs, de près, à la lumière du jour. Vous pouvez aussi choisir une "
+    + "photo déjà prise.", () => proposer([
+    ["Prendre une photo", () => choisirPhoto(true), "pourquoi"],
+    ["Choisir dans la galerie", () => choisirPhoto(false), "envoyer"],
+    ["Retour", suite, "recommencer"],
+  ]));
+}
+
+// Le champ est ajouté à la page avant d'être ouvert, ce que certains navigateurs exigent.
+function choisirPhoto(appareil) {
   const champ = document.createElement("input");
   champ.type = "file";
   champ.accept = "image/*";
-  champ.capture = "environment";
-  champ.addEventListener("change", () => champ.files[0] ? analyser(champ.files[0]) : suite());
+  if (appareil) champ.setAttribute("capture", "environment");
+  champ.hidden = true;
+  document.body.appendChild(champ);
+  champ.addEventListener("change", () => {
+    const fichier = champ.files[0];
+    champ.remove();
+    if (fichier) analyser(fichier); else suite();
+  });
   champ.click();
 }
 
