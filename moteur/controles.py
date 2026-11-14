@@ -125,6 +125,18 @@ def dispersion_voisinage(series: dict[tuple[float, float], pd.Series]) -> pd.Dat
     }).round(3)
 
 
+def ecart_case_moyenne(dispersion: pd.DataFrame) -> pd.DataFrame:
+    """Écart annuel de la case du lieu à la moyenne des neuf cases, en mm et en %, par période."""
+    ecart_mm = dispersion["case_du_lieu_mm"] - dispersion["moyenne_9_cases_mm"]
+    ecart_pct = 100 * ecart_mm / dispersion["moyenne_9_cases_mm"]
+    periodes = {"2001-2012": slice(2001, 2012), "2013-2025": slice(2013, 2025), "2001-2025": slice(2001, 2025)}
+    return pd.DataFrame({
+        nom: {"ecart_moyen_mm": ecart_mm.loc[p].mean(), "ecart_moyen_pct": ecart_pct.loc[p].mean(),
+              "ecart_min_pct": ecart_pct.loc[p].min(), "ecart_max_pct": ecart_pct.loc[p].max()}
+        for nom, p in periodes.items()
+    }).T.round(1)
+
+
 def climatologie_mensuelle(pluie: pd.Series) -> pd.DataFrame:
     """Pluie mensuelle moyenne, avec ses quantiles 10 et 90 % entre années."""
     mensuel = pluie.groupby([pluie.index.year, pluie.index.month]).sum().unstack()
@@ -161,6 +173,8 @@ def executer() -> None:
         premiere = dispersion["rang_case_du_lieu"] == 1
         print(f"case du lieu la plus arrosée des neuf, {premiere.loc[2001:2012].sum()} années sur 12 "
               f"de 2001 à 2012, {premiere.loc[2013:].sum()} sur {len(premiere.loc[2013:])} de 2013 à 2025")
+        print("\nÉcart de la case du lieu à la moyenne des neuf cases, pluie retenue pour le lieu")
+        print(ecart_case_moyenne(dispersion).to_string())
         print("\nClimatologie mensuelle IMERG, case du lieu")
         print(climatologie_mensuelle(pluie).to_string())
         station, lat_station, lon_station = STATIONS_GHCN[identifiant]

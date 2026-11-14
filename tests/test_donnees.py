@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 
 from moteur.controles import (centre_case_imerg, comparer_pluies, comparer_station, controler_serie,
-                              voisinage_imerg)
+                              ecart_case_moyenne, voisinage_imerg)
 from moteur.donnees import empreinte_sha256, lire_pluie_station, lire_power, reponse_complete, telecharger_point
 from moteur.indicateurs import rayonnement_extraterrestre
 
@@ -106,6 +106,16 @@ class TestControles(unittest.TestCase):
         self.assertEqual(table.loc[2024, "rapport"], 1.5)
         self.assertEqual(table.loc[2024, "correlation_journaliere"], 1.0)
         self.assertEqual(table.loc[2025, "rapport"], 0.2)
+
+    def test_ecart_case_moyenne(self):
+        """2001, case 110 pour moyenne 100, +10 mm, +10 %. 2013, case 90 pour 100, -10 mm, -10 %."""
+        dispersion = pd.DataFrame({"case_du_lieu_mm": [110.0, 90.0], "moyenne_9_cases_mm": [100.0, 100.0]},
+                                  index=[2001, 2013])
+        table = ecart_case_moyenne(dispersion)
+        self.assertEqual(table.loc["2001-2012", "ecart_moyen_pct"], 10.0)
+        self.assertEqual(table.loc["2013-2025", "ecart_moyen_mm"], -10.0)
+        self.assertEqual(table.loc["2001-2025", "ecart_moyen_pct"], 0.0)
+        self.assertEqual(table.loc["2001-2025", "ecart_min_pct"], -10.0)
 
     def test_comparaison_a_la_station_sur_jours_communs(self):
         """La station manque le 2 août et IMERG n'a pas de veille au 1er août, restent les 3 et 4 août.

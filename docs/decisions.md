@@ -46,3 +46,11 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Sources non obtenues.** SMAP et SRTM exigent un compte Earthdata. MODIS et SoilGrids sont accessibles, mais un point au centre-ville ne décrit pas les champs.
 - **Registre corrigé.** Le rayonnement de POWER vient de CERES SYN1deg et non de MERRA-2, comme l'indique l'en-tête des fichiers.
 - **Travail antérieur déclaré.** Les fonctions reprises de African Crop Yield Intelligence sont listées dans docs/travail_anterieur.md.
+
+## 14 novembre 2026, responsable de l'équipe, décisions sur la phase 2
+
+- **Branches à jour de main.** bot-canal, bot-langage et presentation ont avancé jusqu'à main sans être extraites, moteur la contenait déjà. Elles suivent encore CLAUDE.md, que seule la branche moteur a retiré, alors que le responsable veut qu'il reste hors du dépôt, exclu par `.git/info/exclude`.
+- **Pluie d'un lieu.** C'est la moyenne des neuf cases IMERG centrées sur la ville. Depuis 2013, la seule case de la ville dépasse cette moyenne de 7,6 % à Korhogo et de 4,3 % à Bouaké, contre moins de 1 % avant, selon `venv/bin/python -m moteur.controles`.
+- **Points cultivés.** Ce sont les pixels MCD12Q1 de classes 12 et 14 de la couche `LC_Type1` IGBP. La couche UMD n'a plus de classe 14 dans la collection 6.1, selon le guide d'utilisation du produit.
+- **Compte Earthdata.** Ouvert par le responsable, identifiants dans `~/.netrc`, jamais dans le dépôt. AppEEARS propose MCD12Q1, MOD13Q1, SMAP SPL3SMP_E et SRTMGL1 selon l'API de son catalogue, l'extraction reste à essayer.
+- **Début du hackathon.** Le 14 novembre 2026, heure non précisée. Les fichiers du squelette ont été modifiés pour la dernière fois entre 00 h 18 et 00 h 23 GMT ce jour et le premier commit date de 00 h 38. `docs/travail_anterieur.md` reste inchangé tant que l'heure manque.
