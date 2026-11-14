@@ -6,6 +6,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import requests
+
 from moteur import appeears
 
 
@@ -40,38 +42,72 @@ class TestAppeears(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             appeears.identifiants(str(fichier))
 
+    def session(self, *reponses):
+        """Session dont la connexion est simulée et dont les requêtes renvoient les réponses données."""
+        session = appeears.SessionAppeears()
+        self.connexion = mock.patch("moteur.appeears.connexion", side_effect=lambda: f"jeton{session.connexions + 1}")
+        self.requete = mock.patch("moteur.appeears.requests.request", side_effect=list(reponses))
+        self.addCleanup(self.connexion.stop)
+        self.addCleanup(self.requete.stop)
+        self.connexion.start()
+        self.appels = self.requete.start()
+        return session
+
+    @staticmethod
+    def reponse(code, contenu=None, octets=b""):
+        r = mock.Mock(status_code=code, content=octets)
+        r.json = lambda: contenu
+        r.raise_for_status = (lambda: None) if code < 400 else mock.Mock(side_effect=requests.HTTPError(str(code)))
+        return r
+
+    def test_une_seule_connexion_pour_plusieurs_requetes(self):
+        session = self.session(self.reponse(200, {"status": "pending"}), self.reponse(200, {"status": "done"}))
+        self.assertEqual(appeears.etat(session, "t1"), "pending")
+        self.assertEqual(appeears.etat(session, "t1"), "done")
+        self.assertEqual(session.connexions, 1)
+
+    def test_reconnexion_unique_sur_refus(self):
+        """Un 401 provoque une reconnexion et la requête est rejouée avec le nouveau jeton."""
+        session = self.session(self.reponse(401), self.reponse(200, {"status": "done"}))
+        self.assertEqual(appeears.etat(session, "t1"), "done")
+        self.assertEqual(session.connexions, 2)
+        self.assertEqual(self.appels.call_args_list[1].kwargs["headers"], {"Authorization": "Bearer jeton2"})
+
+    def test_refus_persistant_leve_l_erreur(self):
+        session = self.session(self.reponse(403), self.reponse(403))
+        with self.assertRaises(requests.HTTPError):
+            appeears.etat(session, "t1")
+        self.assertEqual(session.connexions, 2)
+        self.assertEqual(self.appels.call_count, 2)
+
     def test_tache_consignee_non_resoumise(self):
         journal = self.chemin / "taches.json"
         requete = appeears.requete_points("essai", [], [], "01-01-2001", "12-31-2001")
-        with mock.patch("moteur.appeears.requests.post") as post:
-            post.return_value = mock.Mock(json=lambda: {"task_id": "t1"}, raise_for_status=lambda: None)
-            self.assertEqual(appeears.soumettre("jeton", requete, journal), "t1")
-            self.assertEqual(appeears.soumettre("jeton", requete, journal), "t1")
-            self.assertEqual(post.call_count, 1)
+        session = self.session(self.reponse(200, {"task_id": "t1"}))
+        self.assertEqual(appeears.soumettre(session, requete, journal), "t1")
+        self.assertEqual(appeears.soumettre(session, requete, journal), "t1")
+        self.assertEqual(self.appels.call_count, 1)
         self.assertEqual(json.loads(journal.read_text(encoding="utf-8"))["essai"]["task_id"], "t1")
 
     def test_empreinte_verifiee_au_telechargement(self):
         contenu = b"ID,Date\n1,2025-01-01\n"
         bon = hashlib.sha256(contenu).hexdigest()
-        liste = mock.Mock(json=lambda: {"files": [{"file_name": "a.csv", "file_id": "f1", "sha256": bon},
-                                                   {"file_name": "README.md", "file_id": "f2", "sha256": "x"}]},
-                          raise_for_status=lambda: None)
-        fichier = mock.Mock(content=contenu, raise_for_status=lambda: None)
-        dossier = appeears.DOSSIER_APPEEARS
-        with mock.patch.object(appeears, "DOSSIER_APPEEARS", self.chemin), \
-                mock.patch("moteur.appeears.requests.get", side_effect=[liste, fichier]):
-            chemins = appeears.telecharger_resultats("jeton", "t1", self.chemin / "essai")
-        self.assertEqual([c.name for c in chemins], ["a.csv"])
-        self.assertTrue((self.chemin / "registre.csv").exists())
-        mauvais = mock.Mock(json=lambda: {"files": [{"file_name": "b.csv", "file_id": "f3", "sha256": "0" * 64}]},
-                            raise_for_status=lambda: None)
-        with mock.patch.object(appeears, "DOSSIER_APPEEARS", self.chemin), \
-                mock.patch("moteur.appeears.requests.get", side_effect=[mauvais, fichier]):
+        liste = self.reponse(200, {"files": [{"file_name": "a.csv", "file_id": "f1", "sha256": bon},
+                                             {"file_name": "README.md", "file_id": "f2", "sha256": "x"}]})
+        mauvais = self.reponse(200, {"files": [{"file_name": "b.csv", "file_id": "f3", "sha256": "0" * 64}]})
+        fichier = self.reponse(200, octets=contenu)
+        session = self.session(liste, fichier, mauvais, self.reponse(200, octets=contenu))
+        with mock.patch.object(appeears, "DOSSIER_APPEEARS", self.chemin):
+            chemins = appeears.telecharger_resultats(session, "t1", self.chemin / "essai")
+            self.assertEqual([c.name for c in chemins], ["a.csv"])
+            self.assertTrue((self.chemin / "registre.csv").exists())
             with self.assertRaises(ValueError):
-                appeears.telecharger_resultats("jeton", "t1", self.chemin / "essai")
+                appeears.telecharger_resultats(session, "t1", self.chemin / "essai")
         self.assertFalse((self.chemin / "essai" / "b.csv").exists())
-        self.assertEqual(appeears.DOSSIER_APPEEARS, dossier)
 
+    def test_aucune_deconnexion(self):
+        source = Path(appeears.__file__).read_text(encoding="utf-8")
+        self.assertNotIn("/logout", source)
 
 if __name__ == "__main__":
     unittest.main()

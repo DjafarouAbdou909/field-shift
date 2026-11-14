@@ -233,3 +233,32 @@ def semis_coton(identifiant: str, position: str = "milieu") -> dict[str, str]:
     date = {"debut": debut, "milieu": debut + (fin - debut) / 2, "fin": fin}[position]
     return {"coton": date.floor("D").strftime("%m-%d")}
 
+
+def variantes_duree_coton() -> dict[str, tuple[int, int, int, int]]:
+    """Stades du coton pour tester la dépendance des résultats à la durée de son cycle.
+
+    Les lignes Texas, 180 jours, et Calif. Desert, 225 jours, sont celles du tableau 11 de
+    FAO-56. La variante de 150 jours est une hypothèse sans source, aux stades
+    proportionnels à ceux de la référence de 195 jours, aucune durée propre aux variétés
+    ivoiriennes n'ayant été trouvée dans un document lu.
+    """
+    lignes = {l.region: l for l in LIGNES_FAO56["coton"]}
+    reference = duree_cycle("coton").stades()
+    proportionnels = [round(s * 150 / sum(reference)) for s in reference[:3]]
+    return {
+        "fao56_texas_180": (lignes["Texas"].initial, lignes["Texas"].developpement, lignes["Texas"].mi_saison,
+                            lignes["Texas"].fin),
+        "fao56_reference_195": reference,
+        "fao56_californie_225": (lignes["Calif. Desert, USA"].initial, lignes["Calif. Desert, USA"].developpement,
+                                 lignes["Calif. Desert, USA"].mi_saison, lignes["Calif. Desert, USA"].fin),
+        "hypothese_150": (*proportionnels, 150 - sum(proportionnels)),
+    }
+
+
+def avec_stades_coton(stades: tuple[int, int, int, int]) -> tuple[dict[str, np.ndarray], dict[str, tuple[int, int]]]:
+    """Courbes de coefficient cultural et mi-saisons des cultures comparées, le coton ayant les stades donnés."""
+    courbes, mi_saisons = courbes_kc_comparees(), mi_saisons_comparees()
+    courbes["coton"] = courbe_kc(stades, *KC_FAO56["coton"].reference())
+    mi_saisons["coton"] = (stades[0] + stades[1] + 1, stades[0] + stades[1] + stades[2])
+    return courbes, mi_saisons
+

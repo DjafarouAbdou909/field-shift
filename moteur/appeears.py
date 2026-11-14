@@ -8,7 +8,15 @@ consigné dans data/raw/appeears/registre.csv.
 
 Documentation de l'API https://appeears.earthdatacloud.nasa.gov/api/, lue le 14 novembre
 2026. Dates au format MM-DD-YYYY, jeton valable environ 48 heures.
+
+Le compte Earthdata est partagé avec un autre projet, et une nouvelle connexion peut
+invalider le jeton de celui-ci. Une SessionAppeears se connecte donc une seule fois et
+réutilise son jeton. Sur un refus 401 ou 403, elle se reconnecte une seule fois et rejoue
+la requête, puis lève l'erreur si le refus persiste. Elle ne se déconnecte jamais, une
+déconnexion pouvant elle aussi toucher l'autre projet, et le jeton expire seul.
 """
+
+import time
 
 import json
 import netrc
@@ -44,6 +52,29 @@ def entetes(jeton: str) -> dict:
     return {"Authorization": f"Bearer {jeton}"}
 
 
+class SessionAppeears:
+    """Jeton réutilisé, reconnexion unique sur un refus 401 ou 403."""
+
+    def __init__(self):
+        self.jeton = None
+        self.connexions = 0
+
+    def connecter(self) -> None:
+        self.jeton = connexion()
+        self.connexions += 1
+
+    def requete(self, methode: str, chemin: str, **options) -> requests.Response:
+        if self.jeton is None:
+            self.connecter()
+        for tentative in range(2):
+            reponse = requests.request(methode, f"{URL_API}{chemin}", headers=entetes(self.jeton), **options)
+            if reponse.status_code in (401, 403) and tentative == 0:
+                self.connecter()
+                continue
+            reponse.raise_for_status()
+            return reponse
+
+
 def grille_points(categorie: str, latitude: float, longitude: float, demi_cote: float = 0.15,
                   pas: float = 0.01) -> list[dict]:
     """Points d'une grille carrée centrée sur un point, identifiés par leur rang."""
@@ -69,29 +100,24 @@ def consigner_tache(nom: str, identifiant: str, requete: dict, journal: Path = J
     journal.write_text(json.dumps(taches, indent=1, ensure_ascii=False), encoding="utf-8")
 
 
-def soumettre(jeton: str, requete: dict, journal: Path = JOURNAL_TACHES) -> str:
+def soumettre(session: SessionAppeears, requete: dict, journal: Path = JOURNAL_TACHES) -> str:
     """Soumet une tâche, sauf si une tâche du même nom est déjà consignée, et retourne son identifiant."""
     if journal.exists():
         taches = json.loads(journal.read_text(encoding="utf-8"))
         if requete["task_name"] in taches:
             return taches[requete["task_name"]]["task_id"]
-    reponse = requests.post(f"{URL_API}/task", json=requete, headers=entetes(jeton), timeout=120)
-    reponse.raise_for_status()
-    identifiant = reponse.json()["task_id"]
+    identifiant = session.requete("POST", "/task", json=requete, timeout=120).json()["task_id"]
     consigner_tache(requete["task_name"], identifiant, requete, journal)
     return identifiant
 
 
-def etat(jeton: str, identifiant: str) -> str:
-    reponse = requests.get(f"{URL_API}/task/{identifiant}", headers=entetes(jeton), timeout=60)
-    reponse.raise_for_status()
-    return reponse.json()["status"]
+def etat(session: SessionAppeears, identifiant: str) -> str:
+    return session.requete("GET", f"/task/{identifiant}", timeout=60).json()["status"]
 
 
-def telecharger_resultats(jeton: str, identifiant: str, dossier: Path) -> list[Path]:
+def telecharger_resultats(session: SessionAppeears, identifiant: str, dossier: Path) -> list[Path]:
     """Télécharge les fichiers CSV d'une tâche terminée, vérifie leur empreinte et les consigne."""
-    liste = requests.get(f"{URL_API}/bundle/{identifiant}", headers=entetes(jeton), timeout=60)
-    liste.raise_for_status()
+    liste = session.requete("GET", f"/bundle/{identifiant}", timeout=60)
     dossier.mkdir(parents=True, exist_ok=True)
     chemins = []
     for fichier in liste.json()["files"]:
@@ -100,8 +126,8 @@ def telecharger_resultats(jeton: str, identifiant: str, dossier: Path) -> list[P
         chemin = dossier / Path(fichier["file_name"]).name
         if not chemin.exists():
             url = f"{URL_API}/bundle/{identifiant}/{fichier['file_id']}"
-            reponse = requests.get(url, headers=entetes(jeton), timeout=300, allow_redirects=True)
-            reponse.raise_for_status()
+            reponse = session.requete("GET", f"/bundle/{identifiant}/{fichier['file_id']}", timeout=300,
+                                      allow_redirects=True)
             temporaire = chemin.with_name(chemin.name + ".partiel")
             temporaire.write_bytes(reponse.content)
             if empreinte_sha256(temporaire) != fichier["sha256"]:
@@ -125,22 +151,39 @@ def taches_occupation_du_sol() -> list[dict]:
     return requetes
 
 
+def suivre(session: SessionAppeears, journal: Path = JOURNAL_TACHES) -> dict[str, str]:
+    """Affiche l'état de chaque tâche consignée et télécharge les résultats des tâches terminées."""
+    statuts = {}
+    for nom, tache in json.loads(journal.read_text(encoding="utf-8")).items():
+        statuts[nom] = etat(session, tache["task_id"])
+        print(time.strftime("%H:%M"), nom, statuts[nom], flush=True)
+        if statuts[nom] == "done":
+            for chemin in telecharger_resultats(session, tache["task_id"], DOSSIER_APPEEARS / nom):
+                print("   ", chemin.name, empreinte_sha256(chemin)[:16], flush=True)
+    return statuts
+
+
+def surveiller(intervalle: int = 900, passages: int = 16) -> None:
+    """Suit les tâches avec une seule session jusqu'à ce qu'elles soient toutes terminées."""
+    session = SessionAppeears()
+    for passage in range(passages):
+        if all(statut == "done" for statut in suivre(session).values()):
+            print("toutes les tâches sont terminées", flush=True)
+            break
+        if passage < passages - 1:
+            time.sleep(intervalle)
+    print(f"connexions ouvertes pendant la surveillance {session.connexions}", flush=True)
+
+
 def executer(action: str) -> None:
-    jeton = connexion()
-    try:
-        if action == "soumettre":
-            for requete in taches_occupation_du_sol():
-                print(requete["task_name"], soumettre(jeton, requete))
-        elif action == "suivre":
-            taches = json.loads(JOURNAL_TACHES.read_text(encoding="utf-8"))
-            for nom, tache in taches.items():
-                statut = etat(jeton, tache["task_id"])
-                print(nom, statut)
-                if statut == "done":
-                    for chemin in telecharger_resultats(jeton, tache["task_id"], DOSSIER_APPEEARS / nom):
-                        print("   ", chemin.name, empreinte_sha256(chemin)[:16])
-    finally:
-        requests.post(f"{URL_API}/logout", headers={**entetes(jeton), "Content-Length": "0"}, timeout=60)
+    if action == "soumettre":
+        session = SessionAppeears()
+        for requete in taches_occupation_du_sol():
+            print(requete["task_name"], soumettre(session, requete))
+    elif action == "suivre":
+        suivre(SessionAppeears())
+    elif action == "surveiller":
+        surveiller()
 
 
 if __name__ == "__main__":

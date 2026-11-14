@@ -4,7 +4,7 @@ import json
 
 import numpy as np
 
-from moteur.cultures import (CULTURES, KC_FAO56, LIGNES_FAO56, courbe_kc, courbes_kc_comparees, cultures_comparees,
+from moteur.cultures import (CULTURES, avec_stades_coton, variantes_duree_coton, KC_FAO56, LIGNES_FAO56, courbe_kc, courbes_kc_comparees, cultures_comparees,
                              duree_cycle, mi_saisons_comparees, semis_coton, tableau_cultures)
 from moteur.recommander import EXEMPLE
 
@@ -83,6 +83,19 @@ class TestCoefficientCultural(unittest.TestCase):
         self.assertEqual(semis_coton("bouake"), {"coton": "06-25"})
         self.assertEqual(semis_coton("bouake", "debut"), {"coton": "06-11"})
         self.assertEqual(semis_coton("bouake", "fin"), {"coton": "07-10"})
+
+    def test_variantes_de_duree_du_coton(self):
+        """Texas 30, 50, 55, 45. Calif. Desert 45, 90, 45, 45. Hypothèse 150 jours, 30, 50 et 60 fois 150/195,
+        arrondis à 23, 38 et 46, la fin complétant à 150, 43.
+        """
+        variantes = variantes_duree_coton()
+        self.assertEqual(variantes["fao56_texas_180"], (30, 50, 55, 45))
+        self.assertEqual(variantes["fao56_californie_225"], (45, 90, 45, 45))
+        self.assertEqual(variantes["hypothese_150"], (23, 38, 46, 43))
+        courbes, mi_saisons = avec_stades_coton(variantes["hypothese_150"])
+        self.assertEqual(len(courbes["coton"]), 150)
+        self.assertEqual(mi_saisons["coton"], (62, 107))
+        self.assertEqual(len(courbes["maïs"]), 125)
 
     def test_igname_et_mucuna_hors_comparaison(self):
         comparees = cultures_comparees()

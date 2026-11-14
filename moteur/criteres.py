@@ -45,9 +45,13 @@ POIDS_PAR_PRIORITE = {
 CRITERES = ("eau", "revenu", "sol")
 LEGUMINEUSES = {"niébé", "arachide", "soja"}
 CULTURES_DE_RENTE = {"coton"}
-SCENARIOS = {"reference": {"facteur_pluie": 1.0, "retard_jours": 0},
-             "pluie_moins_20_pourcent": {"facteur_pluie": 0.8, "retard_jours": 0},
-             "debut_retarde_de_14_jours": {"facteur_pluie": 1.0, "retard_jours": 14}}
+# Le coton est semé dans la fenêtre observée par le CNRA, GNAPI2025, sauf dans le scénario
+# où il est semé au début des pluies, décision du responsable du 14 novembre 2026.
+SCENARIOS = {"reference": {"facteur_pluie": 1.0, "retard_jours": 0, "semis_coton": "fenetre"},
+             "pluie_moins_20_pourcent": {"facteur_pluie": 0.8, "retard_jours": 0, "semis_coton": "fenetre"},
+             "debut_retarde_de_14_jours": {"facteur_pluie": 1.0, "retard_jours": 14, "semis_coton": "fenetre"},
+             "coton_seme_au_debut_des_pluies": {"facteur_pluie": 1.0, "retard_jours": 0,
+                                                "semis_coton": "debut_des_pluies"}}
 
 
 @dataclass(frozen=True)
@@ -176,12 +180,16 @@ def sensibilite(strategies, contextes: dict[str, Contexte], poids: Poids) -> tup
     return rangs.sort_values("reference"), not changeants, changeants
 
 
-def contextes_du_lieu(identifiant: str, semis: dict[str, str] | None = None) -> dict[str, Contexte]:
-    """Contexte de chaque scénario de sensibilité, pluie réduite ou début de saison retardé.
+def contextes_du_lieu(identifiant: str, position_semis_coton: str = "milieu",
+                      courbes: dict[str, np.ndarray] | None = None,
+                      mi_saisons: dict[str, tuple[int, int]] | None = None) -> dict[str, Contexte]:
+    """Contexte de chaque scénario de sensibilité.
 
-    semis fixe la date de semis de certaines cultures, voir indicateurs_cultures.
+    Le coton est semé au début, au milieu ou à la fin de la fenêtre observée par le CNRA
+    selon position_semis_coton, sauf dans le scénario où il est semé au début des pluies.
+    courbes et mi_saisons remplacent celles de référence, pour tester une autre durée de cycle.
     """
-    from .cultures import courbes_kc_comparees, mi_saisons_comparees
+    from .cultures import courbes_kc_comparees, mi_saisons_comparees, semis_coton
     from .donnees import altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
     from .indicateurs import evapotranspiration_serie, indicateurs_annuels, indicateurs_cultures
     from .lieux import LIEUX
@@ -191,11 +199,12 @@ def contextes_du_lieu(identifiant: str, semis: dict[str, str] | None = None) -> 
     meteo, altitude = lire_power(chemin_power), altitude_power(chemin_power)
     et0 = evapotranspiration_serie(meteo, lieu["lat"], altitude)
     pluie_reference = pluie_lieu(voisinage_imerg(lieu["lat"], lieu["lon"]))["moyenne"]
-    courbes, mi_saisons = courbes_kc_comparees(), mi_saisons_comparees()
+    courbes, mi_saisons = courbes or courbes_kc_comparees(), mi_saisons or mi_saisons_comparees()
     contextes = {}
     for nom, scenario in SCENARIOS.items():
         pluie = pluie_reference * scenario["facteur_pluie"]
         debuts = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude)["debut_jour"] + scenario["retard_jours"]
+        semis = semis_coton(identifiant, position_semis_coton) if scenario["semis_coton"] == "fenetre" else None
         contextes[nom] = Contexte(identifiant, nom, indicateurs_cultures(pluie, meteo, et0, debuts, courbes, mi_saisons,
                                                                          semis))
     return contextes
@@ -243,7 +252,7 @@ def comparer_semis(strategies, contextes_par_semis: dict[str, dict[str, Contexte
 
 
 def executer() -> None:
-    from .cultures import semis_coton
+    from .cultures import avec_stades_coton, variantes_duree_coton
     from .lieux import LIEUX
     from .rotations import STRATEGIES
 
@@ -259,17 +268,23 @@ def executer() -> None:
             rangs, stable, changeants = sensibilite(STRATEGIES, contextes, poids)
             print(rangs.to_string())
             print(f"classement stable {stable}, scénarios qui le changent {changeants}")
-        semis = {"debut_des_pluies": contextes}
+        semis = {"debut_des_pluies": {"reference": contextes["coton_seme_au_debut_des_pluies"]}}
         for position in ["debut", "milieu", "fin"]:
-            semis[f"coton_{position}_fenetre"] = contextes_du_lieu(identifiant, semis_coton(identifiant, position))
+            semis[f"coton_{position}_fenetre"] = contextes_du_lieu(identifiant, position)
         rangs, coton = comparer_semis(STRATEGIES, semis)
         print("\nRang selon la date de semis du coton, fenêtre de GNAPI2025, autres cultures au début des pluies")
         print(rangs.to_string())
         print(coton.round(3).to_string())
-        for position in ["debut", "milieu", "fin"]:
-            for priorite, poids in POIDS_PAR_PRIORITE.items():
-                _, stable, changeants = sensibilite(STRATEGIES, semis[f"coton_{position}_fenetre"], poids)
-                print(f"semis du coton {position} de fenêtre, priorité {priorite}, stable {stable}, changeants {changeants}")
+        for semis_nom, position in [("semis de référence", "milieu"), ("semis au début des pluies", None)]:
+            variantes = {}
+            for nom, stades in variantes_duree_coton().items():
+                contextes_variante = contextes_du_lieu(identifiant, "milieu", *avec_stades_coton(stades))
+                cle = "reference" if position else "coton_seme_au_debut_des_pluies"
+                variantes[nom] = {"reference": contextes_variante[cle]}
+            rangs, coton = comparer_semis(STRATEGIES, variantes)
+            print(f"\nRang selon la durée du cycle du coton, {semis_nom}")
+            print(rangs.to_string())
+            print(coton.round(3).to_string())
 
 
 if __name__ == "__main__":
