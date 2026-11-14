@@ -176,8 +176,11 @@ def sensibilite(strategies, contextes: dict[str, Contexte], poids: Poids) -> tup
     return rangs.sort_values("reference"), not changeants, changeants
 
 
-def contextes_du_lieu(identifiant: str) -> dict[str, Contexte]:
-    """Contexte de chaque scénario de sensibilité, pluie réduite ou début de saison retardé."""
+def contextes_du_lieu(identifiant: str, semis: dict[str, str] | None = None) -> dict[str, Contexte]:
+    """Contexte de chaque scénario de sensibilité, pluie réduite ou début de saison retardé.
+
+    semis fixe la date de semis de certaines cultures, voir indicateurs_cultures.
+    """
     from .cultures import courbes_kc_comparees, mi_saisons_comparees
     from .donnees import altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
     from .indicateurs import evapotranspiration_serie, indicateurs_annuels, indicateurs_cultures
@@ -193,7 +196,8 @@ def contextes_du_lieu(identifiant: str) -> dict[str, Contexte]:
     for nom, scenario in SCENARIOS.items():
         pluie = pluie_reference * scenario["facteur_pluie"]
         debuts = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude)["debut_jour"] + scenario["retard_jours"]
-        contextes[nom] = Contexte(identifiant, nom, indicateurs_cultures(pluie, meteo, et0, debuts, courbes, mi_saisons))
+        contextes[nom] = Contexte(identifiant, nom, indicateurs_cultures(pluie, meteo, et0, debuts, courbes, mi_saisons,
+                                                                         semis))
     return contextes
 
 
@@ -209,12 +213,14 @@ def tableau_evaluations(strategies, contexte: Contexte) -> pd.DataFrame:
 def parts_par_culture(contexte: Contexte) -> pd.DataFrame:
     """Pour chaque culture, part des années où la pluie couvre le besoin et part sans séquence sèche à la mi-saison."""
     cycles = contexte.cycles.dropna(subset=["pluie_moins_etc_mm"])
+    if "sequence_seche_mi_saison_jours" not in cycles:
+        cycles = cycles.assign(sequence_seche_mi_saison_jours=np.nan)
     groupes = cycles.groupby("culture", sort=False)
     return pd.DataFrame({
         "annees": groupes.size(),
         "couverture_du_besoin": groupes["pluie_moins_etc_mm"].apply(lambda s: float((s >= 0).mean())),
         "sans_secheresse_mi_saison": groupes["sequence_seche_mi_saison_jours"].apply(
-            lambda s: float((s <= SEQUENCE_SECHE_ADMISE).mean())),
+            lambda s: float((s.dropna() <= SEQUENCE_SECHE_ADMISE).mean()) if s.notna().any() else np.nan),
         "sequence_seche_mi_saison_mediane_jours": groupes["sequence_seche_mi_saison_jours"].median(),
     })
 
@@ -225,7 +231,19 @@ def tableau_scenarios(strategies, contextes: dict[str, Contexte]) -> pd.DataFram
                       for nom, contexte in contextes.items()}, axis=1)
 
 
+
+def comparer_semis(strategies, contextes_par_semis: dict[str, dict[str, Contexte]]) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Rang de chaque stratégie et indicateurs d'eau du coton selon le scénario de semis, en scénario de référence."""
+    rangs = pd.DataFrame({(priorite, semis): tableau_scores(strategies, contextes["reference"], poids)["rang"]
+                          for semis, contextes in contextes_par_semis.items()
+                          for priorite, poids in POIDS_PAR_PRIORITE.items()})
+    coton = pd.DataFrame({semis: parts_par_culture(contextes["reference"]).loc["coton"]
+                          for semis, contextes in contextes_par_semis.items()})
+    return rangs.sort_index(axis=1), coton
+
+
 def executer() -> None:
+    from .cultures import semis_coton
     from .lieux import LIEUX
     from .rotations import STRATEGIES
 
@@ -241,6 +259,17 @@ def executer() -> None:
             rangs, stable, changeants = sensibilite(STRATEGIES, contextes, poids)
             print(rangs.to_string())
             print(f"classement stable {stable}, scénarios qui le changent {changeants}")
+        semis = {"debut_des_pluies": contextes}
+        for position in ["debut", "milieu", "fin"]:
+            semis[f"coton_{position}_fenetre"] = contextes_du_lieu(identifiant, semis_coton(identifiant, position))
+        rangs, coton = comparer_semis(STRATEGIES, semis)
+        print("\nRang selon la date de semis du coton, fenêtre de GNAPI2025, autres cultures au début des pluies")
+        print(rangs.to_string())
+        print(coton.round(3).to_string())
+        for position in ["debut", "milieu", "fin"]:
+            for priorite, poids in POIDS_PAR_PRIORITE.items():
+                _, stable, changeants = sensibilite(STRATEGIES, semis[f"coton_{position}_fenetre"], poids)
+                print(f"semis du coton {position} de fenêtre, priorité {priorite}, stable {stable}, changeants {changeants}")
 
 
 if __name__ == "__main__":

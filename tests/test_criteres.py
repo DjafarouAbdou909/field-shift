@@ -4,7 +4,7 @@ import pandas as pd
 
 from moteur import criteres
 from moteur.contrat import Poids
-from moteur.criteres import (Contexte, Evaluation, evaluer, intervalle_annees, parts_par_culture, scores_criteres,
+from moteur.criteres import (Contexte, Evaluation, comparer_semis, evaluer, intervalle_annees, parts_par_culture, scores_criteres,
                              sensibilite,
                              tableau_scenarios, tableau_scores)
 from moteur.rotations import Strategie
@@ -99,6 +99,17 @@ class TestCriteres(unittest.TestCase):
         table = tableau_scenarios([COTON_MAIS], {"reference": REFERENCE, "humide": humide})
         self.assertEqual(table.loc[("coton_mais", "couverture_du_besoin"), "reference"], 0.75)
         self.assertEqual(table.loc[("coton_mais", "couverture_du_besoin"), "humide"], 1.0)
+
+    def test_comparer_semis(self):
+        """Semis au début des pluies, coton couvert 3 années sur 4. Semis tardif, coton couvert les 4 années."""
+        tardif = Contexte("essai", "reference", cycles({"coton": [1, 1, 1, 1], "maïs": [5, 5, -1, 8],
+                                                         "niébé": [1, 2, 3, 4]}))
+        rangs, coton = comparer_semis([COTON_MAIS, COTON_NIEBE_MAIS],
+                                      {"debut_des_pluies": {"reference": REFERENCE}, "tardif": {"reference": tardif}})
+        self.assertEqual(coton.loc["couverture_du_besoin", "debut_des_pluies"], 0.75)
+        self.assertEqual(coton.loc["couverture_du_besoin", "tardif"], 1.0)
+        self.assertEqual(set(rangs.columns.get_level_values(1)), {"debut_des_pluies", "tardif"})
+        self.assertTrue(pd.isna(coton.loc["sans_secheresse_mi_saison", "tardif"]))
 
     def test_scenario_qui_change_le_classement(self):
         """Poids 0,8, 0,1 et 0,1. Référence, coton puis maïs 0,8 fois 3,75 + 0,25 = 3,25, l'autre 3,667.

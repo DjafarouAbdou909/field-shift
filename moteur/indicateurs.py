@@ -206,15 +206,21 @@ def ecart_recherches(debuts_retenus: pd.Series, debuts_precoces: pd.Series) -> p
 
 def indicateurs_cultures(pluie: pd.Series, meteo: pd.DataFrame, et0: pd.Series, debuts: pd.Series,
                          courbes_kc: dict[str, np.ndarray],
-                         mi_saisons: dict[str, tuple[int, int]] | None = None) -> pd.DataFrame:
+                         mi_saisons: dict[str, tuple[int, int]] | None = None,
+                         semis: dict[str, str] | None = None) -> pd.DataFrame:
     """Indicateurs de cycle de chaque culture et de chaque année, à partir du début de saison de l'année.
 
     La durée du cycle d'une culture est la longueur de sa courbe de coefficient cultural.
+    semis associe à une culture une date fixe au format MM-JJ. Elle est alors semée à cette
+    date, ou au début de saison s'il survient plus tard, les autres cultures restant semées
+    au début de saison.
     """
     lignes = []
     for culture, kc in courbes_kc.items():
         for annee, jour in debuts.items():
             debut = pd.NaT if pd.isna(jour) else pd.Timestamp(f"{annee}-01-01") + pd.Timedelta(days=int(jour) - 1)
+            if semis and culture in semis and pd.notna(debut):
+                debut = max(debut, pd.Timestamp(f"{annee}-{semis[culture]}"))
             lignes.append({"culture": culture, "annee": annee, "duree_jours": len(kc),
                            **indicateurs_cycle(pluie, meteo["T2M_MAX"], et0, debut, len(kc), kc,
                                                (mi_saisons or {}).get(culture))})

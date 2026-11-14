@@ -33,6 +33,7 @@ développement et en fin de cycle. Aucun ajustement climatique n'est appliqué.
 from dataclasses import dataclass
 
 import numpy as np
+import pandas as pd
 
 CULTURES = [
     "coton", "maïs", "sorgho", "mil", "arachide", "niébé", "soja",
@@ -219,4 +220,16 @@ def tableau_cultures() -> list[dict]:
             "Kc ini, mid, end": tuple(round(v, 3) for v in kc.reference()) if kc else None,
         })
     return lignes
+
+
+# Fenêtres où sèment 70 % des producteurs de coton au nord du 9e parallèle et 80 % au sud,
+# selon l'enquête du CNRA, GNAPI2025, page 1575. Korhogo est au nord, Bouaké au sud.
+FENETRE_SEMIS_COTON = {"korhogo": ("06-01", "06-30"), "bouake": ("06-11", "07-10")}
+
+
+def semis_coton(identifiant: str, position: str = "milieu") -> dict[str, str]:
+    """Date de semis du coton au format MM-JJ, début, milieu arrondi au jour inférieur, ou fin de la fenêtre."""
+    debut, fin = (pd.Timestamp(f"2001-{jour}") for jour in FENETRE_SEMIS_COTON[identifiant])
+    date = {"debut": debut, "milieu": debut + (fin - debut) / 2, "fin": fin}[position]
+    return {"coton": date.floor("D").strftime("%m-%d")}
 

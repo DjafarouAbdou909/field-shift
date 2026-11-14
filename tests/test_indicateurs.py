@@ -136,6 +136,20 @@ class TestSaison(unittest.TestCase):
         with self.assertRaises(ValueError):
             indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, pd.Timestamp("2021-06-01"), 9, kc)
 
+    def test_semis_a_date_fixe(self):
+        """Début de saison le 1er juin. Semis fixé au 5 juin, cycle de 10 jours du 5 au 14 juin, pluie le 8 et le 13, 4 mm.
+
+        Semis fixé au 1er mai, avant le début de saison, repoussé au 1er juin, 26 mm comme sans date fixe.
+        """
+        et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
+        debuts = pd.Series({2021: 152.0})
+        tard = indicateurs_cultures(self.pluie, self.meteo, et0, debuts, {"coton": np.ones(10)}, semis={"coton": "06-05"})
+        self.assertEqual(tard.loc[0, "pluie_cycle_mm"], 4.0)
+        tot = indicateurs_cultures(self.pluie, self.meteo, et0, debuts, {"coton": np.ones(10)}, semis={"coton": "05-01"})
+        self.assertEqual(tot.loc[0, "pluie_cycle_mm"], 26.0)
+        autre = indicateurs_cultures(self.pluie, self.meteo, et0, debuts, {"maïs": np.ones(10)}, semis={"coton": "06-05"})
+        self.assertEqual(autre.loc[0, "pluie_cycle_mm"], 26.0)
+
     def test_troncature_par_la_date_de_recherche(self):
         """Recherche au jour 60. Écarts 0, 2, 10 et 20 jours. Un début témoin au jour 45 précède la recherche."""
         debuts = pd.Series([60, 62, 70, 80, np.nan])
