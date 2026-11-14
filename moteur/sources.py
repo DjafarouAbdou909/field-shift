@@ -8,6 +8,11 @@ SOURCES = {
     "POWER": Source(nom="NASA POWER, réanalyse MERRA-2 et rayonnement CERES SYN1deg", periode="2001 à 2025",
                     resolution="0,5 par 0,625 degré",
                     reference="https://power.larc.nasa.gov/api/temporal/daily/point"),
+    "HLS": Source(nom="NASA HLS, Harmonized Landsat and Sentinel-2, indice NDVI et masque Fmask", resolution="30 m",
+                  periode="Landsat depuis le 11 avril 2013, Sentinel-2 depuis le 28 novembre 2015",
+                  reference="Produits HLSL30_VI.020, HLSS30_VI.020, HLSL30.020 et HLSS30.020 par AppEEARS, DOI "
+                            "10.5067/HLS/HLSL30_VI.002, 10.5067/HLS/HLSS30_VI.002, 10.5067/HLS/HLSL30.002 et "
+                            "10.5067/HLS/HLSS30.002"),
     "FAO56_ET0": Source(nom="FAO-56, évapotranspiration de référence FAO Penman-Monteith",
                         reference="Allen R. G., Pereira L. S., Raes D., Smith M., 1998. FAO Irrigation and drainage "
                                   "paper 56, chapitre 2, équation 6, https://www.fao.org/4/x0490e/x0490e06.htm"),
