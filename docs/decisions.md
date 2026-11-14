@@ -54,3 +54,9 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Points cultivés.** Ce sont les pixels MCD12Q1 de classes 12 et 14 de la couche `LC_Type1` IGBP. La couche UMD n'a plus de classe 14 dans la collection 6.1, selon le guide d'utilisation du produit.
 - **Compte Earthdata.** Ouvert par le responsable, identifiants dans `~/.netrc`, jamais dans le dépôt. AppEEARS propose MCD12Q1, MOD13Q1, SMAP SPL3SMP_E et SRTMGL1 selon l'API de son catalogue, l'extraction reste à essayer.
 - **Début du hackathon.** Le 14 novembre 2026, heure non précisée. Les fichiers du squelette ont été modifiés pour la dernière fois entre 00 h 18 et 00 h 23 GMT ce jour et le premier commit date de 00 h 38. `docs/travail_anterieur.md` reste inchangé tant que l'heure manque.
+
+## 14 novembre 2026, responsable de l'équipe, CLAUDE.md, travail antérieur et références
+
+- **CLAUDE.md retiré du suivi partout.** Le retrait n'existait que sur la branche moteur. Il a été reporté sur main par le commit `cf0b8e7`, sans toucher au fichier du disque, puis bot-canal, bot-langage et presentation ont avancé jusqu'à main. Le fichier reste dans l'historique et dans la copie distante de main.
+- **Squelette déclaré comme travail antérieur.** L'heure exacte du début du hackathon n'étant pas connue, le contenu entier du premier commit `f3646cd` est déclaré par prudence dans docs/travail_anterieur.md.
+- **Cadrage sur une seule source.** Les trois articles repérés ne sont pas téléchargés. Le cadrage reste fondé sur la seule source lue, Zagbaï, Berti et Lebailly, 2006.
