@@ -2,8 +2,8 @@
 <html lang="fr" translate="no">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#6b4423">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#5b3a1e">
   <title>Conseil Rotation</title>
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="icon" href="icone.svg" type="image/svg+xml">
@@ -11,21 +11,23 @@
 </head>
 <body>
   <header>
-    <img src="icone.svg" alt="" width="36" height="36">
+    <img src="icone.svg" alt="" width="42" height="42">
     <div>
       <h1>Conseil Rotation</h1>
       <p id="etat-reseau">Vérification de la connexion</p>
     </div>
     <button id="mode-voix" type="button" aria-pressed="false" title="Activer le mode voix">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8a5 5 0 0 1 0 8M18.5 5.5a8.5 8.5 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-      Voix
+      <span>Voix</span>
     </button>
   </header>
   <div id="demarrage" hidden>
+    <div class="marque"><img src="icone.svg" alt="" width="40" height="40">Conseil Rotation</div>
     <button id="commencer-voix" type="button" aria-label="Commencer avec la voix">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8a5 5 0 0 1 0 8M18.5 5.5a8.5 8.5 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2"/></svg>
     </button>
     <p>Touchez pour commencer</p>
+    <p class="sous-titre">Je vous parle et vous lis chaque choix. Touchez ensuite le bouton de la bonne couleur.</p>
     <button id="commencer-texte" type="button">Je préfère lire</button>
   </div>
   <main id="fil" aria-live="polite"></main>

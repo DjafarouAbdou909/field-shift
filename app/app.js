@@ -18,8 +18,11 @@ const ICONES = {
   autre: '<circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/>',
   eau: '<path d="M12 2s-7 8-7 13a7 7 0 0 0 14 0c0-5-7-13-7-13z"/>',
   sol: '<path d="M2 18h20v4H2z"/><path d="M12 17V9m0 0c-4 0-6-3-6-6 4 0 6 3 6 6zm0 2c3 0 5-2 5-5-3 0-5 2-5 5z" fill="none" stroke="currentColor" stroke-width="2"/>',
-  debouche: '<circle cx="12" cy="12" r="9"/><path d="M12 6v12M9 9h5a2 2 0 0 1 0 4h-4a2 2 0 0 0 0 4h5" fill="none" stroke="var(--bouton)" stroke-width="2"/>',
-  pourquoi: '<circle cx="12" cy="12" r="10"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.7v1M12 18v.01" fill="none" stroke="var(--bouton)" stroke-width="2" stroke-linecap="round"/>',
+  debouche: '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 6v12M14.5 9H11a1.75 1.75 0 0 0 0 3.5h2a1.75 1.75 0 0 1 0 3.5H9.5"/></g>',
+  pourquoi: '<g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9.5"/><path d="M9.5 9.2a2.6 2.6 0 1 1 3.6 2.4c-.7.3-1.1.9-1.1 1.6v.8"/></g><circle cx="12" cy="17.2" r="1.3"/>',
+  photo: '<path d="M9 4.5 7.6 6.5H5A2.5 2.5 0 0 0 2.5 9v8.5A2.5 2.5 0 0 0 5 20h14a2.5 2.5 0 0 0 2.5-2.5V9A2.5 2.5 0 0 0 19 6.5h-2.6L15 4.5zM12 9a4.25 4.25 0 1 1 0 8.5A4.25 4.25 0 0 1 12 9zm0 2a2.25 2.25 0 1 0 0 4.5 2.25 2.25 0 0 0 0-4.5z" fill-rule="evenodd"/>',
+  plus: '<circle cx="5" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="19" cy="12" r="2.2"/>',
+  retour: '<path d="M10.5 5 3.5 12l7 7v-4.5c5 0 8 1.5 10 5-.5-5.5-3.5-10-10-10.5z"/>',
   climat: '<path d="M7 15a5 5 0 1 1 9.6-2H17a3.5 3.5 0 0 1 0 7H7a3.5 3.5 0 0 1 0-7z"/>',
   ecouter: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8a5 5 0 0 1 0 8M18.5 5.5a8.5 8.5 0 0 1 0 13" fill="none" stroke="currentColor" stroke-width="2"/>',
   recommencer: '<path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/>',
@@ -98,6 +101,7 @@ function preuve(parent, element) {
   const niveau = document.createElement("span");
   niveau.className = "niveau";
   niveau.textContent = NIVEAUX[element.niveau] || element.niveau;
+  niveau.dataset.niveau = element.niveau;
   bloc.append(niveau, element.texte);
   const complement = [element.detail, element.source && `Source, ${element.source}.`].filter(Boolean).join(" ");
   if (complement) {
@@ -154,7 +158,9 @@ function boutonRelire(element, texte) {
 }
 
 function dire(texte, ensuite) {
-  const saisie = bulle("…", "saisie");
+  const saisie = bulle("", "saisie");
+  saisie.setAttribute("aria-label", "L'application écrit");
+  for (let i = 0; i < 3; i++) saisie.appendChild(document.createElement("span"));
   setTimeout(() => {
     saisie.remove();
     const b = bulle(texte);
@@ -187,12 +193,22 @@ function accueil() {
   });
 }
 
+// Quatre choix au plus à la fois, pour garder la conversation visible et des annonces vocales
+// courtes. Les choix moins fréquents sont regroupés sous « Autres choix ».
+function autresChoix(retour) {
+  dire("Que voulez-vous faire ?", () => proposer([
+    ["Photo d'une feuille", photographier, "photo"],
+    ["Message vocal pour mon conseiller", enregistrer, "micro"],
+    ["Mes messages vocaux", mesNotes, "ecouter"],
+    ...(etat.priorite ? [["Le climat de ma zone", climat, "climat"], ["Recommencer", accueil, "recommencer"]] : []),
+    ["Retour", retour, "retour"],
+  ]));
+}
+
 function demanderLieu() {
   const options = [["Utiliser ma position", localiser, "position"]];
   for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
-  options.push(["Message vocal pour mon conseiller", enregistrer, "micro"]);
-  options.push(["Mes messages vocaux", mesNotes, "ecouter"]);
-  options.push(["Photo d'une feuille", photographier, "pourquoi"]);
+  options.push(["Autres choix", () => autresChoix(demanderLieu), "plus"]);
   proposer(options);
 }
 
@@ -324,13 +340,9 @@ function resultat(priorite) {
 function actionsResultat() {
   proposer([
     ["Pourquoi ?", pourquoi, "pourquoi"],
-    ["Le climat de ma zone", climat, "climat"],
     ["Écouter", ecouter, "ecouter"],
-    ["Envoyer le conseil à mon conseiller", () => partager(null), "envoyer"],
-    ["Message vocal pour mon conseiller", enregistrer, "micro"],
-    ["Mes messages vocaux", mesNotes, "ecouter"],
-    ["Photo d'une feuille", photographier, "pourquoi"],
-    ["Recommencer", accueil, "recommencer"],
+    ["Envoyer à mon conseiller", () => partager(null), "envoyer"],
+    ["Autres choix", () => autresChoix(actionsResultat), "plus"],
   ]);
 }
 
@@ -730,7 +742,7 @@ function photographier() {
   dire("De quelle plante est la feuille ?", () => proposer([
     ["Maïs", () => preparerPhoto("mais"), "coton"],
     ["Cacao", () => preparerPhoto("cacao"), "sol"],
-    ["Retour", suite, "recommencer"],
+    ["Retour", suite, "retour"],
   ]));
 }
 
@@ -745,9 +757,9 @@ async function preparerPhoto(culture) {
   cultureDiagnostic = culture;
   dire(`Prenez en photo une seule feuille de ${nom}, de près, à la lumière du jour. Vous pouvez aussi choisir une `
     + "photo déjà prise.", () => proposer([
-    ["Prendre une photo", () => choisirPhoto(true), "pourquoi"],
-    ["Choisir dans la galerie", () => choisirPhoto(false), "envoyer"],
-    ["Retour", suite, "recommencer"],
+    ["Prendre une photo", () => choisirPhoto(true), "photo"],
+    ["Choisir dans la galerie", () => choisirPhoto(false), "photo"],
+    ["Retour", suite, "retour"],
   ]));
 }
 
@@ -806,6 +818,8 @@ async function analyser(fichier) {
 function afficherReseau() {
   const photo = diagnosticManquant ? (navigator.onLine ? ". Diagnostic photo en téléchargement"
     : ", sauf le diagnostic photo") : "";
+  etatReseau.dataset.etat = !navigator.onLine ? (pretHorsLigne ? (diagnosticManquant ? "partiel" : "hors") : "attente")
+    : pretHorsLigne ? (diagnosticManquant ? "telechargement" : "pret") : "telechargement";
   if (!navigator.onLine) etatReseau.textContent = pretHorsLigne ? `Hors connexion, tout fonctionne${photo}` : "Hors connexion";
   else if (!window.isSecureContext) etatReseau.textContent = "Adresse non sécurisée, mode hors connexion impossible";
   else if (pretHorsLigne) etatReseau.textContent = `Prête à fonctionner sans connexion${photo}`;
