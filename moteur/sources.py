@@ -45,6 +45,32 @@ SOURCES = {
     "GNAPI2025": Source(nom="Gnapi et collègues, CNRA, 2025",
                         reference="Scholars Academic Journal of Biosciences 13, 12, pages 1574 à 1580, DOI "
                                   "10.36347/sajb.2025.v13i12.002"),
+    "EPPO_MSV": Source(nom="EPPO Global Database, Maize streak virus en Côte d'Ivoire",
+                       reference="https://gd.eppo.int/taxon/MSV000/distribution/CI, présent d'après une information "
+                                 "de 1993, sans détail, consulté le 14 novembre 2026"),
+    "EPPO_XANTHO": Source(nom="EPPO Global Database, Xanthomonas citri pv. malvacearum en Côte d'Ivoire",
+                          reference="https://gd.eppo.int/taxon/XANTMA/distribution/CI, présent d'après une "
+                                    "information de 1996, sans détail, consulté le 14 novembre 2026"),
+    "GEDIL2019": Source(nom="Gedil et Menkir, IITA, 2019",
+                        reference="An integrated molecular and conventional breeding scheme for enhancing genetic "
+                                  "gain in maize in Africa. Frontiers in Plant Science 10, 1430, introduction, DOI "
+                                  "10.3389/fpls.2019.01430"),
+    "SORO2024": Source(nom="Soro et collègues, Université Nangui Abrogoua, 2024",
+                       reference="Amélioration de la production du maïs en Côte d'Ivoire par l'utilisation "
+                                 "d'extraits de plantes contre les champignons pathogènes en milieu naturel. "
+                                 "International Journal of Advanced Research 12, 4, pages 1228 à 1241, pages 1232 "
+                                 "et 1240, https://zenodo.org/records/11384600"),
+    "BANKOLE2023": Source(nom="Bankole et collègues, IITA, 2023",
+                          reference="Variation in the morphology and effector profiles of Exserohilum turcicum "
+                                    "isolates associated with the Northern Corn Leaf Blight of maize in Nigeria. BMC "
+                                    "Plant Biology 23, 386, résumé, DOI 10.1186/s12870-023-04385-7"),
+    "NWANOSIKE1997": Source(nom="Nwanosike, 1997",
+                            reference="Studies on the Alternaria leaf spot of cotton induced by Alternaria "
+                                      "macrospora Zimm. Mémoire de master, Ahmadu Bello University, Zaria, Nigeria, "
+                                      "résumé, page viii"),
+    "SILVIE2024": Source(nom="Silvie et Papierok, 2024",
+                         reference="Les arthropodes du cotonnier. Éditions Quæ, ISBN 978-2-7592-4002-9, chapitre 6, "
+                                   "section Résistance aux maladies transmises par les insectes"),
 }
 
 
