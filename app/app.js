@@ -192,7 +192,7 @@ function demanderLieu() {
   for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
   options.push(["Message vocal pour mon conseiller", enregistrer, "micro"]);
   options.push(["Mes messages vocaux", mesNotes, "ecouter"]);
-  options.push(["Photo d'une feuille de maïs", photographier, "pourquoi"]);
+  options.push(["Photo d'une feuille", photographier, "pourquoi"]);
   proposer(options);
 }
 
@@ -329,7 +329,7 @@ function actionsResultat() {
     ["Envoyer le conseil à mon conseiller", () => partager(null), "envoyer"],
     ["Message vocal pour mon conseiller", enregistrer, "micro"],
     ["Mes messages vocaux", mesNotes, "ecouter"],
-    ["Photo d'une feuille de maïs", photographier, "pourquoi"],
+    ["Photo d'une feuille", photographier, "pourquoi"],
     ["Recommencer", accueil, "recommencer"],
   ]);
 }
@@ -547,11 +547,16 @@ async function verifierHorsLigne() {
   afficherReseau();
 }
 
-// Diagnostic d'une photo de feuille de maïs, sans connexion. Le modèle et son moteur
-// d'exécution sont dans app/diagnostic. Sans eux, l'option n'est pas proposée.
+// Diagnostic d'une photo de feuille, sans connexion, pour le maïs et le cacao. Chaque modèle a
+// sa fiche, lue dans app/diagnostic. Une culture dont la fiche manque n'est pas analysée.
 const DOSSIER_DIAGNOSTIC = "diagnostic/";
-let ficheDiagnostic;
-let sessionDiagnostic = null;
+const CULTURES_DIAGNOSTIC = {
+  mais: { nom: "maïs", fiche: "modele.json", modele: "modele.onnx" },
+  cacao: { nom: "cacao", fiche: "modele_cacao.json", modele: "modele_cacao.onnx" },
+};
+const fiches = {};
+const sessions = {};
+let cultureDiagnostic = null;
 const MESSAGES_DIAGNOSTIC = {
   saine: "Je ne reconnais sur cette feuille aucune des maladies que je connais. Si la plante va mal, "
     + "montrez-la à votre conseiller ANADER.",
@@ -559,22 +564,35 @@ const MESSAGES_DIAGNOSTIC = {
     + "Je ne propose aucun traitement.",
   helminthosporiose_nord: "Maladie possible, l'helminthosporiose du maïs. À faire confirmer par votre "
     + "conseiller ANADER. Je ne propose aucun traitement.",
-  pas_de_feuille: "Je ne vois pas de feuille sur cette photo. Prenez en photo une seule feuille de maïs, de près, "
-    + "à la lumière du jour.",
-  inconnu: "Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille de maïs, à la "
-    + "lumière du jour, ou montrez la plante à votre conseiller ANADER.",
+  swollen_shoot: "Maladie possible, le swollen shoot du cacaoyer. À faire confirmer par votre conseiller ANADER. "
+    + "Je ne propose aucun traitement.",
 };
 
-async function chargerFicheDiagnostic() {
-  if (ficheDiagnostic !== undefined) return ficheDiagnostic;
+function messageSansFeuille(nom) {
+  return `Je ne vois pas de feuille sur cette photo. Prenez en photo une seule feuille de ${nom}, de près, `
+    + "à la lumière du jour.";
+}
+
+function messageInconnu(nom) {
+  return `Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille de ${nom}, à la `
+    + "lumière du jour, ou montrez la plante à votre conseiller ANADER.";
+}
+
+async function chargerFiche(culture) {
+  if (fiches[culture]) return fiches[culture];
   try {
-    const enCache = window.caches ? await caches.match(DOSSIER_DIAGNOSTIC + "modele.json") : null;
-    const reponse = enCache || await fetch(DOSSIER_DIAGNOSTIC + "modele.json");
-    ficheDiagnostic = reponse.ok ? await reponse.json() : null;
+    const adresse = DOSSIER_DIAGNOSTIC + CULTURES_DIAGNOSTIC[culture].fiche;
+    const enCache = window.caches ? await caches.match(adresse) : null;
+    const reponse = enCache || await fetch(adresse);
+    fiches[culture] = reponse.ok ? await reponse.json() : null;
   } catch (e) {
-    ficheDiagnostic = null;
+    fiches[culture] = null;
   }
-  return ficheDiagnostic;
+  return fiches[culture];
+}
+
+async function chargerFiches() {
+  await Promise.all(Object.keys(CULTURES_DIAGNOSTIC).map(chargerFiche));
 }
 
 function chargerScript(adresse) {
@@ -587,14 +605,14 @@ function chargerScript(adresse) {
   });
 }
 
-async function session() {
-  if (sessionDiagnostic) return sessionDiagnostic;
+async function session(culture) {
+  if (sessions[culture]) return sessions[culture];
   if (!window.ort) await chargerScript(DOSSIER_DIAGNOSTIC + "ort.wasm.min.js");
   ort.env.wasm.wasmPaths = new URL(DOSSIER_DIAGNOSTIC, location.href).href;
   ort.env.wasm.numThreads = 1;
-  sessionDiagnostic = await ort.InferenceSession.create(DOSSIER_DIAGNOSTIC + "modele.onnx",
+  sessions[culture] = await ort.InferenceSession.create(DOSSIER_DIAGNOSTIC + CULTURES_DIAGNOSTIC[culture].modele,
     { executionProviders: ["wasm"] });
-  return sessionDiagnostic;
+  return sessions[culture];
 }
 
 // Le modèle n'a appris que sur des feuilles et peut se tromper avec assurance sur autre chose,
@@ -636,6 +654,20 @@ function detailFiabilite(fiche, classe) {
   const f = fiche.fiabilite || {};
   const sur100 = (x) => Math.round(100 * x);
   const lignes = [];
+  if (fiche.culture === "cacao") {
+    const test = f[`test_ivoirien_${classe}`];
+    if (test && test.precision !== null) {
+      lignes.push(`Testé sur ${test.images} photos de feuilles prises en Côte d'Ivoire, que je n'ai pas vues en `
+        + `apprenant. Quand je donne cette réponse, j'ai raison ${sur100(test.precision)} fois sur 100.`);
+    }
+    if (classe === "swollen_shoot" && f.hors_liste_anthracnose) {
+      lignes.push(`Je prends l'anthracnose pour le swollen shoot ${sur100(f.hors_liste_anthracnose.part_swollen_shoot)} `
+        + "fois sur 100.");
+    }
+    lignes.push(`Appris sur des photos du Ghana, testé sur des photos ivoiriennes. ${fiche.attribution || ""}. `
+      + "Ce diagnostic ne vient pas de la NASA.");
+    return lignes.join(" ");
+  }
   if (classe === "striure" && f.test_independant_striure) {
     lignes.push(`Testé sur ${f.test_independant_striure.images} photos du Ghana, un pays que je n'ai pas vu en apprenant. `
       + `Quand je dis striure, j'ai raison ${sur100(f.test_independant_striure.precision)} fois sur 100.`);
@@ -657,14 +689,24 @@ function detailFiabilite(fiche, classe) {
   return lignes.join(" ");
 }
 
-async function photographier() {
-  const fiche = ficheDiagnostic || (ficheDiagnostic = undefined, await chargerFicheDiagnostic());
+function photographier() {
+  dire("De quelle plante est la feuille ?", () => proposer([
+    ["Maïs", () => preparerPhoto("mais"), "coton"],
+    ["Cacao", () => preparerPhoto("cacao"), "sol"],
+    ["Retour", suite, "recommencer"],
+  ]));
+}
+
+async function preparerPhoto(culture) {
+  const fiche = await chargerFiche(culture);
+  const nom = CULTURES_DIAGNOSTIC[culture].nom;
   if (!fiche) {
-    dire("Le diagnostic n'est pas encore installé sur ce téléphone. Ouvrez l'application une fois avec une "
-      + "connexion pour le recevoir.", suite);
+    dire(`Le diagnostic du ${nom} n'est pas encore installé sur ce téléphone. Ouvrez l'application une fois avec `
+      + "une connexion pour le recevoir.", suite);
     return;
   }
-  dire("Prenez en photo une seule feuille de maïs, de près, à la lumière du jour. Vous pouvez aussi choisir une "
+  cultureDiagnostic = culture;
+  dire(`Prenez en photo une seule feuille de ${nom}, de près, à la lumière du jour. Vous pouvez aussi choisir une `
     + "photo déjà prise.", () => proposer([
     ["Prendre une photo", () => choisirPhoto(true), "pourquoi"],
     ["Choisir dans la galerie", () => choisirPhoto(false), "envoyer"],
@@ -689,17 +731,19 @@ function choisirPhoto(appareil) {
 }
 
 async function analyser(fichier) {
-  const fiche = await chargerFicheDiagnostic();
-  const image = await createImageBitmap(fichier);
+  const culture = cultureDiagnostic;
+  const fiche = await chargerFiche(culture);
+  const nom = CULTURES_DIAGNOSTIC[culture].nom;
+  const image = await createImageBitmap(fichier, { imageOrientation: "from-image" });
   const apercu = document.createElement("img");
   apercu.src = URL.createObjectURL(fichier);
   apercu.alt = "Photo envoyée";
   apercu.className = "photo";
   bulle("", "agri").appendChild(apercu);
   try {
-    const modele = await session();
+    const modele = await session(culture);
     const entree = tenseurImage(image, fiche);
-    if (!entree) { dire(MESSAGES_DIAGNOSTIC.pas_de_feuille, suite); return; }
+    if (!entree) { dire(messageSansFeuille(nom), suite); return; }
     const sortie = (await modele.run({ [modele.inputNames[0]]: entree }))[modele.outputNames[0]].data;
     const maximum = Math.max(...sortie);
     const exp = Array.from(sortie, (v) => Math.exp(v - maximum));
@@ -707,7 +751,7 @@ async function analyser(fichier) {
     const probabilites = exp.map((v) => v / somme);
     const meilleure = probabilites.indexOf(Math.max(...probabilites));
     const classe = probabilites[meilleure] >= fiche.seuil ? fiche.classes[meilleure] : "inconnu";
-    dire(MESSAGES_DIAGNOSTIC[classe] || MESSAGES_DIAGNOSTIC.inconnu, (b) => {
+    dire(MESSAGES_DIAGNOSTIC[classe] || messageInconnu(nom), (b) => {
       const detail = document.createElement("div");
       detail.className = "discret";
       detail.textContent = detailFiabilite(fiche, classe);
@@ -759,7 +803,7 @@ async function demarrer() {
     bulle("Les données ne sont pas encore installées. Ouvrez l'application une première fois avec une connexion.");
     return;
   }
-  await chargerFicheDiagnostic();
+  await chargerFiches();
   ecranDemarrage();
 }
 
