@@ -174,6 +174,47 @@ def troncature_debut(debuts: pd.Series, debuts_temoin: pd.Series, regle: RegleSa
     })
 
 
+def ecart_recherches(debuts_retenus: pd.Series, debuts_precoces: pd.Series) -> pd.Series:
+    """Compare année par année deux dates de recherche du début, en jours de l'année."""
+    communs = pd.concat({"retenu": debuts_retenus, "precoce": debuts_precoces}, axis=1).dropna()
+    ecart = communs["retenu"] - communs["precoce"]
+    return pd.Series({
+        "annees": len(ecart),
+        "annees_differentes": int((ecart != 0).sum()),
+        "mediane_retenue": communs["retenu"].median(),
+        "mediane_precoce": communs["precoce"].median(),
+        "ecart_moyen_jours": ecart.mean(),
+        "ecart_median_jours": ecart.median(),
+        "ecart_max_jours": ecart.max(),
+    })
+
+
+def indicateurs_cultures(pluie: pd.Series, meteo: pd.DataFrame, et0: pd.Series, debuts: pd.Series,
+                         durees: dict[str, int]) -> pd.DataFrame:
+    """Indicateurs de cycle de chaque culture et de chaque année, à partir du début de saison de l'année."""
+    lignes = []
+    for culture, duree in durees.items():
+        for annee, jour in debuts.items():
+            debut = pd.NaT if pd.isna(jour) else pd.Timestamp(f"{annee}-01-01") + pd.Timedelta(days=int(jour) - 1)
+            lignes.append({"culture": culture, "annee": annee, "duree_jours": duree,
+                           **indicateurs_cycle(pluie, meteo["T2M_MAX"], et0, debut, duree)})
+    return pd.DataFrame(lignes)
+
+
+def resume_cultures(table: pd.DataFrame) -> pd.DataFrame:
+    """Médiane et quantiles 10 et 90 % entre années des indicateurs de cycle, par culture."""
+    colonnes = ["pluie_cycle_mm", "bilan_cycle_mm", "tmax_moyenne_cycle", "sequence_seche_cycle_jours"]
+    groupes = table.groupby("culture", sort=False)
+    resume = pd.concat({
+        "duree": groupes["duree_jours"].first(),
+        "annees": groupes["pluie_cycle_mm"].count(),
+        **{f"{c} mediane": groupes[c].median() for c in colonnes},
+        **{f"{c} q10": groupes[c].quantile(0.1) for c in colonnes},
+        **{f"{c} q90": groupes[c].quantile(0.9) for c in colonnes},
+    }, axis=1)
+    return resume.round(1)
+
+
 def pente_theil_sen(annees: np.ndarray, valeurs: np.ndarray) -> float:
     """Médiane des pentes entre toutes les paires d'années, par an."""
     pentes = [(valeurs[j] - valeurs[i]) / (annees[j] - annees[i])
@@ -211,13 +252,14 @@ def resume_interannuel(table: pd.DataFrame) -> pd.DataFrame:
 
 def executer() -> None:
     from .donnees import DOSSIER_POWER, RACINE, altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
+    from .cultures import CULTURES, duree_cycle
     from .lieux import LIEUX
 
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 20)
     sortie = RACINE / "data" / "processed"
     sortie.mkdir(parents=True, exist_ok=True)
-    regle, temoin = RegleSaison(), RegleSaison(recherche_debut="01-01")
+    regle, temoin, fevrier = RegleSaison(), RegleSaison(recherche_debut="01-01"), RegleSaison(recherche_debut="02-01")
     for identifiant, lieu in LIEUX.items():
         chemin_power = telecharger_point(lieu["lat"], lieu["lon"], "power", DOSSIER_POWER)
         meteo, altitude = lire_power(chemin_power), altitude_power(chemin_power)
@@ -231,6 +273,18 @@ def executer() -> None:
         print(troncature_debut(table["debut_jour"], debuts_temoin, regle).to_string())
         print("jours de début, recherche du 1er mars", sorted(table["debut_jour"].dropna().astype(int).tolist()))
         print("jours de début, recherche témoin", sorted(debuts_temoin.dropna().astype(int).tolist()))
+        debuts_fevrier = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude, fevrier)["debut_jour"]
+        print("\nRecherche du 1er mars comparée à une recherche du 1er février, jours de l'année")
+        print(ecart_recherches(table["debut_jour"], debuts_fevrier).to_string())
+        print("début par année, 1er mars puis 1er février", {a: (int(table["debut_jour"][a]), int(debuts_fevrier[a]))
+                                                             for a in table.index if table["debut_jour"][a] != debuts_fevrier[a]})
+        durees = {c: d.jours for c in CULTURES if (d := duree_cycle(c)).jours is not None}
+        cycles = indicateurs_cultures(pluie, meteo, evapotranspiration_serie(meteo, lieu["lat"], altitude),
+                                      table["debut_jour"], durees)
+        cycles.to_csv(sortie / f"cycles_{identifiant}.csv", index=False, float_format="%.3f")
+        print("\nIndicateurs sur le cycle de chaque culture, durée de référence FAO-56, début du 1er mars")
+        print(resume_cultures(cycles).to_string())
+        print("cultures sans durée sourcée", [c for c in CULTURES if c not in durees])
 
 
 if __name__ == "__main__":

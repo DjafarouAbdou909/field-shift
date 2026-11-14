@@ -22,3 +22,4 @@ Toute valeur affichée par l'outil renvoie à une ligne de ce registre. Une lign
 
 | Code | Affirmation | Référence complète | Page ou tableau |
 |---|---|---|---|
+| FAO56_T11 | Durée des stades et durée totale du cycle du coton, du maïs, du sorgho, du mil, de l'arachide, du niébé, du soja et du riz | Allen R. G., Pereira L. S., Raes D., Smith M., 1998. Crop evapotranspiration, Guidelines for computing crop water requirements. FAO Irrigation and drainage paper 56, FAO, Rome, ISBN 92-5-104219-5, https://www.fao.org/4/x0490e/x0490e0b.htm, consulté le 14 novembre 2026 | Chapitre 6, tableau 11, lignes recopiées dans moteur/cultures.py |

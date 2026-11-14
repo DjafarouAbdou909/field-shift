@@ -97,10 +97,53 @@ Une recherche témoin à partir du 1er janvier montre ce que le 1er mars ne voit
 - **Korhogo n'est pas tronqué.** Aucun début ne tombe dans les 14 jours suivant le 1er mars, le plus précoce étant le jour 83, soit le 24 mars. La recherche témoin ne trouve qu'une année sur 25 où la saison commence avant le 1er mars, au jour 52, soit le 21 février.
 - **Bouaké est tronqué.** 6 débuts sur 25 tombent dans les 7 jours suivant le 1er mars, dont 2 le 1er mars même, et 5 entre le 7e et le 13e jour. La recherche témoin trouve 11 années sur 25 où la saison commence avant le 1er mars, la plus précoce au jour 17, soit le 17 janvier. Le début de saison de Bouaké est donc retardé artificiellement près d'une année sur deux, et sa date médiane du 17 mars est trop tardive d'une quantité que la recherche témoin ne permet pas de fixer, puisque ses débuts de janvier et de février peuvent être de simples orages de saison sèche.
 
+### Recherche du 1er février à Bouaké
+
+À la demande du responsable, le début est aussi cherché à partir du 1er février. À Bouaké, 10 années sur 25 changent, la médiane passe du jour 76 au jour 70, soit du 17 au 11 mars, et l'écart moyen est de 8,6 jours. L'écart le plus grand, 83 jours, touche 2003, où la recherche du 1er mars ne trouve un début que le 9 mai, au jour 129, contre le 15 février, au jour 46, pour celle du 1er février. À Korhogo, seule l'année 2018 change, du jour 108 au jour 52. Le 1er mars reste la règle retenue, et cet écart mesure ce qu'elle retire à Bouaké.
+
+### Durée du cycle des cultures
+
+Elle vient du tableau 11 du chapitre 6 du bulletin FAO-56, Allen, Pereira, Raes et Smith, 1998, lu le 14 novembre 2026 dans sa version HTML, https://www.fao.org/4/x0490e/x0490e0b.htm. Chaque ligne est recopiée dans `moteur/cultures.py`. La ligne de référence est choisie dans l'ordre parmi les lignes d'Afrique de l'Ouest, des tropiques, puis du reste de l'Afrique, et sinon parmi toutes, avec la médiane des totaux si plusieurs restent. La plage couvre toutes les lignes de la culture.
+
+| Culture | Durée de référence, jours | Plage du tableau | Ligne ou lignes du tableau 11 |
+|---|---|---|---|
+| Coton | 195 | 180 à 225 | Cotton, 30, 50, 60, 55, total 195, Mar-May, Egypt; Pakistan; Calif. |
+| Maïs | 125 | 125 à 180 | Maize grain, 20, 35, 40, 30, total 125, June, Nigeria humid |
+| Sorgho | 135 | 130 à 140 | Médiane de Sorghum, total 130, May/June, USA, Pakis., Med., et Sorghum, total 140, Mar/April, Arid Region |
+| Mil | 123 | 105 à 140 | Médiane de Millet, total 105, June, Pakistan, et Millet, total 140, April, Central USA |
+| Arachide | 130 | 130 à 140 | Groundnut, 25, 35, 45, 25, total 130, Dry, West Africa |
+| Niébé | 110 | 110 | Green gram, cowpeas, 20, 30, 30, 20, total 110, March, Mediterranean |
+| Soja | 85 | 85 à 150 | Soybeans, 15, 15, 40, 15, total 85, Dec, Tropics |
+| Riz pluvial | 165 | 150 à 180 | Médiane de Rice, total 150, Dec; May, Tropics; Mediterranean, et Rice, total 180, May, Tropics |
+| Igname | Hypothèse, sans valeur | Sans objet | Absente du tableau 11 |
+| Mucuna | Hypothèse, sans valeur | Sans objet | Absent du tableau 11 |
+
+Trois anomalies du tableau sont signalées. Les stades imprimés somment à 125 et 130 jours pour les deux lignes du sorgho, dont les totaux imprimés sont 130 et 140, et à 100 jours pour le niébé, au total imprimé de 110. Le total imprimé fait foi. Dans la version HTML, la date de semis de la ligne West Africa de l'arachide est imprimée Dry, le mot season passant à la ligne suivante, si bien que la période de semis de cette ligne reste incertaine.
+
+### Indicateurs sur le cycle des cultures
+
+Pour chaque année, chaque culture commence au début de saison de l'année et dure sa durée de référence. Les médianes entre années sont les suivantes, les quantiles 10 et 90 % figurant dans la sortie de la commande et dans `data/processed/cycles_<lieu>.csv`.
+
+| Culture | Pluie du cycle, mm, Korhogo puis Bouaké | Pluie moins évapotranspiration de référence, mm | Température maximale moyenne, °C | Plus longue séquence sèche, jours |
+|---|---|---|---|---|
+| Coton | 1 074 et 802 | 197 et 57 | 31,7 et 30,1 | 8 et 11 |
+| Maïs | 637 et 525 | 3 et 8 | 32,6 et 30,7 | 7 et 9 |
+| Sorgho | 700 et 570 | 45 et 24 | 32,4 et 30,5 | 7 et 10 |
+| Mil | 615 et 515 | 6 et 5 | 32,6 et 30,7 | 7 et 9 |
+| Arachide | 671 et 562 | 20 et -2 | 32,5 et 30,6 | 7 et 9 |
+| Niébé | 518 et 468 | -55 et -4 | 32,9 et 31,0 | 7 et 8 |
+| Soja | 360 et 366 | -93 et -7 | 33,9 et 31,5 | 7 et 7 |
+| Riz pluvial | 935 et 683 | 186 et 4 | 31,8 et 30,2 | 7 et 11 |
+
+Ces indicateurs décrivent le climat que traverse chaque cycle, pas la réponse de la culture. Ils ne disent pas encore que le mil ou le sorgho tolèrent mieux la sécheresse que le maïs, ce que la phase 4 devra tirer d'une source agronomique.
+
 ### Limites
 
 - **Une seule saison à Bouaké.** Bouaké a deux saisons des pluies, ce que montre le creux de juillet de la phase 2, et seule la première est traitée.
 - **Début de Bouaké tronqué** près d'une année sur deux, comme décrit ci-dessus.
+- **Durées générales.** Les durées du tableau 11 de FAO-56 sont générales et ne sont pas propres aux variétés ivoiriennes. Aucune ligne ne décrit la Côte d'Ivoire, une seule l'Afrique de l'Ouest pour l'arachide, une le Nigeria pour le maïs, et le tableau ne distingue pas le riz pluvial du riz irrigué. Elles portent donc le niveau `hypothese`, même avec leur source.
+- **Igname et mucuna sans durée.** Absents du tableau 11, ils n'ont aucune durée et ne peuvent pas encore être comparés.
+- **Évapotranspiration de référence et non besoin de la culture.** Le bilan du cycle retranche l'évapotranspiration d'un gazon de référence, pas celle de chaque culture, qui demande les coefficients culturaux de FAO-56.
 
 ### Choix écartés et leur raison
 

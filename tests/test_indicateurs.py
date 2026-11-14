@@ -3,8 +3,10 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from moteur.indicateurs import (RegleSaison, debut_saison, evapotranspiration_reference, evapotranspiration_serie,
-                                indicateurs_annuels, indicateurs_cycle, mann_kendall, pente_theil_sen,
+from moteur.indicateurs import (RegleSaison, debut_saison, ecart_recherches, evapotranspiration_reference,
+                                evapotranspiration_serie,
+                                indicateurs_annuels, indicateurs_cultures, indicateurs_cycle, mann_kendall,
+                                pente_theil_sen,
                                 plus_longue_sequence_seche, pression_saturante, rayonnement_extraterrestre,
                                 troncature_debut)
 
@@ -94,6 +96,16 @@ class TestSaison(unittest.TestCase):
             cycle = indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, debut, 20)
             self.assertTrue(all(np.isnan(v) for v in cycle.values()))
 
+    def test_indicateurs_par_culture_et_par_annee(self):
+        """2021 commence au jour 152, le 1er juin, et donne 26 mm sur 10 jours. 2022 sans début reste manquante."""
+        et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
+        table = indicateurs_cultures(self.pluie, self.meteo, et0, pd.Series({2021: 152.0, 2022: np.nan}),
+                                     {"essai": 10})
+        self.assertEqual(list(table["annee"]), [2021, 2022])
+        self.assertEqual(table.loc[0, "pluie_cycle_mm"], 26.0)
+        self.assertEqual(table.loc[0, "duree_jours"], 10)
+        self.assertTrue(np.isnan(table.loc[1, "pluie_cycle_mm"]))
+
     def test_troncature_par_la_date_de_recherche(self):
         """Recherche au jour 60. Écarts 0, 2, 10 et 20 jours. Un début témoin au jour 45 précède la recherche."""
         debuts = pd.Series([60, 62, 70, 80, np.nan])
@@ -104,6 +116,19 @@ class TestSaison(unittest.TestCase):
         self.assertEqual(resume["debut_dans_les_7_jours"], 2)
         self.assertEqual(resume["debut_entre_7_et_13_jours"], 1)
         self.assertEqual(resume["debut_temoin_avant_la_recherche"], 1)
+
+
+class TestRecherches(unittest.TestCase):
+    def test_ecart_entre_deux_recherches(self):
+        """Années 60 et 40, 70 et 70, 80 et 50, la dernière sans début précoce. Écarts 20, 0 et 30 jours."""
+        resume = ecart_recherches(pd.Series([60.0, 70.0, 80.0, 90.0]), pd.Series([40.0, 70.0, 50.0, np.nan]))
+        self.assertEqual(resume["annees"], 3)
+        self.assertEqual(resume["annees_differentes"], 2)
+        self.assertEqual(resume["mediane_retenue"], 70.0)
+        self.assertEqual(resume["mediane_precoce"], 50.0)
+        self.assertAlmostEqual(resume["ecart_moyen_jours"], 50 / 3)
+        self.assertEqual(resume["ecart_median_jours"], 20.0)
+        self.assertEqual(resume["ecart_max_jours"], 30.0)
 
 
 class TestTendance(unittest.TestCase):
