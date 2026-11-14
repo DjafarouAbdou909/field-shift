@@ -117,6 +117,14 @@ class TestSaison(unittest.TestCase):
         self.assertEqual(resume.loc["essai", "pluie_moins_etc_mm mediane"], 20.0)
         self.assertEqual(resume.loc["essai", "annees"], 3)
 
+    def test_sequence_seche_de_mi_saison(self):
+        """Cycle du 1er au 10 juin, mi-saison jours 3 à 8, soit du 3 au 8 juin. Pluie le 3 et le 8, sèche du 4 au 7, 4 jours."""
+        et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
+        cycle = indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, pd.Timestamp("2021-06-01"), 10, None, (3, 8))
+        self.assertEqual(cycle["sequence_seche_mi_saison_jours"], 4)
+        sans = indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, pd.Timestamp("2021-06-01"), 10)
+        self.assertTrue(np.isnan(sans["sequence_seche_mi_saison_jours"]))
+
     def test_besoin_en_eau_avec_coefficient(self):
         """Kc de 1 les cinq premiers jours puis 2, besoin égal à ET0 des jours 1 à 5 plus deux fois ET0 des jours 6 à 10."""
         et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)

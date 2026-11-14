@@ -5,7 +5,7 @@ import json
 import numpy as np
 
 from moteur.cultures import (CULTURES, KC_FAO56, LIGNES_FAO56, courbe_kc, courbes_kc_comparees, cultures_comparees,
-                             duree_cycle, tableau_cultures)
+                             duree_cycle, mi_saisons_comparees, tableau_cultures)
 from moteur.recommander import EXEMPLE
 
 
@@ -70,6 +70,12 @@ class TestCoefficientCultural(unittest.TestCase):
         self.assertEqual(tableau["mil"]["durée"], 105)
         self.assertEqual(tableau["mil"]["ligne du tableau 11"], "Pakistan")
         self.assertIsNone(tableau["igname"]["durée"])
+
+    def test_mi_saison_d_apres_les_stades(self):
+        """Coton 30, 50, 60 et 55 jours, mi-saison du jour 81 au jour 140. Niébé 20, 30, 30 et 30, du jour 51 au jour 80."""
+        mi_saisons = mi_saisons_comparees()
+        self.assertEqual(mi_saisons["coton"], (81, 140))
+        self.assertEqual(mi_saisons["niébé"], (51, 80))
 
     def test_igname_et_mucuna_hors_comparaison(self):
         comparees = cultures_comparees()

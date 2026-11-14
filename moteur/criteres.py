@@ -10,19 +10,23 @@ de ses indicateurs disponibles. Un indicateur tiré de SMAP ou de MODIS s'ajoute
 écrivant sa fonction et en l'inscrivant dans INDICATEURS, sans toucher au reste, et ses
 données passent par le champ surfaces du Contexte.
 
-Règles de départ, toutes à valider par l'équipe.
-    eau, couverture du besoin, part des années où la pluie du cycle couvre le besoin en
-        eau de la culture, moyenne sur les cultures de la rotation, score 5 fois cette
-        part, niveau calcule
-    eau, besoin en eau, besoin moyen par saison des cultures de la rotation, placé entre
-        la culture comparée la plus économe, score 5, et la plus exigeante, score 0, au
-        même lieu et dans le même scénario, niveau calcule
-    sol, part de légumineuses, part des années de la rotation en légumineuse, score 5
-        fois cette part, niveau hypothese, appuyée sur YUSUF2009 et CATTAN2001
-    revenu, part de culture de rente, part des années en coton, seule culture comparée
-        à débouché organisé selon GUENOT2014, score 5 fois cette part, niveau hypothese.
-        C'est un indicateur qualitatif de l'accès au marché, pas un revenu, faute de
-        prix sourcés pour chaque culture.
+Règles validées comme approximations par le responsable le 14 novembre 2026, nommées par
+ce qu'elles mesurent. Les clés eau, revenu et sol du contrat restent inchangées.
+    eau, couverture du besoin, pour chaque culture et chaque année, la pluie IMERG du
+        cycle couvre-t-elle son besoin en eau, coefficient cultural FAO-56 fois
+        évapotranspiration de référence depuis le début des pluies. La part des années
+        couvertes, moyenne sur les cultures de la rotation, donne le score, 5 fois cette
+        part, et le rééchantillonnage des années son intervalle à 90 %. Niveau calcule.
+    eau, séquences sèches à la mi-saison, part des années sans séquence sèche de plus de
+        7 jours pendant le stade de mi-saison, le plus sensible au manque d'eau selon les
+        chapitres 5 et 8 de FAO-56. Le seuil de 7 jours est celui du début de saison.
+        Score 5 fois cette part, intervalle par rééchantillonnage, niveau calcule.
+    revenu, libellé accès à un débouché organisé, part des années en coton, principale
+        ressource économique des zones de savane selon ZAGBAI2006, page 325, score 5 fois
+        cette part, niveau hypothese. Cet indicateur pénalise mécaniquement toute rotation
+        qui réduit le coton, et ne mesure pas un revenu, faute de prix sourcés.
+    sol, libellé apport d'azote par les légumineuses, part des années de la rotation en
+        légumineuse, score 5 fois cette part, niveau hypothese, appuyée sur YUSUF2009.
 """
 
 from collections.abc import Callable
@@ -68,54 +72,72 @@ class Contexte:
     surfaces: dict = field(default_factory=dict)
 
 
-def couverture_du_besoin(strategie, contexte: Contexte) -> Evaluation | None:
-    parts = {}
-    for culture in strategie.cultures:
-        ecarts = contexte.cycles.loc[contexte.cycles["culture"] == culture, "pluie_moins_etc_mm"].dropna()
-        if ecarts.empty:
-            return None
-        parts[culture] = float((ecarts >= 0).mean())
-    part = float(np.mean(list(parts.values())))
-    return Evaluation("eau", "couverture_du_besoin",
-                      f"La pluie du cycle couvre le besoin en eau {part:.0%} des années, en moyenne sur les cultures "
-                      "de la rotation.", part, "part des années", 5 * part, "calcule",
-                      "FAO56_T11_T12, IMERG, POWER", min(parts.values()), max(parts.values()))
+SEQUENCE_SECHE_ADMISE = 7
+TIRAGES, GRAINE = 2000, 2026
 
 
-def besoin_en_eau(strategie, contexte: Contexte) -> Evaluation | None:
-    besoins = contexte.cycles.groupby("culture")["etc_cycle_mm"].median()
-    if not set(strategie.cultures) <= set(besoins.index):
+def intervalle_annees(valeurs: pd.Series, tirages: int = TIRAGES, graine: int = GRAINE) -> tuple[float, float]:
+    """Intervalle à 90 % de la moyenne d'une valeur annuelle, par rééchantillonnage des années avec remise."""
+    generateur = np.random.default_rng(graine)
+    tableau = valeurs.to_numpy(dtype=float)
+    moyennes = generateur.choice(tableau, size=(tirages, len(tableau)), replace=True).mean(axis=1)
+    return float(np.quantile(moyennes, 0.05)), float(np.quantile(moyennes, 0.95))
+
+
+def part_annuelle(strategie, contexte: Contexte, condition: Callable[[pd.DataFrame], pd.Series]) -> pd.Series | None:
+    """Pour chaque année où toutes les cultures ont un cycle, part des cultures de la rotation qui remplissent la condition."""
+    lignes = contexte.cycles[contexte.cycles["culture"].isin(strategie.cultures)].dropna(subset=["pluie_moins_etc_mm"])
+    if not set(strategie.cultures) <= set(lignes["culture"]):
         return None
-    besoin = float(besoins[list(strategie.cultures)].mean())
-    plus_econome, plus_exigeante = float(besoins.min()), float(besoins.max())
-    score = 5 * (plus_exigeante - besoin) / (plus_exigeante - plus_econome)
-    return Evaluation("eau", "besoin_en_eau",
-                      f"Les cultures de la rotation demandent {besoin:.0f} mm d'eau par saison en médiane, entre "
-                      f"{plus_econome:.0f} mm pour la culture comparée la plus économe et {plus_exigeante:.0f} mm "
-                      "pour la plus exigeante.", besoin, "mm par saison", score, "calcule", "FAO56_T11_T12, POWER",
-                      float(besoins[list(strategie.cultures)].min()), float(besoins[list(strategie.cultures)].max()))
+    remplie = condition(lignes).astype(float).groupby(lignes["annee"]).agg(["mean", "size"])
+    return remplie.loc[remplie["size"] == len(set(strategie.cultures)), "mean"]
 
 
-def part_de_legumineuses(strategie, contexte: Contexte) -> Evaluation:
+def couverture_du_besoin(strategie, contexte: Contexte) -> Evaluation | None:
+    parts = part_annuelle(strategie, contexte, lambda l: l["pluie_moins_etc_mm"] >= 0)
+    if parts is None:
+        return None
+    part, (bas, haut) = float(parts.mean()), intervalle_annees(parts)
+    return Evaluation("eau", "couverture_du_besoin",
+                      f"La pluie du cycle couvre le besoin en eau des cultures {part:.0%} des années, de {bas:.0%} à "
+                      f"{haut:.0%} selon le rééchantillonnage des années.", part, "part des années", 5 * part,
+                      "calcule", "FAO56_T11_T12, IMERG, POWER", bas, haut)
+
+
+def secheresse_mi_saison(strategie, contexte: Contexte) -> Evaluation | None:
+    if "sequence_seche_mi_saison_jours" not in contexte.cycles or contexte.cycles["sequence_seche_mi_saison_jours"].isna().all():
+        return None
+    parts = part_annuelle(strategie, contexte, lambda l: l["sequence_seche_mi_saison_jours"] <= SEQUENCE_SECHE_ADMISE)
+    if parts is None:
+        return None
+    part, (bas, haut) = float(parts.mean()), intervalle_annees(parts)
+    return Evaluation("eau", "secheresse_mi_saison",
+                      f"Aucune séquence sèche de plus de {SEQUENCE_SECHE_ADMISE} jours au stade de mi-saison {part:.0%} "
+                      f"des années, de {bas:.0%} à {haut:.0%} selon le rééchantillonnage des années.", part,
+                      "part des années", 5 * part, "calcule", "FAO56_C5_C8, FAO56_T11_T12, IMERG", bas, haut)
+
+
+def apport_azote_legumineuses(strategie, contexte: Contexte) -> Evaluation:
     part = sum(c in LEGUMINEUSES for c in strategie.cultures) / len(strategie.cultures)
-    return Evaluation("sol", "part_de_legumineuses",
-                      f"Une légumineuse occupe {part:.0%} des années de la rotation.", part, "part des années",
-                      5 * part, "hypothese", "YUSUF2009, CATTAN2001")
+    return Evaluation("sol", "apport_azote_legumineuses",
+                      f"Une légumineuse, qui apporte de l'azote à la culture suivante, occupe {part:.0%} des années de "
+                      "la rotation.", part, "part des années", 5 * part, "hypothese", "YUSUF2009")
 
 
-def part_de_culture_de_rente(strategie, contexte: Contexte) -> Evaluation:
+def acces_debouche_organise(strategie, contexte: Contexte) -> Evaluation:
     part = sum(c in CULTURES_DE_RENTE for c in strategie.cultures) / len(strategie.cultures)
-    return Evaluation("revenu", "part_de_culture_de_rente",
-                      f"Le coton, culture à débouché organisé, occupe {part:.0%} des années de la rotation. Le revenu "
-                      "n'est pas chiffré, faute de prix sourcés pour chaque culture.", part, "part des années",
-                      5 * part, "hypothese", "GUENOT2014")
+    return Evaluation("revenu", "acces_debouche_organise",
+                      f"Le coton, principale ressource économique des zones de savane, occupe {part:.0%} des années de "
+                      "la rotation. Cet indicateur pénalise mécaniquement toute rotation qui réduit le coton, et ne "
+                      "mesure pas un revenu.", part, "part des années", 5 * part, "hypothese", "ZAGBAI2006")
 
 
 INDICATEURS: dict[str, list[Callable]] = {
-    "eau": [couverture_du_besoin, besoin_en_eau],
-    "revenu": [part_de_culture_de_rente],
-    "sol": [part_de_legumineuses],
+    "eau": [couverture_du_besoin, secheresse_mi_saison],
+    "revenu": [acces_debouche_organise],
+    "sol": [apport_azote_legumineuses],
 }
+LIBELLES = {"eau": "eau", "revenu": "accès à un débouché organisé", "sol": "apport d'azote par les légumineuses"}
 
 
 def evaluer(strategie, contexte: Contexte) -> list[Evaluation]:
@@ -156,7 +178,7 @@ def sensibilite(strategies, contextes: dict[str, Contexte], poids: Poids) -> tup
 
 def contextes_du_lieu(identifiant: str) -> dict[str, Contexte]:
     """Contexte de chaque scénario de sensibilité, pluie réduite ou début de saison retardé."""
-    from .cultures import courbes_kc_comparees
+    from .cultures import courbes_kc_comparees, mi_saisons_comparees
     from .donnees import altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
     from .indicateurs import evapotranspiration_serie, indicateurs_annuels, indicateurs_cultures
     from .lieux import LIEUX
@@ -166,12 +188,12 @@ def contextes_du_lieu(identifiant: str) -> dict[str, Contexte]:
     meteo, altitude = lire_power(chemin_power), altitude_power(chemin_power)
     et0 = evapotranspiration_serie(meteo, lieu["lat"], altitude)
     pluie_reference = pluie_lieu(voisinage_imerg(lieu["lat"], lieu["lon"]))["moyenne"]
-    courbes = courbes_kc_comparees()
+    courbes, mi_saisons = courbes_kc_comparees(), mi_saisons_comparees()
     contextes = {}
     for nom, scenario in SCENARIOS.items():
         pluie = pluie_reference * scenario["facteur_pluie"]
         debuts = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude)["debut_jour"] + scenario["retard_jours"]
-        contextes[nom] = Contexte(identifiant, nom, indicateurs_cultures(pluie, meteo, et0, debuts, courbes))
+        contextes[nom] = Contexte(identifiant, nom, indicateurs_cultures(pluie, meteo, et0, debuts, courbes, mi_saisons))
     return contextes
 
 
@@ -181,6 +203,20 @@ def tableau_evaluations(strategies, contexte: Contexte) -> pd.DataFrame:
                           "bas": e.bas, "haut": e.haut, "unite": e.unite, "score": e.score, "niveau": e.niveau,
                           "source": e.source} for s in strategies for e in evaluer(s, contexte)])
 
+
+
+
+def parts_par_culture(contexte: Contexte) -> pd.DataFrame:
+    """Pour chaque culture, part des années où la pluie couvre le besoin et part sans séquence sèche à la mi-saison."""
+    cycles = contexte.cycles.dropna(subset=["pluie_moins_etc_mm"])
+    groupes = cycles.groupby("culture", sort=False)
+    return pd.DataFrame({
+        "annees": groupes.size(),
+        "couverture_du_besoin": groupes["pluie_moins_etc_mm"].apply(lambda s: float((s >= 0).mean())),
+        "sans_secheresse_mi_saison": groupes["sequence_seche_mi_saison_jours"].apply(
+            lambda s: float((s <= SEQUENCE_SECHE_ADMISE).mean())),
+        "sequence_seche_mi_saison_mediane_jours": groupes["sequence_seche_mi_saison_jours"].median(),
+    })
 
 
 def tableau_scenarios(strategies, contextes: dict[str, Contexte]) -> pd.DataFrame:

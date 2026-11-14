@@ -196,6 +196,16 @@ def courbes_kc_comparees() -> dict[str, np.ndarray]:
     return {c: courbe_kc(duree_cycle(c).stades(), *KC_FAO56[c].reference()) for c in cultures_comparees()}
 
 
+
+def mi_saisons_comparees() -> dict[str, tuple[int, int]]:
+    """Premier et dernier jour du stade de mi-saison de chaque culture comparée, comptés depuis 1."""
+    reponse = {}
+    for culture in cultures_comparees():
+        initial, developpement, mi_saison, _ = duree_cycle(culture).stades()
+        reponse[culture] = (initial + developpement + 1, initial + developpement + mi_saison)
+    return reponse
+
+
 def tableau_cultures() -> list[dict]:
     """Durée, plage, ligne du tableau 11 et coefficients du tableau 12 de chaque culture candidate."""
     lignes = []
