@@ -25,6 +25,7 @@ field-shift/
 │   ├── appeears.py           extractions NASA AppEEARS par points, compte Earthdata
 │   ├── alerte.py             alerte de végétation NASA HLS, sans cause déduite
 │   ├── maladies.py           liste fermée du diagnostic par photo, maladies sourcées
+│   ├── diagnostic.py         diagnostic par photo avec l'API Gemini, réponse fermée
 │   ├── sources.py            sources citées par le moteur, sous la forme du contrat
 │   └── evaluation.py         conformité, bon sens et sensibilité des recommandations
 ├── bot/                      bot WhatsApp
