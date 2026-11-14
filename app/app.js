@@ -206,8 +206,8 @@ async function localiser() {
   try {
     position = await chercherPosition(true);
   } catch (erreur) {
-    if (erreur.code === 1) { echecPosition(erreur.code); return; }
-    try { position = await chercherPosition(false); } catch (seconde) { echecPosition(seconde.code); return; }
+    if (erreur.code === 1) { echecPosition(erreur); return; }
+    try { position = await chercherPosition(false); } catch (seconde) { echecPosition(seconde); return; }
   }
   const ici = { lat: position.coords.latitude, lon: position.coords.longitude };
   const precision = Math.round(position.coords.accuracy);
@@ -216,17 +216,19 @@ async function localiser() {
   const coordonnees = `${ici.lat.toFixed(5)}, ${ici.lon.toFixed(5)}`;
   const precisionTexte = precision <= 1000 ? `à ${precision} m près` : `à environ ${Math.round(precision / 1000)} km près`;
   if (km > donnees.rayon_couverture_km) {
-    dire(`Position trouvée ${precisionTexte}, ${coordonnees}. Votre champ est à ${Math.round(km)} km de `
-      + `${donnees.lieux[id].nom}, au-delà des ${donnees.rayon_couverture_km} km que je couvre. `
-      + "Je ne peux pas encore vous conseiller pour votre zone.", demanderLieu);
+    dire(`J'ai bien trouvé votre position, ${precisionTexte}, ${coordonnees}. Mais vous êtes à ${Math.round(km)} km `
+      + `de ${donnees.lieux[id].nom}, la zone la plus proche que je connais, et je ne couvre que `
+      + `${donnees.rayon_couverture_km} km autour de Korhogo et de Bouaké. Choisissez une zone pour voir ses conseils.`,
+    demanderLieu);
     return;
   }
   dire(`Position trouvée ${precisionTexte}, ${coordonnees}, à ${Math.round(km)} km de ${donnees.lieux[id].nom}.`,
     () => choisirLieu(id));
 }
 
-function echecPosition(code) {
-  dire(MESSAGES_POSITION[code] || MESSAGES_POSITION[2], () => proposer([
+function echecPosition(erreur) {
+  const technique = `Code ${erreur.code || "inconnu"}${erreur.message ? `, ${erreur.message}` : ""}.`;
+  dire(`${MESSAGES_POSITION[erreur.code] || MESSAGES_POSITION[2]}\n${technique}`, () => proposer([
     ["Réessayer", localiser, "position"],
     ...Object.entries(donnees.lieux).map(([id, l]) => [l.nom, () => choisirLieu(id), "village"]),
   ]));
