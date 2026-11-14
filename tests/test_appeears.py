@@ -1,4 +1,6 @@
+import contextlib
 import hashlib
+import io
 import json
 import os
 import tempfile
@@ -116,6 +118,20 @@ class TestAppeears(unittest.TestCase):
             appeears.surveiller(intervalle=0, passages=2)
         self.assertEqual(self.appels.call_count, 4)
         self.assertEqual(self.session_creee.connexions, 3)
+
+    def test_erreur_signalee_avec_son_message_exact(self):
+        """Une tâche en erreur est signalée avec son message, la surveillance s'arrête sans rien resoumettre."""
+        journal = self.chemin / "taches.json"
+        journal.write_text(json.dumps({"essai": {"task_id": "t1"}}), encoding="utf-8")
+        self.session(self.reponse(200, {"status": "error", "error": "Message exact d'AppEEARS", "attempts": 3}))
+        sortie = io.StringIO()
+        with mock.patch.object(appeears, "JOURNAL_TACHES", journal), mock.patch("moteur.appeears.time.sleep"), \
+                mock.patch("moteur.appeears.SessionAppeears", return_value=self.session_creee), \
+                contextlib.redirect_stdout(sortie):
+            appeears.surveiller(intervalle=0, passages=3)
+        self.assertIn("ERREUR, message exact \"Message exact d'AppEEARS\"", sortie.getvalue())
+        self.assertEqual(self.appels.call_count, 1)
+        self.assertTrue(all(appel.args[0] == "GET" for appel in self.appels.call_args_list))
 
     def test_aucune_deconnexion(self):
         source = Path(appeears.__file__).read_text(encoding="utf-8")

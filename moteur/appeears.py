@@ -111,8 +111,13 @@ def soumettre(session: SessionAppeears, requete: dict, journal: Path = JOURNAL_T
     return identifiant
 
 
+def details(session: SessionAppeears, identifiant: str) -> dict:
+    """État complet d'une tâche, dont son statut, son message d'erreur et son nombre de tentatives."""
+    return session.requete("GET", f"/task/{identifiant}", timeout=60).json()
+
+
 def etat(session: SessionAppeears, identifiant: str) -> str:
-    return session.requete("GET", f"/task/{identifiant}", timeout=60).json()["status"]
+    return details(session, identifiant)["status"]
 
 
 def telecharger_resultats(session: SessionAppeears, identifiant: str, dossier: Path) -> list[Path]:
@@ -155,8 +160,13 @@ def suivre(session: SessionAppeears, journal: Path | None = None) -> dict[str, s
     """Affiche l'état de chaque tâche consignée et télécharge les résultats des tâches terminées."""
     statuts = {}
     for nom, tache in json.loads((journal or JOURNAL_TACHES).read_text(encoding="utf-8")).items():
-        statuts[nom] = etat(session, tache["task_id"])
-        print(time.strftime("%H:%M"), nom, statuts[nom], flush=True)
+        etat_tache = details(session, tache["task_id"])
+        statuts[nom] = etat_tache["status"]
+        print(time.strftime("%H:%M"), nom, statuts[nom], f"tentatives {etat_tache.get('attempts')}",
+              f"nouvel essai {etat_tache.get('retry_at')}", flush=True)
+        if statuts[nom] == "error" or etat_tache.get("error"):
+            print(f"    ERREUR, message exact {etat_tache.get('error')!r}, résumé {etat_tache.get('summary')!r}, "
+                  "tâche à ne pas resoumettre sans accord du responsable", flush=True)
         if statuts[nom] == "done":
             for chemin in telecharger_resultats(session, tache["task_id"], DOSSIER_APPEEARS / nom):
                 print("   ", chemin.name, empreinte_sha256(chemin)[:16], flush=True)
@@ -172,8 +182,8 @@ def surveiller(intervalle: int = 900, passages: int = 16) -> None:
     session = SessionAppeears()
     for passage in range(passages):
         try:
-            if all(statut == "done" for statut in suivre(session).values()):
-                print("toutes les tâches sont terminées", flush=True)
+            if all(statut in ("done", "error") for statut in suivre(session).values()):
+                print("toutes les tâches sont terminées ou en erreur", flush=True)
                 break
         except requests.HTTPError as erreur:
             print(time.strftime("%H:%M"), f"refus persistant après reconnexion, {erreur}, nouvel essai au passage suivant",
