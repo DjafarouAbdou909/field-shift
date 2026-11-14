@@ -98,3 +98,10 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Mil, 105 jours au lieu de 123.** Ligne Millet, stades 15, 25, 40 et 25, total 105, semis June, région Pakistan.
 - **Riz pluvial, 150 jours au lieu de 165.** Ligne Rice, stades 30, 30, 60 et 30, total 150, semis Dec; May, région Tropics; Mediterranean.
 - **Recalcul vérifié.** Les 57 tests passent, les fichiers `data/processed/cycles_<lieu>.csv` portent ces trois durées, et une nouvelle exécution de `venv/bin/python -m moteur.indicateurs` avec le code commité redonne exactement la sortie citée dans docs/donnees.md.
+
+## 14 novembre 2026, rôle données et moteur, sources agronomiques des bénéfices
+
+- **Six sources lues et consignées** dans docs/sources.md avec leur page. Yusuf et collègues 2009, avec l'IITA, au Nigeria, pour le précédent soja ou niébé du maïs. Guenot et Huchet-Bourdon 2014 au Burkina Faso pour la rotation coton puis maïs. Gouro et Vall 2010, projet du CIRAD au Mali et au Burkina Faso, et Cattan et collègues 2001 au Burkina Faso, pour la dégradation du sol en culture continue. La FAO 1995 pour la tolérance du sorgho et des mils à la sécheresse. Zagbaï et collègues 2006, déjà lu, pour Korhogo.
+- **Aucune étude ivoirienne lue.** Les notes du CNRA d'Akanza et collègues sur l'arachide et le niébé comme précédents du maïs, et la thèse de Bado au Burkina Faso, n'ont pas pu être téléchargées, les serveurs répondant 403 ou 404. Elles restent des pistes, non citées.
+- **Trois bénéfices restent des hypothèses sans source lue.** L'arachide comme précédent du maïs, l'arrière-effet des engrais du coton sur le maïs, et la meilleure tolérance du sorgho et du mil par rapport au maïs, que la FAO n'affirme que qualitativement et sans comparaison au maïs.
+- **Bloc-notes vidé pendant une reprise de session.** La copie de secours de CLAUDE.md et les PDF déjà lus ont disparu du dossier temporaire. La copie a été refaite. Les empreintes notées dans les documents restent celles des fichiers lus.
