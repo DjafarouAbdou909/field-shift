@@ -537,13 +537,49 @@ async function partager(note) {
 // Vrai quand l'application et ses recommandations sont dans le cache du téléphone.
 let pretHorsLigne = false;
 
+let diagnosticManquant = false;
+
+// Fichiers du diagnostic, environ 17 Mo, listés dans diagnostic/fichiers.json. Ceux qui manquent
+// au cache sont téléchargés dès qu'une connexion le permet, pour que le diagnostic marche ensuite
+// sans réseau. L'application ne se dit prête qu'une fois tous ces fichiers présents.
+async function completerDiagnostic(cache) {
+  let liste;
+  try {
+    const reponse = await caches.match("diagnostic/fichiers.json")
+      || (navigator.onLine ? await fetch("diagnostic/fichiers.json", { cache: "no-store" }) : null);
+    if (reponse && reponse.status === 404) return true;  // aucun diagnostic n'est publié
+    if (!reponse || !reponse.ok) return false;           // liste inaccessible, état inconnu
+    liste = await reponse.json();
+    await cache.put("diagnostic/fichiers.json", new Response(JSON.stringify(liste)));
+  } catch (e) {
+    return false;
+  }
+  const manquants = [];
+  for (const nom of liste) {
+    if (!await cache.match("diagnostic/" + nom)) manquants.push("diagnostic/" + nom);
+  }
+  if (manquants.length && navigator.onLine) {
+    diagnosticManquant = true;
+    afficherReseau();
+    for (const adresse of manquants) {
+      try { await cache.add(adresse); } catch (e) { /* nouvel essai à la prochaine ouverture */ }
+    }
+  }
+  const restants = [];
+  for (const adresse of manquants) if (!await cache.match(adresse)) restants.push(adresse);
+  return restants.length === 0;
+}
+
 async function verifierHorsLigne() {
   if (!("serviceWorker" in navigator) || !window.caches) return;
   await navigator.serviceWorker.ready;
-  for (const cle of await caches.keys()) {
-    const cache = await caches.open(cle);
-    if (await cache.match("donnees/recommandations.json") && await cache.match("app.js")) pretHorsLigne = true;
-  }
+  const nom = (await caches.keys()).find((cle) => cle.startsWith("conseil-rotation-"));
+  if (!nom) return;
+  const cache = await caches.open(nom);
+  const base = await cache.match("donnees/recommandations.json") && await cache.match("app.js");
+  const diagnostic = await completerDiagnostic(cache);
+  diagnosticManquant = !diagnostic;
+  pretHorsLigne = !!base && diagnostic;
   afficherReseau();
 }
 
@@ -600,7 +636,7 @@ function chargerScript(adresse) {
     const script = document.createElement("script");
     script.src = adresse;
     script.onload = resoudre;
-    script.onerror = rejeter;
+    script.onerror = () => rejeter(new Error("moteur du diagnostic absent du téléphone"));
     document.head.appendChild(script);
   });
 }
@@ -759,14 +795,19 @@ async function analyser(fichier) {
       suite();
     });
   } catch (e) {
-    dire(`Le diagnostic n'a pas pu tourner sur ce téléphone.\nDétail technique, ${e && e.message ? e.message : e}.`, suite);
+    const detail = e && e.message ? e.message : String(e && e.type ? `événement ${e.type}` : e);
+    const conseil = navigator.onLine ? "Réessayez dans un instant, le téléchargement est peut-être en cours."
+      : "Ouvrez l'application avec une connexion et attendez « Prête à fonctionner sans connexion ».";
+    dire(`Le diagnostic n'est pas encore complet sur ce téléphone. ${conseil}\nDétail technique, ${detail}.`, suite);
   }
 }
 
 function afficherReseau() {
-  if (!navigator.onLine) etatReseau.textContent = pretHorsLigne || donnees ? "Hors connexion, tout fonctionne" : "Hors connexion";
+  if (!navigator.onLine) etatReseau.textContent = pretHorsLigne ? "Hors connexion, tout fonctionne"
+    : diagnosticManquant ? "Hors connexion, diagnostic photo indisponible" : donnees ? "Hors connexion" : "Hors connexion";
   else if (!window.isSecureContext) etatReseau.textContent = "Adresse non sécurisée, mode hors connexion impossible";
-  else etatReseau.textContent = pretHorsLigne ? "Prête à fonctionner sans connexion"
+  else if (pretHorsLigne) etatReseau.textContent = "Prête à fonctionner sans connexion";
+  else etatReseau.textContent = diagnosticManquant ? "Téléchargement du diagnostic, gardez la connexion"
     : "Préparation du mode hors connexion, gardez la connexion";
 }
 
