@@ -41,12 +41,25 @@ function icone(nom) {
 let modeVoix = false;
 try { modeVoix = localStorage.getItem("modeVoix") === "1"; } catch (e) { /* stockage indisponible */ }
 
+const SANS_VOIX = "Aucune voix française n'est installée sur ce téléphone. Installez-la dans les réglages, "
+  + "rubrique synthèse vocale, ou faites enregistrer les messages par votre équipe.";
+
+function voixFrancaise() {
+  const voix = speechSynthesis.getVoices();
+  return { connues: voix.length > 0, francaise: voix.find((v) => v.lang.toLowerCase().startsWith("fr")) };
+}
+
+// Retourne faux si le téléphone n'a certainement aucune voix française.
 function parler(texte) {
-  if (!("speechSynthesis" in window)) return;
+  if (!("speechSynthesis" in window)) return false;
+  const { connues, francaise } = voixFrancaise();
+  if (connues && !francaise) return false;
   speechSynthesis.cancel();
-  const voix = new SpeechSynthesisUtterance(texte);
-  voix.lang = "fr-FR";
-  speechSynthesis.speak(voix);
+  const enonce = new SpeechSynthesisUtterance(texte);
+  enonce.lang = "fr-FR";
+  if (francaise) enonce.voice = francaise;
+  speechSynthesis.speak(enonce);
+  return true;
 }
 
 function afficherModeVoix() {
@@ -148,6 +161,7 @@ function demanderLieu() {
   const options = [["Utiliser ma position", localiser, "position"]];
   for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
   options.push(["Message vocal pour mon conseiller", enregistrer, "micro"]);
+  options.push(["Mes messages vocaux", mesNotes, "ecouter"]);
   proposer(options);
 }
 
@@ -246,6 +260,7 @@ function actionsResultat() {
     ["Le climat de ma zone", climat, "climat"],
     ["Écouter", ecouter, "ecouter"],
     ["Message vocal pour mon conseiller", enregistrer, "micro"],
+    ["Mes messages vocaux", mesNotes, "ecouter"],
     ["Recommencer", accueil, "recommencer"],
   ]);
 }
@@ -279,11 +294,7 @@ function ecouter() {
     dire("La lecture à voix haute n'est pas disponible sur ce téléphone.", actionsResultat);
     return;
   }
-  const voix = new SpeechSynthesisUtterance(dernierResume);
-  voix.lang = "fr-FR";
-  voix.onerror = () => dire("La lecture à voix haute a échoué. Une voix française doit être installée sur le téléphone.", actionsResultat);
-  speechSynthesis.cancel();
-  speechSynthesis.speak(voix);
+  if (!parler(dernierResume)) { dire(SANS_VOIX, actionsResultat); return; }
   actionsResultat();
 }
 
@@ -331,15 +342,14 @@ async function enregistrer() {
     return;
   }
   const morceaux = [];
-  const enregistreur = new MediaRecorder(flux);
+  const format = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codecs=opus", "audio/webm"].find((f) =>
+    MediaRecorder.isTypeSupported(f) && document.createElement("audio").canPlayType(f.split(";")[0]) !== "");
+  const enregistreur = format ? new MediaRecorder(flux, { mimeType: format }) : new MediaRecorder(flux);
   enregistreur.ondataavailable = (e) => { if (e.data.size) morceaux.push(e.data); };
   enregistreur.onstop = async () => {
     flux.getTracks().forEach((piste) => piste.stop());
     const note = new Blob(morceaux, { type: enregistreur.mimeType || "audio/webm" });
-    const lecteur = document.createElement("audio");
-    lecteur.controls = true;
-    lecteur.src = URL.createObjectURL(note);
-    bulle("", "agri").appendChild(lecteur);
+    lecteurNote(bulle("Mon message vocal", "agri"), note);
     try {
       await garderNote({ date: new Date().toISOString(), lieu: etat.lieu, audio: note });
     } catch (e) {
@@ -356,6 +366,45 @@ async function enregistrer() {
   dire("Je vous écoute. Parlez dans votre langue, puis touchez le carré pour arrêter.", () => proposer([
     ["Arrêter l'enregistrement", () => enregistreur.stop(), "arreter"],
   ]));
+}
+
+// Lecture par un bouton, qui affiche l'erreur exacte si le téléphone ne peut pas lire la note.
+function lecteurNote(parent, note) {
+  const bouton = document.createElement("button");
+  bouton.type = "button";
+  bouton.className = "lire-note";
+  bouton.append(icone("ecouter"), "Écouter");
+  bouton.addEventListener("click", () => {
+    const audio = new Audio(URL.createObjectURL(note));
+    audio.onerror = () => dire(`Ce téléphone ne peut pas lire ce message, format ${note.type || "inconnu"}, `
+      + `erreur ${audio.error ? audio.error.code : "inconnue"}. Vous pouvez l'envoyer à votre conseiller.`);
+    audio.play().catch((e) => dire(`La lecture n'a pas démarré, ${e.name}. Touchez à nouveau Écouter.`));
+  });
+  parent.appendChild(document.createElement("br"));
+  parent.appendChild(bouton);
+}
+
+async function lireNotes() {
+  const db = await base();
+  return new Promise((resoudre, rejeter) => {
+    const requete = db.transaction("notes").objectStore("notes").getAll();
+    requete.onsuccess = () => resoudre(requete.result);
+    requete.onerror = () => rejeter(requete.error);
+  });
+}
+
+async function mesNotes() {
+  let notes = [];
+  try { notes = await lireNotes(); } catch (e) { /* base indisponible */ }
+  if (!notes.length) { dire("Vous n'avez encore aucun message vocal.", suite); return; }
+  dire(`Vous avez ${notes.length} message${notes.length > 1 ? "s" : ""} vocal${notes.length > 1 ? "aux" : ""}.`, () => {
+    notes.forEach((n) => {
+      const quand = new Date(n.date).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+      lecteurNote(bulle(`Message du ${quand}`, "agri"), n.audio);
+    });
+    proposer([["Envoyer le dernier à mon conseiller", () => partager(notes[notes.length - 1].audio), "envoyer"],
+              ["Continuer", suite, "recommencer"]]);
+  });
 }
 
 async function partager(note) {
