@@ -90,3 +90,11 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Ligne de référence réelle.** Pour disposer de stades, la durée de référence est désormais une ligne réelle du tableau 11, la médiane, ou la plus courte des deux médianes. Le sorgho passe de 135 à 130 jours, le mil de 123 à 105 et le riz de 165 à 150. Quand les stades imprimés ne somment pas au total, le stade de fin absorbe l'écart.
 - **Igname et mucuna retirés de la comparaison chiffrée**, faute de durée et de coefficient sourcés, et cités dans les limites et les perspectives. Huit cultures restent, dont toutes celles des trois stratégies de l'exemple, ce que vérifie un test.
 - **Membre chargé de la présentation prévenu** par le responsable de l'ajout de FAO-56 au registre des sources.
+
+## 14 novembre 2026, responsable de l'équipe, durées de cycle sur une ligne réelle
+
+- **Règle validée.** La durée de référence d'une culture est une ligne réelle du tableau 11 de FAO-56, la ligne médiane des lignes retenues, ou la plus courte des deux lignes médianes quand leur nombre est pair.
+- **Sorgho, 130 jours au lieu de 135.** Ligne Sorghum, stades 20, 35, 40 et 30, total 130, semis May/June, région USA, Pakis., Med. Ses stades somment à 125, et le stade de fin passe à 35 jours pour atteindre le total imprimé.
+- **Mil, 105 jours au lieu de 123.** Ligne Millet, stades 15, 25, 40 et 25, total 105, semis June, région Pakistan.
+- **Riz pluvial, 150 jours au lieu de 165.** Ligne Rice, stades 30, 30, 60 et 30, total 150, semis Dec; May, région Tropics; Mediterranean.
+- **Recalcul vérifié.** Les 57 tests passent, les fichiers `data/processed/cycles_<lieu>.csv` portent ces trois durées, et une nouvelle exécution de `venv/bin/python -m moteur.indicateurs` avec le code commité redonne exactement la sortie citée dans docs/donnees.md.
