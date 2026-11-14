@@ -1,11 +1,21 @@
 // Fonctionnement hors connexion. L'interface est servie depuis le cache. Les
 // recommandations sont demandées au réseau quand il est disponible, sinon au cache.
-const CACHE = "conseil-rotation-v1";
+const CACHE = "conseil-rotation-v2";
 const FICHIERS = ["./", "index.html", "style.css", "app.js", "icone.svg", "manifest.webmanifest",
                   "donnees/recommandations.json"];
 
+// Les enregistrements vocaux listés dans les recommandations sont aussi mis en cache.
+async function installer() {
+  const cache = await caches.open(CACHE);
+  await cache.addAll(FICHIERS);
+  const donnees = await (await cache.match("donnees/recommandations.json")).json();
+  const audios = Object.values(donnees.lieux).flatMap((l) => Object.values(l.resultats))
+    .map((r) => r.audio).filter(Boolean);
+  await cache.addAll(audios);
+}
+
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FICHIERS)).then(() => self.skipWaiting()));
+  e.waitUntil(installer().then(() => self.skipWaiting()));
 });
 
 self.addEventListener("activate", (e) => {

@@ -7,7 +7,7 @@ from donnees import power
 from donnees.config import charger, points
 from donnees.registre import Registre, ecrire_atomique
 from moteur.criteres import classer, groupes
-from moteur.exporter import de_la, texte_stabilite, texte_tendance
+from moteur.exporter import de_la, resume, texte_stabilite, texte_tendance
 from moteur.fao56 import et0, kc_journalier, rayonnement_extraterrestre
 from moteur.saison import debut_des_pluies, plus_longue_sequence_seche
 from moteur.statistiques import proportion_wilson
@@ -76,6 +76,14 @@ class TestCriteres(unittest.TestCase):
         texte = texte_stabilite(ordres, s)
         self.assertIn("change si la pluie baisse de 20 %", texte)
         self.assertIn("tient si les pluies démarrent 14 jours plus tard", texte)
+
+    def test_resume_signale_les_egalites(self):
+        strategies = [{"rang": 1, "nom": "A", "actuelle": False}, {"rang": 1, "nom": "B", "actuelle": False},
+                      {"rang": 3, "nom": "C", "actuelle": True}]
+        texte = resume("Korhogo", "Soigner le sol", strategies, "Stable.", "Conseil.")
+        self.assertIn("1, à égalité. A", texte)
+        self.assertIn("3. C, votre rotation actuelle", texte)
+        self.assertTrue(texte.startswith("Pour Korhogo, avec la priorité soigner le sol"))
 
     def test_article(self):
         self.assertEqual(de_la("arachide"), "de l'arachide")

@@ -18,6 +18,8 @@ from .series import series_lieux
 from .statistiques import quartiles, tendance
 
 SORTIE = RACINE / "app" / "donnees" / "recommandations.json"
+DOSSIER_AUDIO = RACINE / "app" / "audio"
+FORMATS_AUDIO = [".mp3", ".m4a", ".ogg"]
 MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août",
         "septembre", "octobre", "novembre", "décembre"]
 SOURCE_NASA = "NASA GPM IMERG et NASA POWER, 2001 à 2024"
@@ -106,6 +108,24 @@ def explications(rotation: dict, scores: dict, cultures: dict) -> list[dict]:
     return elements
 
 
+def resume(lieu: str, libelle_priorite: str, strategies: list[dict], stabilite: str, avertissement: str) -> str:
+    """Message de résultat, affiché et lu à voix haute."""
+    lignes = []
+    for s in strategies:
+        egal = ", à égalité" if sum(t["rang"] == s["rang"] for t in strategies) > 1 else ""
+        lignes.append(f"{s['rang']}{egal}. {s['nom']}{', votre rotation actuelle' if s['actuelle'] else ''}")
+    return (f"Pour {lieu}, avec la priorité {libelle_priorite.lower()}, voici les rotations comparées.\n"
+            + "\n".join(lignes) + f"\n{stabilite}\n{avertissement}")
+
+
+def enregistrement(cle: str) -> str | None:
+    """Chemin relatif de l'enregistrement vocal du message, s'il existe dans app/audio."""
+    for extension in FORMATS_AUDIO:
+        if (DOSSIER_AUDIO / f"{cle}{extension}").exists():
+            return f"audio/{cle}{extension}"
+    return None
+
+
 def texte_stabilite(ordres: dict, sensibilite_config: dict) -> str:
     """Dit lesquels des scénarios de sensibilité changent le classement de référence."""
     scenarios = {
@@ -149,6 +169,10 @@ def construire(config: dict) -> dict:
                     "explications": explications(rotations[r], analyse["scores"][r], config["cultures"]),
                 } for r, total, rang in analyse["classement"]],
             }
+            r = resultats[priorite]
+            r["resume"] = resume(lieu["nom"], p["libelle"], r["strategies"], r["stabilite"], sortie["avertissement"])
+            r["cle_audio"] = f"{lieu['id']}_{priorite}"
+            r["audio"] = enregistrement(r["cle_audio"])
         sortie["lieux"][lieu["id"]] = {"nom": lieu["nom"], "lat": lieu["lat"], "lon": lieu["lon"],
                                       "indicateurs": indicateurs(serie, debuts, config), "resultats": resultats}
     return sortie
@@ -156,7 +180,14 @@ def construire(config: dict) -> dict:
 
 def main() -> None:
     SORTIE.parent.mkdir(parents=True, exist_ok=True)
-    SORTIE.write_text(json.dumps(construire(charger()), ensure_ascii=False, indent=1), encoding="utf-8")
+    donnees = construire(charger())
+    SORTIE.write_text(json.dumps(donnees, ensure_ascii=False, indent=1), encoding="utf-8")
+    textes = ["# Textes à enregistrer", "", "Fichier généré par python -m moteur.exporter, à ne pas modifier.", ""]
+    for lieu in donnees["lieux"].values():
+        for r in lieu["resultats"].values():
+            etat = f"enregistré, {r['audio']}" if r["audio"] else "à enregistrer"
+            textes += [f"## {r['cle_audio']}, {etat}", "", r["resume"], ""]
+    (DOSSIER_AUDIO / "textes_a_enregistrer.md").write_text("\n".join(textes), encoding="utf-8")
     print(f"Recommandations écrites dans {SORTIE.relative_to(RACINE)}")
 
 

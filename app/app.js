@@ -104,15 +104,9 @@ function demanderPriorite() {
 
 function resultat(priorite) {
   etat.priorite = priorite;
-  const lieu = donnees.lieux[etat.lieu];
-  const r = lieu.resultats[priorite];
-  const lignes = r.strategies.map((s) => {
-    const egal = r.strategies.filter((t) => t.rang === s.rang).length > 1 ? ", à égalité" : "";
-    return `${s.rang}${egal}. ${s.nom}${s.actuelle ? ", votre rotation actuelle" : ""}`;
-  });
-  dernierResume = `Pour ${lieu.nom}, avec la priorité ${donnees.priorites[priorite].toLowerCase()}, `
-    + `voici les rotations comparées.\n${lignes.join("\n")}\n${r.stabilite}\n${donnees.avertissement}`;
-  dire(dernierResume, actionsResultat);
+  const r = donnees.lieux[etat.lieu].resultats[priorite];
+  dernierResume = r.resume;
+  dire(r.resume, actionsResultat);
 }
 
 function actionsResultat() {
@@ -143,6 +137,12 @@ function climat() {
 }
 
 function ecouter() {
+  const r = donnees.lieux[etat.lieu].resultats[etat.priorite];
+  if (r.audio) {
+    new Audio(r.audio).play().catch(() => dire("La lecture de l'enregistrement a échoué.", actionsResultat));
+    actionsResultat();
+    return;
+  }
   if (!("speechSynthesis" in window)) {
     dire("La lecture à voix haute n'est pas disponible sur ce téléphone.", actionsResultat);
     return;
