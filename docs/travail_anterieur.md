@@ -12,6 +12,9 @@ Ce projet de recherche sur les rendements agricoles africains, du même membre d
 
 | Fichier de ce dépôt | Origine | Commit d'origine | Modifications |
 |---|---|---|---|
+| `moteur/donnees.py` | `empreinte_sha256` de `src/data/load.py`, `consigner` de `src/features/acquisition.py`, `telecharger_maille` et `lire_power` de `src/features/climat.py` | `2b4c18c` | Une requête par point au lieu d'une grille de mailles, période 2001 à 2025, GWETROOT retiré, contrôle de complétude isolé dans `reponse_complete` |
+| `moteur/indicateurs.py` | `rayonnement_extraterrestre` et `CONSTANTE_SOLAIRE` de `src/features/indicateurs.py` | `2b4c18c` | Aucune |
+| `moteur/controles.py` | Seuil de 200 mm par jour de `src/features/controles.py` | `2b4c18c` | Utilisé comme repère, le reste du module est écrit pendant le hackathon |
 
 ## Construit pendant le hackathon
 

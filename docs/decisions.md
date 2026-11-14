@@ -34,3 +34,15 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Revenu qualitatif.** Il ne sera chiffré que si chaque culture comparée a une source de prix vérifiable, un prix pour le coton seul faussant la comparaison.
 - **Énoncé du défi non lu.** Son site présente un certificat TLS que ni curl ni l'outil de lecture ne valident. La vérification n'a pas été contournée, le lien est cité comme non lu.
 - **Travail antérieur en suspens.** L'heure officielle du début du hackathon n'a pas été communiquée. Tant qu'elle manque, on ne peut pas dire si le squelette créé le 14 novembre 2026 lui est antérieur, et `docs/travail_anterieur.md` reste inchangé.
+
+## 14 novembre 2026, rôle données et moteur, phase 2 de CRISP-DM
+
+- **Compréhension des données rédigée dans docs/donnees.md.** Chaque nombre est affiché par `venv/bin/python -m moteur.controles`, et deux exécutions ont donné des sorties identiques.
+- **Séries téléchargées et consignées.** POWER et IMERG de 2001 à 2025 pour Korhogo et Bouaké, avec les huit cases IMERG voisines de chaque ville, et les pluviomètres GHCN-Daily des deux villes. Toutes les séries satellitaires sont complètes et respectent les bornes physiques.
+- **IMERG confirmé à 0,1 degré**, par des points appariés. L'en-tête CSV de POWER l'étiquette à tort comme MERRA-2, ses métadonnées officielles le définissent comme IMERG.
+- **Pluie comparée entre trois sources.** IMERG et `PRECTOTCORR` divergent au point de désigner une ville différente comme la plus arrosée. Le pluviomètre suit mieux IMERG au jour le jour à Korhogo et à Bouaké, ce qui conforte le choix d'IMERG.
+- **Anomalie signalée.** Depuis 2013, la case IMERG de chaque ville est presque toujours la plus arrosée de son voisinage, sans cause établie. Il est proposé de prendre la moyenne des neuf cases en phase 3.
+- **Rupture de 2020 non visible localement.** Le rapport de `PRECTOTCORR` à IMERG ne change pas en 2020 aux deux villes. L'abandon de `PRECTOTCORR` repose désormais sur son désaccord avec IMERG et le pluviomètre, plus que sur la rupture.
+- **Sources non obtenues.** SMAP et SRTM exigent un compte Earthdata. MODIS et SoilGrids sont accessibles, mais un point au centre-ville ne décrit pas les champs.
+- **Registre corrigé.** Le rayonnement de POWER vient de CERES SYN1deg et non de MERRA-2, comme l'indique l'en-tête des fichiers.
+- **Travail antérieur déclaré.** Les fonctions reprises de African Crop Yield Intelligence sont listées dans docs/travail_anterieur.md.
