@@ -17,3 +17,20 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Documents alignés sur le code.** Le README ne prétend plus que tous les modules lèvent `NotImplementedError`, l'application ne prétend plus lire les paramètres d'URL, `bot/config.py` est attribué au membre A et les livrables CRISP-DM au rôle données et moteur.
 - **Sources des leçons antérieures.** La rupture de `PRECTOTCORR` et la part du climat de 0,9 % à 6,3 % renvoient désormais au fichier précis de African Crop Yield Intelligence qui les établit.
 - **Points ouverts soumis au responsable.** Le projet antérieur a aussi écarté `GWETROOT` pour la même rupture de 2020, alors que ce dépôt le retient. Le contrat ne porte ni la tendance des indicateurs, ni la plage des scores, ni les scénarios qui changent le classement, que la section 5 de CLAUDE.md et la règle 4 demandent.
+
+## 14 novembre 2026, rôle données et moteur, phase 1 de CRISP-DM
+
+- **Cadrage rédigé dans docs/cadrage.md, en attente de validation.** Problème, utilisateurs, quatre décisions éclairées, sept critères de réussite proposés, données envisagées et six exclusions.
+- **Une seule source agronomique lue en entier.** Zagbaï, Berti et Lebailly, 2006, sur la région de Korhogo, relue page par page. Les autres articles repérés n'ont pas pu être ouverts, leurs serveurs refusant la lecture automatique, et rien n'en est tiré.
+- **Hypothèses déclarées.** La rotation coton puis maïs comme rotation la plus courante, le retard du début des pluies, l'usage de WhatsApp et la lecture du français restent à confirmer. Le retard des pluies sera testé sur les données en phase 2.
+- **Anomalie dans la source.** L'article situe la région de Korhogo entre 4 et 7 degrés de longitude Est, alors qu'elle est à l'ouest du méridien de Greenwich. Cette donnée n'est pas reprise.
+- **Revenu sans source de prix.** Faute de prix aux producteurs sourcés, le critère revenu resterait qualitatif.
+
+## 14 novembre 2026, responsable de l'équipe, validation du cadrage
+
+- **Cadrage validé.** Le critère 3 ne fixe plus le résultat d'avance. L'écart entre Korhogo et Bouaké doit suivre ce que montrent les données, ou son absence doit être expliquée.
+- **Exclusions validées.** L'outil montre la date habituelle de début des pluies mais ne conseille aucune date de semis, ne donne ni dose d'engrais ni traitement phytosanitaire, et cite les langues locales comme perspective.
+- **GWETROOT écarté.** Il présente la même rupture de 2020 que `PRECTOTCORR`, constatée dans le projet antérieur. L'humidité du sol vient de SMAP seul.
+- **Revenu qualitatif.** Il ne sera chiffré que si chaque culture comparée a une source de prix vérifiable, un prix pour le coton seul faussant la comparaison.
+- **Énoncé du défi non lu.** Son site présente un certificat TLS que ni curl ni l'outil de lecture ne valident. La vérification n'a pas été contournée, le lien est cité comme non lu.
+- **Travail antérieur en suspens.** L'heure officielle du début du hackathon n'a pas été communiquée. Tant qu'elle manque, on ne peut pas dire si le squelette créé le 14 novembre 2026 lui est antérieur, et `docs/travail_anterieur.md` reste inchangé.
