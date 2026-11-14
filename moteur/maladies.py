@@ -1,12 +1,15 @@
 """Liste fermée des maladies du diagnostic par photo, décision du 14 novembre 2026.
 
-Cinq maladies des feuilles du coton et du maïs, chacune citée avec une source lue sur sa
-présence en Côte d'Ivoire ou en Afrique de l'Ouest, et avec des images sous licence libre.
-La maladie bleue et la mosaïque du coton, les plus fréquemment rapportées en Afrique selon
-SILVIE2024, n'ont aucun jeu d'images libre trouvé. Elles restent hors du modèle, qui
-répond alors « inconnu », comme pour toute maladie hors de la liste. La nécrose létale du
-maïs est exclue, GEDIL2019 décrivant en 2019 son arrivée en Afrique de l'Ouest et du
-Centre comme imminente, donc non encore signalée.
+Quatre maladies des feuilles du coton et du maïs, chacune citée avec une source lue sur sa
+présence en Côte d'Ivoire ou en Afrique de l'Ouest, et avec des images de terrain sous
+licence libre pour mesurer la fiabilité du diagnostic.
+
+Hors de la liste, le diagnostic répond « inconnu ». C'est le cas de la maladie bleue et
+de la mosaïque du coton, les plus fréquemment rapportées en Afrique selon SILVIE2024, mais
+sans jeu d'images libre trouvé. C'est aussi le cas de l'alternariose du coton, retirée le
+14 novembre 2026, sa seule source d'images, d'origine inconnue, ne permettant pas un test
+honnête. La nécrose létale du maïs est exclue, GEDIL2019 décrivant en 2019 son arrivée en
+Afrique de l'Ouest et du Centre comme imminente, donc non encore signalée.
 
 Le diagnostic ne nomme jamais de traitement ni de produit.
 """
@@ -21,9 +24,9 @@ MALADIES = {
                                   "sources": "BANKOLE2023, SORO2024"},
     "bactériose du coton": {"culture": "coton", "agent": "Xanthomonas citri pv. malvacearum",
                             "sources": "EPPO_XANTHO, SILVIE2024"},
-    "alternariose du coton": {"culture": "coton", "agent": "Alternaria macrospora", "sources": "NWANOSIKE1997"},
 }
 HORS_MODELE = {
+    "alternariose du coton": "une seule source d'images, d'origine inconnue, sans test honnête possible",
     "maladie bleue du coton": "aucun jeu d'images sous licence libre trouvé, SILVIE2024",
     "mosaïque du coton": "aucun jeu d'images sous licence libre trouvé, SILVIE2024",
     "nécrose létale du maïs": "arrivée en Afrique de l'Ouest et du Centre dite imminente en 2019 par GEDIL2019",

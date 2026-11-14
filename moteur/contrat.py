@@ -170,7 +170,8 @@ MESSAGES_DIAGNOSTIC = {
     "maladie_possible": "Maladie possible, à faire confirmer par votre conseiller ANADER.",
     "aucune_maladie_reconnue": ("Je ne reconnais aucune des maladies que je connais. Si la plante va mal, "
                                 "montrez-la à votre conseiller ANADER."),
-    "inconnu": "Je ne peux pas répondre avec cette photo. Montrez la plante à votre conseiller ANADER.",
+    "inconnu": ("Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille, à la lumière "
+                "du jour, ou montrez la plante à votre conseiller ANADER."),
 }
 
 
