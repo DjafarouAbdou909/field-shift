@@ -22,7 +22,9 @@ field-shift/
 │   ├── cultures.py           cultures candidates et leurs caractéristiques sourcées
 │   ├── rotations.py          trois stratégies retenues, appuis sourcés
 │   ├── criteres.py           indicateurs par critère, scores, poids, sensibilité
-│   └── appeears.py           extractions NASA AppEEARS par points, compte Earthdata
+│   ├── appeears.py           extractions NASA AppEEARS par points, compte Earthdata
+│   ├── sources.py            sources citées par le moteur, sous la forme du contrat
+│   └── evaluation.py         conformité, bon sens et sensibilité des recommandations
 ├── bot/                      bot WhatsApp
 │   ├── main.py               FastAPI, webhook vérifié          membre A
 │   ├── config.py             paramètres lus dans l'environnement membre A
@@ -42,6 +44,7 @@ field-shift/
 ├── docs/
 │   ├── cadrage.md            le problème en une page
 │   ├── donnees.md            compréhension et préparation des données
+│   ├── evaluation.md         évaluation des recommandations et limites
 │   ├── sources.md            registre de chaque source
 │   ├── travail_anterieur.md  ce qui existait avant le hackathon
 │   └── decisions.md          journal des décisions
@@ -72,6 +75,7 @@ La conversion audio demande aussi `ffmpeg`, par exemple `sudo apt install ffmpeg
 venv/bin/python -m moteur.controles     # télécharge les séries absentes et les contrôle
 venv/bin/python -m moteur.indicateurs   # calcule les indicateurs de Korhogo et Bouaké
 venv/bin/python -m moteur.criteres      # note les stratégies et teste la sensibilité
+venv/bin/python -m moteur.evaluation    # évalue les recommandations de recommander()
 venv/bin/python -m moteur.appeears suivre   # état et téléchargement des extractions AppEEARS
 ```
 
