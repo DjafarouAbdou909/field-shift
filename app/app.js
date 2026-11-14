@@ -570,16 +570,17 @@ async function completerDiagnostic(cache) {
   return restants.length === 0;
 }
 
+// L'essentiel est prêt dès que le service de l'application est installé. Le diagnostic se
+// télécharge ensuite en arrière-plan, sans retarder ni bloquer le reste.
 async function verifierHorsLigne() {
   if (!("serviceWorker" in navigator) || !window.caches) return;
   await navigator.serviceWorker.ready;
   const nom = (await caches.keys()).find((cle) => cle.startsWith("conseil-rotation-"));
   if (!nom) return;
   const cache = await caches.open(nom);
-  const base = await cache.match("donnees/recommandations.json") && await cache.match("app.js");
-  const diagnostic = await completerDiagnostic(cache);
-  diagnosticManquant = !diagnostic;
-  pretHorsLigne = !!base && diagnostic;
+  pretHorsLigne = !!(await cache.match("donnees/recommandations.json") && await cache.match("app.js"));
+  afficherReseau();
+  diagnosticManquant = !(await completerDiagnostic(cache));
   afficherReseau();
 }
 
@@ -803,12 +804,12 @@ async function analyser(fichier) {
 }
 
 function afficherReseau() {
-  if (!navigator.onLine) etatReseau.textContent = pretHorsLigne ? "Hors connexion, tout fonctionne"
-    : diagnosticManquant ? "Hors connexion, diagnostic photo indisponible" : donnees ? "Hors connexion" : "Hors connexion";
+  const photo = diagnosticManquant ? (navigator.onLine ? ". Diagnostic photo en téléchargement"
+    : ", sauf le diagnostic photo") : "";
+  if (!navigator.onLine) etatReseau.textContent = pretHorsLigne ? `Hors connexion, tout fonctionne${photo}` : "Hors connexion";
   else if (!window.isSecureContext) etatReseau.textContent = "Adresse non sécurisée, mode hors connexion impossible";
-  else if (pretHorsLigne) etatReseau.textContent = "Prête à fonctionner sans connexion";
-  else etatReseau.textContent = diagnosticManquant ? "Téléchargement du diagnostic, gardez la connexion"
-    : "Préparation du mode hors connexion, gardez la connexion";
+  else if (pretHorsLigne) etatReseau.textContent = `Prête à fonctionner sans connexion${photo}`;
+  else etatReseau.textContent = "Préparation du mode hors connexion";
 }
 
 // Les recommandations sont lues dans le cache si elles y sont, sans attendre le réseau.
