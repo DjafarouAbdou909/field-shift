@@ -166,17 +166,29 @@ class AlerteVegetation(_Strict):
         return self
 
 
-class Diagnostic(_Strict):
-    """Maladie possible d'après une photo de feuille, choisie dans une liste fermée, ou inconnue.
+MESSAGES_DIAGNOSTIC = {
+    "maladie_possible": "Maladie possible, à faire confirmer par votre conseiller ANADER.",
+    "aucune_maladie_reconnue": ("Je ne reconnais aucune des maladies que je connais. Si la plante va mal, "
+                                "montrez-la à votre conseiller ANADER."),
+    "inconnu": "Je ne peux pas répondre avec cette photo. Montrez la plante à votre conseiller ANADER.",
+}
 
-    Le diagnostic ne recommande jamais de traitement ni de produit, et renvoie toujours au
-    conseiller ANADER.
+
+class Diagnostic(_Strict):
+    """Maladie possible d'après une photo de feuille, choisie dans une liste fermée.
+
+    Trois statuts. maladie_possible nomme une maladie de la liste avec sa source.
+    aucune_maladie_reconnue dit que la feuille ne ressemble à aucune maladie de la liste,
+    sans jamais garantir que la plante est saine. inconnu dit que le modèle ne sait pas
+    répondre, photo illisible ou confiance sous le seuil, ce qui couvre aussi les maladies
+    hors de la liste. Le diagnostic ne recommande jamais de traitement ni de produit, et
+    renvoie toujours au conseiller ANADER, dans les messages de MESSAGES_DIAGNOSTIC.
     """
 
     version: Literal["2"] = VERSION
     donnees_fictives: bool
     culture: str = Field(min_length=1)
-    statut: Literal["maladie_possible", "inconnu"]
+    statut: Literal["maladie_possible", "aucune_maladie_reconnue", "inconnu"]
     maladie: str | None = None
     confiance: float = Field(ge=0, le=1)
     liste: list[str] = Field(min_length=1)
@@ -190,7 +202,7 @@ class Diagnostic(_Strict):
             if self.maladie not in self.liste or self.source_maladie is None:
                 raise ValueError("une maladie possible appartient à la liste fermée et cite sa source")
         elif self.maladie is not None or self.source_maladie is not None:
-            raise ValueError("un diagnostic inconnu ne nomme aucune maladie")
+            raise ValueError("seul un diagnostic de maladie possible nomme une maladie")
         if "conseiller ANADER" not in self.avertissement:
             raise ValueError("l'avertissement renvoie au conseiller ANADER")
         return self
