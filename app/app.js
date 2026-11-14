@@ -154,7 +154,13 @@ function accueil() {
   dire("Bonjour. Je compare des rotations de cultures pour votre zone, à partir de données satellites "
     + "de la NASA sur le climat de " + donnees.periode + ".\n"
     + "Je fonctionne sans connexion, et aucune donnée ne quitte votre téléphone.\n"
-    + "Où se trouve votre champ ?", demanderLieu);
+    + "Où se trouve votre champ ?", (b) => {
+    const credit = document.createElement("div");
+    credit.className = "discret";
+    credit.textContent = "Sources, NASA POWER et GPM IMERG, FAO 56. Noms de lieux, GeoNames, licence CC BY 4.0.";
+    b.appendChild(credit);
+    demanderLieu();
+  });
 }
 
 function demanderLieu() {
@@ -213,17 +219,50 @@ async function localiser() {
   const precision = Math.round(position.coords.accuracy);
   const [id, km] = Object.entries(donnees.lieux)
     .map(([cle, l]) => [cle, distanceKm(ici, l)]).sort((a, b) => a[1] - b[1])[0];
-  const coordonnees = `${ici.lat.toFixed(5)}, ${ici.lon.toFixed(5)}`;
-  const precisionTexte = precision <= 1000 ? `à ${precision} m près` : `à environ ${Math.round(precision / 1000)} km près`;
+  const ou = texteLieu(await nommer(ici), precision);
+  const zones = Object.values(donnees.lieux).map((l) => l.nom).join(" et de ");
   if (km > donnees.rayon_couverture_km) {
-    dire(`J'ai bien trouvé votre position, ${precisionTexte}, ${coordonnees}. Mais vous êtes à ${Math.round(km)} km `
-      + `de ${donnees.lieux[id].nom}, la zone la plus proche que je connais, et je ne couvre que `
-      + `${donnees.rayon_couverture_km} km autour de Korhogo et de Bouaké. Choisissez une zone pour voir ses conseils.`,
-    demanderLieu);
+    dire(`${ou} Je ne connais pas encore cette zone. Pour l'instant, je conseille seulement les champs `
+      + `autour de ${zones}. Choisissez une zone pour voir ses conseils.`, demanderLieu);
     return;
   }
-  dire(`Position trouvée ${precisionTexte}, ${coordonnees}, à ${Math.round(km)} km de ${donnees.lieux[id].nom}.`,
-    () => choisirLieu(id));
+  dire(`${ou} Vous êtes dans la zone de ${donnees.lieux[id].nom}.`, () => choisirLieu(id));
+}
+
+// Nom de la localité la plus proche, d'après la liste GeoNames embarquée dans l'application.
+let localites = null;
+
+async function chargerLocalites() {
+  if (localites) return localites;
+  const enCache = window.caches ? await caches.match("donnees/localites.json") : null;
+  localites = await (enCache || await fetch("donnees/localites.json")).json();
+  return localites;
+}
+
+async function nommer(ici) {
+  try {
+    const { lieux } = await chargerLocalites();
+    let meilleur = null;
+    for (const [nom, lat, lon, region] of lieux) {
+      const km = distanceKm(ici, { lat, lon });
+      if (!meilleur || km < meilleur.km) meilleur = { nom, region, km };
+    }
+    return meilleur;
+  } catch (e) {
+    return null;
+  }
+}
+
+function elision(prefixe, nom) {
+  return /^[aeiouyéèêâîôûh]/i.test(nom) ? `${prefixe.slice(0, -1)}'${nom}` : `${prefixe} ${nom}`;
+}
+
+function texteLieu(lieu, precisionM) {
+  if (!lieu) return "J'ai bien trouvé votre position.";
+  const region = lieu.region && lieu.region !== lieu.nom ? `, ${lieu.region}` : "";
+  const vers = precisionM > 2000 ? "environ " : "";
+  if (lieu.km < 1.5) return `Vous êtes ${vers}à ${lieu.nom}${region}.`;
+  return `Vous êtes ${vers}${elision("près de", lieu.nom)}${region}.`;
 }
 
 function echecPosition(erreur) {

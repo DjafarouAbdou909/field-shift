@@ -14,3 +14,11 @@ Les lignes exactes des tableaux 11 et 12 sont citées pour chaque culture dans `
 - L'apport d'azote des légumineuses au sol.
 - Le débouché organisé du coton.
 - Le critère de début des pluies, 20 mm en 3 jours sans plus de 7 jours secs dans les 30 jours suivants, à partir du 1er mars.
+
+## Noms de lieux
+
+| Source | Contenu utilisé | Accès | Licence |
+|---|---|---|---|
+| GeoNames, export CI.zip et admin1CodesASCII.txt | Lieux habités et subdivisions de quatrième niveau de Côte d'Ivoire, avec leur région | https://download.geonames.org/export/dump/ | Creative Commons Attribution 4.0 |
+
+Les 52 localités sans région dans GeoNames reçoivent la région de la localité la plus proche qui en a une. GeoNames n'est pas une donnée NASA.
