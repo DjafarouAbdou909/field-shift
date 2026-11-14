@@ -151,10 +151,10 @@ def taches_occupation_du_sol() -> list[dict]:
     return requetes
 
 
-def suivre(session: SessionAppeears, journal: Path = JOURNAL_TACHES) -> dict[str, str]:
+def suivre(session: SessionAppeears, journal: Path | None = None) -> dict[str, str]:
     """Affiche l'état de chaque tâche consignée et télécharge les résultats des tâches terminées."""
     statuts = {}
-    for nom, tache in json.loads(journal.read_text(encoding="utf-8")).items():
+    for nom, tache in json.loads((journal or JOURNAL_TACHES).read_text(encoding="utf-8")).items():
         statuts[nom] = etat(session, tache["task_id"])
         print(time.strftime("%H:%M"), nom, statuts[nom], flush=True)
         if statuts[nom] == "done":
@@ -164,12 +164,20 @@ def suivre(session: SessionAppeears, journal: Path = JOURNAL_TACHES) -> dict[str
 
 
 def surveiller(intervalle: int = 900, passages: int = 16) -> None:
-    """Suit les tâches avec une seule session jusqu'à ce qu'elles soient toutes terminées."""
+    """Suit les tâches avec une seule session jusqu'à ce qu'elles soient toutes terminées.
+
+    Trois projets partagent le compte Earthdata. Un refus qui persiste après la reconnexion
+    est donc signalé sans arrêter la surveillance, qui réessaie au passage suivant.
+    """
     session = SessionAppeears()
     for passage in range(passages):
-        if all(statut == "done" for statut in suivre(session).values()):
-            print("toutes les tâches sont terminées", flush=True)
-            break
+        try:
+            if all(statut == "done" for statut in suivre(session).values()):
+                print("toutes les tâches sont terminées", flush=True)
+                break
+        except requests.HTTPError as erreur:
+            print(time.strftime("%H:%M"), f"refus persistant après reconnexion, {erreur}, nouvel essai au passage suivant",
+                  flush=True)
         if passage < passages - 1:
             time.sleep(intervalle)
     print(f"connexions ouvertes pendant la surveillance {session.connexions}", flush=True)

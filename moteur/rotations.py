@@ -31,6 +31,11 @@ class Strategie:
     risques: tuple[Appui, ...] = field(default_factory=tuple)
 
 
+DUREE_DU_COTON = Appui(
+    "La durée du cycle du coton, 195 jours selon une ligne de FAO-56 établie hors d'Afrique de l'Ouest, n'est pas "
+    "propre aux variétés ivoiriennes. Avec 180 jours, le classement pour l'eau change à Korhogo, et avec 150 jours, "
+    "durée hypothétique, il change aussi à Bouaké.", "hypothese", "FAO56_T11_T12")
+
 DEGRADATION_DU_SOL = Appui(
     "La culture continue sans restitution organique fait baisser les rendements, la matière organique et le pH "
     "du sol, et le coton raccourcit la jachère dans la région de Korhogo.",
@@ -42,14 +47,15 @@ STRATEGIES = (
         benefices=(Appui("Les sociétés cotonnières ouest-africaines encouragent la culture du maïs en rotation avec "
                          "le coton, selon une étude au Burkina Faso, page 107.", "hypothese", "GUENOT2014"),),
         lacunes=(Appui("L'arrière-effet des engrais du coton sur le maïs n'est appuyé par aucune source lue.",
-                       "hypothese"),),
+                       "hypothese"), DUREE_DU_COTON),
         risques=(DEGRADATION_DU_SOL,),
     ),
     Strategie(
         "coton_niebe_mais", "Coton, niébé puis maïs", ("coton", "niébé", "maïs"), False,
         benefices=(Appui("Au nord du Nigeria, le maïs qui suit un niébé a un rendement supérieur au maïs continu, "
                          "page 915.", "hypothese", "YUSUF2009"),),
-        lacunes=(Appui("L'effet du niébé y dépend de la variété et reste inférieur à celui du soja, pages 915 et 920. "
+        lacunes=(DUREE_DU_COTON,
+                 Appui("L'effet du niébé y dépend de la variété et reste inférieur à celui du soja, pages 915 et 920. "
                        "Il n'est pas mesuré dans le Poro.", "hypothese", "YUSUF2009"),
                  Appui("La durée du cycle du niébé vient d'une seule ligne du tableau 11 de FAO-56, établie pour le "
                        "climat méditerranéen.", "hypothese", "FAO56_T11_T12")),

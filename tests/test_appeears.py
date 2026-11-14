@@ -45,6 +45,7 @@ class TestAppeears(unittest.TestCase):
     def session(self, *reponses):
         """Session dont la connexion est simulée et dont les requêtes renvoient les réponses données."""
         session = appeears.SessionAppeears()
+        self.session_creee = session
         self.connexion = mock.patch("moteur.appeears.connexion", side_effect=lambda: f"jeton{session.connexions + 1}")
         self.requete = mock.patch("moteur.appeears.requests.request", side_effect=list(reponses))
         self.addCleanup(self.connexion.stop)
@@ -104,6 +105,17 @@ class TestAppeears(unittest.TestCase):
             with self.assertRaises(ValueError):
                 appeears.telecharger_resultats(session, "t1", self.chemin / "essai")
         self.assertFalse((self.chemin / "essai" / "b.csv").exists())
+
+    def test_surveillance_continue_apres_un_refus_persistant(self):
+        """Premier passage, deux refus 403, signalés sans arrêt. Second passage, un refus, une reconnexion, puis une réponse."""
+        journal = self.chemin / "taches.json"
+        journal.write_text(json.dumps({"essai": {"task_id": "t1"}}), encoding="utf-8")
+        self.session(self.reponse(403), self.reponse(403), self.reponse(403), self.reponse(200, {"status": "processing"}))
+        with mock.patch.object(appeears, "JOURNAL_TACHES", journal), mock.patch("moteur.appeears.time.sleep"), \
+                mock.patch("moteur.appeears.SessionAppeears", return_value=self.session_creee):
+            appeears.surveiller(intervalle=0, passages=2)
+        self.assertEqual(self.appels.call_count, 4)
+        self.assertEqual(self.session_creee.connexions, 3)
 
     def test_aucune_deconnexion(self):
         source = Path(appeears.__file__).read_text(encoding="utf-8")
