@@ -49,6 +49,7 @@ Proposés par le rôle données et moteur, à valider par l'équipe.
 - Il ne remplace ni l'agriculteur ni son conseiller.
 - Il montre la date habituelle de début des pluies, mais ne conseille aucune date de semis. Il ne donne ni dose d'engrais ni traitement phytosanitaire.
 - Il ne décrit pas la parcelle elle-même, les données climatiques couvrant des mailles de plusieurs kilomètres, et il ne couvre que Korhogo et Bouaké.
+- Il ne traite que la première des deux saisons des pluies de Bouaké, dont le début est en outre tronqué par la recherche à partir du 1er mars, selon `docs/donnees.md`.
 - Il ne parle que le français dans cette version. Les langues locales sont une perspective.
 
 ## Références

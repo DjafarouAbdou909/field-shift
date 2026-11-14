@@ -3,9 +3,10 @@ import unittest
 import numpy as np
 import pandas as pd
 
-from moteur.indicateurs import (RegleSaison, debut_saison, evapotranspiration_reference, fin_saison,
-                                indicateurs_annuels, mann_kendall, pente_theil_sen, plus_longue_sequence_seche,
-                                pression_saturante, rayonnement_extraterrestre)
+from moteur.indicateurs import (RegleSaison, debut_saison, evapotranspiration_reference, evapotranspiration_serie,
+                                indicateurs_annuels, indicateurs_cycle, mann_kendall, pente_theil_sen,
+                                plus_longue_sequence_seche, pression_saturante, rayonnement_extraterrestre,
+                                troncature_debut)
 
 
 def annee_synthetique() -> tuple[pd.Series, pd.DataFrame]:
@@ -55,35 +56,54 @@ class TestSaison(unittest.TestCase):
 
     def test_debut_ecarte_le_faux_depart(self):
         """Le 10 mai ouvre 21 mm mais 19 jours secs suivent. Le 1er juin, 24 mm et au plus 4 jours secs."""
+        self.assertEqual(RegleSaison().recherche_debut, "03-01")
         self.assertEqual(debut_saison(self.pluie, 2021), pd.Timestamp("2021-06-01"))
-        self.assertEqual(debut_saison(self.pluie, 2021, RegleSaison(recherche_debut="03-01")),
-                         pd.Timestamp("2021-06-01"))
         self.assertTrue(pd.isna(debut_saison(self.pluie, 2021, RegleSaison(recherche_debut="06-02"))))
 
-    def test_fin_apres_vingt_jours_secs(self):
-        """Le 5 septembre est suivi de pluie le 10, le 10 septembre de 20 jours secs."""
-        self.assertEqual(fin_saison(self.pluie, 2021), pd.Timestamp("2021-09-10"))
-
     def test_indicateurs_annuels(self):
-        """Saison du 1er juin au 10 septembre, 30 + 31 + 31 + 10 = 102 jours.
+        """Pluie annuelle 21 + 24 + 17 fois 2 + 2 fois 2 + 3 = 86 mm, début le 1er juin, jour 152.
 
-        Pluie de saison 24 + 17 fois 2 + 2 fois 2 = 62 mm, annuelle 62 + 21 + 3 = 86 mm.
-        Séquence sèche des 60 premiers jours de 4 jours. Chaleur 1 jour en saison, 2 dans
-        l'année. 2022 n'a que janvier et n'est pas retenue.
+        Séquence sèche des 60 premiers jours de 4 jours. 2022 n'a que janvier et n'est pas retenue.
         """
         table = indicateurs_annuels(self.pluie, self.meteo, 9.458, 350.0)
         self.assertEqual(list(table.index), [2021])
         ligne = table.loc[2021]
         self.assertEqual(ligne["debut_jour"], 152)
-        self.assertEqual(ligne["fin_jour"], 253)
-        self.assertEqual(ligne["longueur_jours"], 102)
-        self.assertEqual(ligne["pluie_saison_mm"], 62.0)
         self.assertEqual(ligne["pluie_annuelle_mm"], 86.0)
         self.assertEqual(ligne["sequence_seche_debut_jours"], 4)
-        self.assertEqual(ligne["jours_35_saison"], 1)
-        self.assertEqual(ligne["jours_35_annee"], 2)
         self.assertAlmostEqual(ligne["indice_aridite"], 86.0 / ligne["et0_annuelle_mm"])
-        self.assertAlmostEqual(ligne["bilan_saison_mm"], 62.0 - ligne["et0_saison_mm"])
+        self.assertNotIn("jours_35_annee", table.columns)
+
+    def test_cycle_de_dix_jours(self):
+        """Du 1er au 10 juin, pluie 3 fois 8 + 2 = 26 mm, température maximale (9 fois 30 + 36) / 10 = 30,6 °C.
+
+        Plus longue séquence sèche du 4 au 7 juin, 4 jours.
+        """
+        et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
+        cycle = indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, pd.Timestamp("2021-06-01"), 10)
+        self.assertEqual(cycle["pluie_cycle_mm"], 26.0)
+        self.assertAlmostEqual(cycle["tmax_moyenne_cycle"], 30.6)
+        self.assertEqual(cycle["sequence_seche_cycle_jours"], 4)
+        self.assertAlmostEqual(cycle["et0_cycle_mm"], et0.loc["2021-06-01":"2021-06-10"].sum())
+        self.assertAlmostEqual(cycle["bilan_cycle_mm"], 26.0 - cycle["et0_cycle_mm"])
+
+    def test_cycle_incomplet_ou_sans_debut(self):
+        """Un cycle de 20 jours au 20 janvier 2022 dépasse le 31 janvier, fin des séries."""
+        et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
+        for debut in [pd.Timestamp("2022-01-20"), pd.NaT]:
+            cycle = indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, debut, 20)
+            self.assertTrue(all(np.isnan(v) for v in cycle.values()))
+
+    def test_troncature_par_la_date_de_recherche(self):
+        """Recherche au jour 60. Écarts 0, 2, 10 et 20 jours. Un début témoin au jour 45 précède la recherche."""
+        debuts = pd.Series([60, 62, 70, 80, np.nan])
+        temoin = pd.Series([45, 62, 70, 80, np.nan])
+        resume = troncature_debut(debuts, temoin)
+        self.assertEqual(resume["annees"], 4)
+        self.assertEqual(resume["debut_le_jour_de_recherche"], 1)
+        self.assertEqual(resume["debut_dans_les_7_jours"], 2)
+        self.assertEqual(resume["debut_entre_7_et_13_jours"], 1)
+        self.assertEqual(resume["debut_temoin_avant_la_recherche"], 1)
 
 
 class TestTendance(unittest.TestCase):

@@ -1,7 +1,7 @@
 """Indicateurs climatiques annuels par lieu, avec tendance et variabilité interannuelle.
 
-Exécution depuis la racine du dépôt, qui écrit data/processed/indicateurs_<lieu>_<variante>.csv
-et affiche les résumés cités dans docs/donnees.md
+Exécution depuis la racine du dépôt, qui écrit data/processed/indicateurs_<lieu>.csv et
+affiche les résumés cités dans docs/donnees.md
     venv/bin/python -m moteur.indicateurs
 
 Origine. pression_saturante, rayonnement_extraterrestre, evapotranspiration_reference et
@@ -9,14 +9,18 @@ leurs constantes viennent sans modification de src/features/indicateurs.py dans
 ~/African-Crop-Yield-Intelligence au commit 2b4c18c, de même que le seuil de 1 mm qui
 distingue un jour de pluie d'un jour sec.
 
-Règles de saison. Le début est le premier jour, à partir d'une date de recherche, qui
-ouvre trois jours cumulant au moins 20 mm, sans séquence sèche de plus de 7 jours dans
-les 30 jours qui commencent ce jour-là. La fin est le dernier jour de pluie, à partir du
-1er septembre, suivi de 20 jours secs. Ces seuils sont attribués à Sivakumar, 1988,
-Agricultural and Forest Meteorology 42, pages 295 à 305, par des sources secondaires.
-L'article original n'a pas été lu, l'attribution reste donc à vérifier. Les seuils sont
-des paramètres de RegleSaison, visibles et modifiables, et chaque indicateur qui en
+Début de saison. C'est le premier jour, à partir du 1er mars, qui ouvre trois jours
+cumulant au moins 20 mm, sans séquence sèche de plus de 7 jours dans les 30 jours qui
+commencent ce jour-là. Ces seuils sont attribués à Sivakumar, 1988, Agricultural and
+Forest Meteorology 42, pages 295 à 305, par des sources secondaires. L'article original
+n'a pas été lu, l'attribution reste donc à vérifier. Le 1er mars vaut pour les deux
+villes, décision du 14 novembre 2026, et seule la première saison des pluies de Bouaké
+est traitée. Les seuils sont des paramètres de RegleSaison, et chaque indicateur qui en
 dépend est de niveau calcule.
+
+Aucune fin de saison n'est calculée. La pluie, l'évapotranspiration et la température
+maximale moyenne se mesurent sur la durée du cycle de chaque culture à partir du début,
+par indicateurs_cycle, avec des durées sourcées en phase 4.
 """
 
 import math
@@ -29,7 +33,6 @@ SEUIL_JOUR_PLUIE = 1.0
 ALBEDO = 0.23
 CONSTANTE_SOLAIRE = 0.0820
 STEFAN_BOLTZMANN = 4.903e-9
-SEUIL_CHALEUR = 35.0
 
 
 def pression_saturante(temperature):
@@ -72,13 +75,11 @@ def evapotranspiration_reference(tmax, tmin, tdew, rayonnement, vent, latitude, 
 
 @dataclass(frozen=True)
 class RegleSaison:
-    recherche_debut: str = "05-01"
+    recherche_debut: str = "03-01"
     cumul_debut_mm: float = 20.0
     jours_cumul: int = 3
     jours_controle: int = 30
     sequence_seche_admise: int = 7
-    recherche_fin: str = "09-01"
-    jours_secs_fin: int = 20
     jours_debut_saison: int = 60
 
 
@@ -106,52 +107,71 @@ def debut_saison(pluie: pd.Series, annee: int, regle: RegleSaison = RegleSaison(
     return pd.NaT
 
 
-def fin_saison(pluie: pd.Series, annee: int, regle: RegleSaison = RegleSaison()) -> pd.Timestamp:
-    """Retourne le dernier jour de pluie de l'année suivi de jours secs, ou NaT faute d'un tel jour.
+def evapotranspiration_serie(meteo: pd.DataFrame, latitude: float, altitude: float) -> pd.Series:
+    """Évapotranspiration de référence de chaque jour des séries POWER d'un lieu."""
+    return pd.Series(evapotranspiration_reference(
+        meteo["T2M_MAX"], meteo["T2M_MIN"], meteo["T2MDEW"], meteo["ALLSKY_SFC_SW_DWN"], meteo["WS2M"],
+        latitude, altitude, meteo.index.dayofyear.to_numpy()), index=meteo.index)
 
-    Le jour de fin appartient à l'année, mais les jours secs qui le suivent peuvent
-    déborder sur janvier.
+
+def indicateurs_cycle(pluie: pd.Series, tmax: pd.Series, et0: pd.Series, debut: pd.Timestamp,
+                      duree_jours: int) -> dict:
+    """Indicateurs d'un cycle de culture qui commence au début de saison et dure duree_jours.
+
+    Tout est manquant si le début manque ou si le cycle dépasse la fin des séries.
     """
-    valeurs = pluie.to_numpy()
-    depart = pluie.index.get_loc(pd.Timestamp(f"{annee}-{regle.recherche_fin}"))
-    limite = pluie.index.get_loc(pd.Timestamp(f"{annee}-12-31"))
-    for jour in range(depart, min(limite + 1, len(valeurs) - regle.jours_secs_fin)):
-        if valeurs[jour] >= SEUIL_JOUR_PLUIE and (valeurs[jour + 1:jour + 1 + regle.jours_secs_fin] < SEUIL_JOUR_PLUIE).all():
-            return pluie.index[jour]
-    return pd.NaT
+    noms = ["pluie_cycle_mm", "et0_cycle_mm", "bilan_cycle_mm", "tmax_moyenne_cycle", "sequence_seche_cycle_jours"]
+    if pd.isna(debut):
+        return dict.fromkeys(noms, np.nan)
+    cycle = pd.date_range(debut, periods=duree_jours, freq="D")
+    if cycle[-1] > min(pluie.index[-1], tmax.index[-1], et0.index[-1]):
+        return dict.fromkeys(noms, np.nan)
+    pluie_cycle, et0_cycle = pluie.loc[cycle].sum(), et0.loc[cycle].sum()
+    return {
+        "pluie_cycle_mm": pluie_cycle, "et0_cycle_mm": et0_cycle, "bilan_cycle_mm": pluie_cycle - et0_cycle,
+        "tmax_moyenne_cycle": tmax.loc[cycle].mean(),
+        "sequence_seche_cycle_jours": plus_longue_sequence_seche(pluie.loc[cycle].to_numpy()),
+    }
 
 
 def indicateurs_annuels(pluie: pd.Series, meteo: pd.DataFrame, latitude: float, altitude: float,
                         regle: RegleSaison = RegleSaison()) -> pd.DataFrame:
     """Calcule les indicateurs de chaque année complète des séries d'un lieu."""
-    et0 = pd.Series(evapotranspiration_reference(
-        meteo["T2M_MAX"], meteo["T2M_MIN"], meteo["T2MDEW"], meteo["ALLSKY_SFC_SW_DWN"], meteo["WS2M"],
-        latitude, altitude, meteo.index.dayofyear.to_numpy()), index=meteo.index)
+    et0 = evapotranspiration_serie(meteo, latitude, altitude)
     lignes = {}
     for annee in sorted(set(pluie.index.year)):
         annee_pluie = pluie.loc[str(annee)]
         if len(annee_pluie) < 365:
             continue
-        debut, fin = debut_saison(pluie, annee, regle), fin_saison(pluie, annee, regle)
+        debut = debut_saison(pluie, annee, regle)
         ligne = {
             "pluie_annuelle_mm": annee_pluie.sum(),
             "et0_annuelle_mm": et0.loc[str(annee)].sum(),
-            "jours_35_annee": int((meteo["T2M_MAX"].loc[str(annee)] > SEUIL_CHALEUR).sum()),
             "debut_jour": debut.dayofyear if pd.notna(debut) else np.nan,
-            "fin_jour": fin.dayofyear if pd.notna(fin) else np.nan,
         }
         ligne["indice_aridite"] = ligne["pluie_annuelle_mm"] / ligne["et0_annuelle_mm"]
-        if pd.notna(debut) and pd.notna(fin) and fin > debut:
-            saison = slice(debut, fin)
-            ligne["longueur_jours"] = (fin - debut).days + 1
-            ligne["pluie_saison_mm"] = pluie.loc[saison].sum()
-            ligne["et0_saison_mm"] = et0.loc[saison].sum()
-            ligne["bilan_saison_mm"] = ligne["pluie_saison_mm"] - ligne["et0_saison_mm"]
-            ligne["jours_35_saison"] = int((meteo["T2M_MAX"].loc[saison] > SEUIL_CHALEUR).sum())
+        if pd.notna(debut):
             debut_saison_pluie = pluie.loc[debut:].to_numpy()[:regle.jours_debut_saison]
             ligne["sequence_seche_debut_jours"] = plus_longue_sequence_seche(debut_saison_pluie)
         lignes[annee] = ligne
     return pd.DataFrame.from_dict(lignes, orient="index")
+
+
+def troncature_debut(debuts: pd.Series, debuts_temoin: pd.Series, regle: RegleSaison = RegleSaison()) -> pd.Series:
+    """Mesure si la date de recherche coupe la distribution des débuts.
+
+    debuts_temoin vient d'une recherche plus précoce. Un début témoin antérieur à la date
+    de recherche signale une saison que la recherche retenue ne peut pas voir.
+    """
+    jour_recherche = pd.Timestamp(f"2001-{regle.recherche_debut}").dayofyear
+    ecart = debuts.dropna() - jour_recherche
+    return pd.Series({
+        "annees": len(ecart),
+        "debut_le_jour_de_recherche": int((ecart == 0).sum()),
+        "debut_dans_les_7_jours": int((ecart < 7).sum()),
+        "debut_entre_7_et_13_jours": int(((ecart >= 7) & (ecart < 14)).sum()),
+        "debut_temoin_avant_la_recherche": int((debuts_temoin.dropna() < jour_recherche).sum()),
+    })
 
 
 def pente_theil_sen(annees: np.ndarray, valeurs: np.ndarray) -> float:
@@ -197,36 +217,20 @@ def executer() -> None:
     pd.set_option("display.max_columns", 20)
     sortie = RACINE / "data" / "processed"
     sortie.mkdir(parents=True, exist_ok=True)
-    variantes = {"recherche_1er_mars": RegleSaison(recherche_debut="03-01"), "recherche_1er_mai": RegleSaison()}
+    regle, temoin = RegleSaison(), RegleSaison(recherche_debut="01-01")
     for identifiant, lieu in LIEUX.items():
         chemin_power = telecharger_point(lieu["lat"], lieu["lon"], "power", DOSSIER_POWER)
         meteo, altitude = lire_power(chemin_power), altitude_power(chemin_power)
-        cases = voisinage_imerg(lieu["lat"], lieu["lon"])
-        cases_pluie = pluie_lieu(cases)
-        pluie = cases_pluie["moyenne"]
-        debuts = {}
-        for nom, regle in variantes.items():
-            table = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude, regle)
-            table.to_csv(sortie / f"indicateurs_{identifiant}_{nom}.csv", float_format="%.3f")
-            debuts[nom] = table["debut_jour"]
-            jour_recherche = pd.Timestamp(f"2001-{regle.recherche_debut}").dayofyear
-            print(f"\n===== {lieu['nom']}, {nom}, altitude de la maille {altitude} m, {regle}")
-            print(resume_interannuel(table).to_string())
-            print(f"années sans début {table['debut_jour'].isna().sum()}, sans fin {table['fin_jour'].isna().sum()}, "
-                  f"début le jour même de la recherche {(table['debut_jour'] == jour_recherche).sum()}")
-        avant_mai = (debuts["recherche_1er_mars"] < 121).sum()
-        print(f"\nDiagnostic {lieu['nom']}. Début avant le 1er mai selon la recherche du 1er mars, "
-              f"{avant_mai} années sur {len(debuts['recherche_1er_mars'])}, que la recherche du 1er mai ne peut pas voir")
-        ville = cases_pluie[cases[0]]
-        annuel = lambda s: s.groupby(s.index.year)
-        print(f"jours d'au moins 1 mm par an, médiane, case de la ville {annuel(ville >= SEUIL_JOUR_PLUIE).sum().median()}, "
-              f"moyenne des neuf cases {annuel(pluie >= SEUIL_JOUR_PLUIE).sum().median()}")
-        fins_ville = pd.Series({a: fin_saison(ville, a) for a in range(2001, 2026)})
-        print(f"fin de saison avec la seule case de la ville, jour médian {fins_ville.dropna().dt.dayofyear.median()}, "
-              f"années sans fin {fins_ville.isna().sum()}")
-        novembre = pluie.index.month == 11
-        print(f"part des jours de novembre d'au moins 1 mm, moyenne des neuf cases "
-              f"{(pluie[novembre] >= SEUIL_JOUR_PLUIE).mean():.3f}")
+        pluie = pluie_lieu(voisinage_imerg(lieu["lat"], lieu["lon"]))["moyenne"]
+        table = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude, regle)
+        table.to_csv(sortie / f"indicateurs_{identifiant}.csv", float_format="%.3f")
+        print(f"\n===== {lieu['nom']}, altitude de la maille {altitude} m, {regle}")
+        print(resume_interannuel(table).to_string())
+        debuts_temoin = indicateurs_annuels(pluie, meteo, lieu["lat"], altitude, temoin)["debut_jour"]
+        print("\nTroncature par la date de recherche, avec une recherche témoin à partir du 1er janvier")
+        print(troncature_debut(table["debut_jour"], debuts_temoin, regle).to_string())
+        print("jours de début, recherche du 1er mars", sorted(table["debut_jour"].dropna().astype(int).tolist()))
+        print("jours de début, recherche témoin", sorted(debuts_temoin.dropna().astype(int).tolist()))
 
 
 if __name__ == "__main__":
