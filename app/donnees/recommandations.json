@@ -1,5 +1,5 @@
 {
- "version": "20261114143524",
+ "version": "20261114143802",
  "periode": "2001 à 2024",
  "rayon_couverture_km": 60,
  "avertissement": "Conseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
@@ -43,7 +43,7 @@
    "resultats": {
     "eau": {
      "stable": false,
-     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.",
      "ordres": {
       "reference": [
        [
@@ -208,7 +208,7 @@
     },
     "sol": {
      "stable": false,
-     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.",
      "ordres": {
       "reference": [
        [
@@ -373,7 +373,7 @@
     },
     "debouche": {
      "stable": false,
-     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.",
      "ordres": {
       "reference": [
        [
@@ -571,7 +571,7 @@
    "resultats": {
     "eau": {
      "stable": true,
-     "stabilite": "Ce classement tient si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "stabilite": "Ce classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.",
      "ordres": {
       "reference": [
        [
@@ -738,7 +738,7 @@
     },
     "sol": {
      "stable": true,
-     "stabilite": "Ce classement tient si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "stabilite": "Ce classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.",
      "ordres": {
       "reference": [
        [
@@ -905,7 +905,7 @@
     },
     "debouche": {
      "stable": true,
-     "stabilite": "Ce classement tient si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "stabilite": "Ce classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.",
      "ordres": {
       "reference": [
        [

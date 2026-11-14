@@ -7,7 +7,7 @@ from donnees import power
 from donnees.config import charger, points
 from donnees.registre import Registre, ecrire_atomique
 from moteur.criteres import classer, groupes
-from moteur.exporter import de_la, texte_tendance
+from moteur.exporter import de_la, texte_stabilite, texte_tendance
 from moteur.fao56 import et0, kc_journalier, rayonnement_extraterrestre
 from moteur.saison import debut_des_pluies, plus_longue_sequence_seche
 from moteur.statistiques import proportion_wilson
@@ -69,6 +69,13 @@ class TestCriteres(unittest.TestCase):
         fragile = [(7, 10.0, 2.0, 18.0), (10, 3.0, -4.0, 9.0)]
         self.assertIn("plus tard", texte_tendance(robuste)[0])
         self.assertIn("Aucune tendance robuste", texte_tendance(fragile)[0])
+
+    def test_stabilite_nomme_le_scenario(self):
+        s = {"facteur_pluie": 0.8, "retard_jours": 14}
+        ordres = {"reference": [["a"], ["b"]], "pluie_reduite": [["b"], ["a"]], "semis_retarde": [["a"], ["b"]]}
+        texte = texte_stabilite(ordres, s)
+        self.assertIn("change si la pluie baisse de 20 %", texte)
+        self.assertIn("tient si les pluies démarrent 14 jours plus tard", texte)
 
     def test_article(self):
         self.assertEqual(de_la("arachide"), "de l'arachide")

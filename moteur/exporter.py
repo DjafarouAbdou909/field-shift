@@ -106,6 +106,20 @@ def explications(rotation: dict, scores: dict, cultures: dict) -> list[dict]:
     return elements
 
 
+def texte_stabilite(ordres: dict, sensibilite_config: dict) -> str:
+    """Dit lesquels des scénarios de sensibilité changent le classement de référence."""
+    scenarios = {
+        "pluie_reduite": f"si la pluie baisse de {nombre(100 * (1 - sensibilite_config['facteur_pluie']))} %",
+        "semis_retarde": f"si les pluies démarrent {sensibilite_config['retard_jours']} jours plus tard",
+    }
+    changent = [texte for nom, texte in scenarios.items() if ordres[nom] != ordres["reference"]]
+    tiennent = [texte for nom, texte in scenarios.items() if ordres[nom] == ordres["reference"]]
+    if not changent:
+        return f"Ce classement tient {' et '.join(tiennent)}."
+    phrase = f"Attention, ce classement change {' et '.join(changent)}."
+    return phrase + (f" Il tient {' et '.join(tiennent)}." if tiennent else "")
+
+
 def construire(config: dict) -> dict:
     series = series_lieux(config)
     rotations = {r["id"]: r for r in config["rotations"]}
@@ -126,12 +140,7 @@ def construire(config: dict) -> dict:
             analyse = sensibilite(serie, config, debuts, p["poids"])
             resultats[priorite] = {
                 "stable": analyse["stable"],
-                "stabilite": "Ce classement tient si la pluie baisse de "
-                             f"{nombre(100 * (1 - s['facteur_pluie']))} % ou si les pluies démarrent "
-                             f"{s['retard_jours']} jours plus tard." if analyse["stable"] else
-                             "Attention, ce classement change si la pluie baisse de "
-                             f"{nombre(100 * (1 - s['facteur_pluie']))} % ou si les pluies démarrent "
-                             f"{s['retard_jours']} jours plus tard.",
+                "stabilite": texte_stabilite(analyse["ordres"], s),
                 "ordres": analyse["ordres"],
                 "strategies": [{
                     "id": r, "nom": rotations[r]["nom"], "actuelle": rotations[r]["actuelle"],
