@@ -1,5 +1,5 @@
 {
- "version": "20261114144644",
+ "version": "20261114160145",
  "periode": "2001 à 2024",
  "rayon_couverture_km": 60,
  "avertissement": "Conseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
@@ -120,6 +120,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais",
+        "arachide"
        ]
       },
       {
@@ -164,6 +169,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "sorgho",
+        "niebe"
        ]
       },
       {
@@ -202,10 +212,14 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais"
        ]
       }
      ],
-     "resume": "Pour Korhogo, avec la priorité économiser l'eau, voici les rotations comparées.\n1, à égalité. Coton, maïs puis arachide\n1, à égalité. Coton, sorgho puis niébé\n3. Coton puis maïs, votre rotation actuelle\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard. Les rotations à égalité se départagent alors, différemment selon le scénario, et doivent être considérées comme équivalentes.\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+     "resume": "Pour votre champ près de Korhogo, avec la priorité économiser l'eau.\nChez vous, les pluies démarrent en général vers le 14 avril.\n2 rotations arrivent à égalité en tête, coton, maïs puis arachide et coton, sorgho puis niébé.\nAu moment où la plante a le plus besoin d'eau, la pluie a suffi pour l'arachide 17 années sur 24.\nL'arachide est une légumineuse, qui peut enrichir le sol en azote. C'est à confirmer avec votre conseiller.\nPour l'eau, la rotation coton, maïs puis arachide fait à peu près comme votre rotation actuelle.\nElle laisse moins de place au coton, ce qui peut réduire vos ventes de coton.\nVotre rotation actuelle arrive en position 3. Avec elle, le maïs n'a eu assez d'eau au moment clé que 12 années sur 24.\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard. Les rotations à égalité se départagent alors, différemment selon le scénario, et doivent être considérées comme équivalentes.\nClassement complet.\n1, à égalité. Coton, maïs puis arachide\n1, à égalité. Coton, sorgho puis niébé\n3. Coton puis maïs, votre rotation actuelle\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
      "cle_audio": "korhogo_eau",
      "audio": null
     },
@@ -288,6 +302,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais",
+        "arachide"
        ]
       },
       {
@@ -332,6 +351,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "sorgho",
+        "niebe"
        ]
       },
       {
@@ -370,10 +394,14 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais"
        ]
       }
      ],
-     "resume": "Pour Korhogo, avec la priorité soigner le sol, voici les rotations comparées.\n1, à égalité. Coton, maïs puis arachide\n1, à égalité. Coton, sorgho puis niébé\n3. Coton puis maïs, votre rotation actuelle\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard. Les rotations à égalité se départagent alors, différemment selon le scénario, et doivent être considérées comme équivalentes.\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+     "resume": "Pour votre champ près de Korhogo, avec la priorité soigner le sol.\nChez vous, les pluies démarrent en général vers le 14 avril.\n2 rotations arrivent à égalité en tête, coton, maïs puis arachide et coton, sorgho puis niébé.\nAu moment où la plante a le plus besoin d'eau, la pluie a suffi pour l'arachide 17 années sur 24.\nL'arachide est une légumineuse, qui peut enrichir le sol en azote. C'est à confirmer avec votre conseiller.\nPour l'eau, la rotation coton, maïs puis arachide fait à peu près comme votre rotation actuelle.\nElle laisse moins de place au coton, ce qui peut réduire vos ventes de coton.\nVotre rotation actuelle arrive en position 3. Avec elle, le maïs n'a eu assez d'eau au moment clé que 12 années sur 24.\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard. Les rotations à égalité se départagent alors, différemment selon le scénario, et doivent être considérées comme équivalentes.\nClassement complet.\n1, à égalité. Coton, maïs puis arachide\n1, à égalité. Coton, sorgho puis niébé\n3. Coton puis maïs, votre rotation actuelle\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
      "cle_audio": "korhogo_sol",
      "audio": null
     },
@@ -450,6 +478,10 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais"
        ]
       },
       {
@@ -494,6 +526,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais",
+        "arachide"
        ]
       },
       {
@@ -538,10 +575,15 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "sorgho",
+        "niebe"
        ]
       }
      ],
-     "resume": "Pour Korhogo, avec la priorité vendre facilement, voici les rotations comparées.\n1. Coton puis maïs, votre rotation actuelle\n2, à égalité. Coton, maïs puis arachide\n2, à égalité. Coton, sorgho puis niébé\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard. Les rotations à égalité se départagent alors, différemment selon le scénario, et doivent être considérées comme équivalentes.\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+     "resume": "Pour votre champ près de Korhogo, avec la priorité vendre facilement.\nChez vous, les pluies démarrent en général vers le 14 avril.\nVotre rotation actuelle, coton puis maïs, reste la mieux placée pour cette priorité.\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard. Les rotations à égalité se départagent alors, différemment selon le scénario, et doivent être considérées comme équivalentes.\nClassement complet.\n1. Coton puis maïs, votre rotation actuelle\n2, à égalité. Coton, maïs puis arachide\n2, à égalité. Coton, sorgho puis niébé\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
      "cle_audio": "korhogo_debouche",
      "audio": null
     }
@@ -659,6 +701,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "sorgho",
+        "niebe"
        ]
       },
       {
@@ -703,6 +750,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais",
+        "arachide"
        ]
       },
       {
@@ -741,10 +793,14 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais"
        ]
       }
      ],
-     "resume": "Pour Bouaké, avec la priorité économiser l'eau, voici les rotations comparées.\n1. Coton, sorgho puis niébé\n2. Coton, maïs puis arachide\n3. Coton puis maïs, votre rotation actuelle\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+     "resume": "Pour votre champ près de Bouaké, avec la priorité économiser l'eau.\nChez vous, les pluies démarrent en général vers le 18 mars.\nJe vous propose d'étudier la rotation coton, sorgho puis niébé.\nAu moment où la plante a le plus besoin d'eau, la pluie a suffi pour le sorgho 11 années sur 24.\nAu moment où la plante a le plus besoin d'eau, la pluie a suffi pour le niébé 9 années sur 24.\nLe niébé est une légumineuse, qui peut enrichir le sol en azote. C'est à confirmer avec votre conseiller.\nPour l'eau, la rotation coton, sorgho puis niébé fait à peu près comme votre rotation actuelle.\nElle laisse moins de place au coton, ce qui peut réduire vos ventes de coton.\nVotre rotation actuelle arrive en position 3. Avec elle, le maïs n'a eu assez d'eau au moment clé que 8 années sur 24.\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.\nClassement complet.\n1. Coton, sorgho puis niébé\n2. Coton, maïs puis arachide\n3. Coton puis maïs, votre rotation actuelle\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
      "cle_audio": "bouake_eau",
      "audio": null
     },
@@ -829,6 +885,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "sorgho",
+        "niebe"
        ]
       },
       {
@@ -873,6 +934,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais",
+        "arachide"
        ]
       },
       {
@@ -911,10 +977,14 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais"
        ]
       }
      ],
-     "resume": "Pour Bouaké, avec la priorité soigner le sol, voici les rotations comparées.\n1. Coton, sorgho puis niébé\n2. Coton, maïs puis arachide\n3. Coton puis maïs, votre rotation actuelle\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+     "resume": "Pour votre champ près de Bouaké, avec la priorité soigner le sol.\nChez vous, les pluies démarrent en général vers le 18 mars.\nJe vous propose d'étudier la rotation coton, sorgho puis niébé.\nAu moment où la plante a le plus besoin d'eau, la pluie a suffi pour le sorgho 11 années sur 24.\nAu moment où la plante a le plus besoin d'eau, la pluie a suffi pour le niébé 9 années sur 24.\nLe niébé est une légumineuse, qui peut enrichir le sol en azote. C'est à confirmer avec votre conseiller.\nPour l'eau, la rotation coton, sorgho puis niébé fait à peu près comme votre rotation actuelle.\nElle laisse moins de place au coton, ce qui peut réduire vos ventes de coton.\nVotre rotation actuelle arrive en position 3. Avec elle, le maïs n'a eu assez d'eau au moment clé que 8 années sur 24.\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.\nClassement complet.\n1. Coton, sorgho puis niébé\n2. Coton, maïs puis arachide\n3. Coton puis maïs, votre rotation actuelle\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
      "cle_audio": "bouake_sol",
      "audio": null
     },
@@ -993,6 +1063,10 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais"
        ]
       },
       {
@@ -1037,6 +1111,11 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "sorgho",
+        "niebe"
        ]
       },
       {
@@ -1081,10 +1160,15 @@
          "source": "",
          "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
         }
+       ],
+       "cultures": [
+        "coton",
+        "mais",
+        "arachide"
        ]
       }
      ],
-     "resume": "Pour Bouaké, avec la priorité vendre facilement, voici les rotations comparées.\n1. Coton puis maïs, votre rotation actuelle\n2. Coton, sorgho puis niébé\n3. Coton, maïs puis arachide\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+     "resume": "Pour votre champ près de Bouaké, avec la priorité vendre facilement.\nChez vous, les pluies démarrent en général vers le 18 mars.\nVotre rotation actuelle, coton puis maïs, reste la mieux placée pour cette priorité.\nCe classement tient si la pluie baisse de 20 % et si les pluies démarrent 14 jours plus tard.\nClassement complet.\n1. Coton puis maïs, votre rotation actuelle\n2. Coton, sorgho puis niébé\n3. Coton, maïs puis arachide\nConseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
      "cle_audio": "bouake_debouche",
      "audio": null
     }

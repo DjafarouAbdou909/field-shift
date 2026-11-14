@@ -7,7 +7,7 @@ from donnees import power
 from donnees.config import charger, points
 from donnees.registre import Registre, ecrire_atomique
 from moteur.criteres import classer, groupes
-from moteur.exporter import de_la, resume, texte_stabilite, texte_tendance
+from moteur.exporter import conseil, de_la, texte_stabilite, texte_tendance
 from moteur.fao56 import et0, kc_journalier, rayonnement_extraterrestre
 from moteur.saison import debut_des_pluies, plus_longue_sequence_seche
 from moteur.statistiques import proportion_wilson
@@ -87,13 +87,37 @@ class TestCriteres(unittest.TestCase):
         ordres["pluie_reduite"] = [["c"], ["a", "b"]]
         self.assertIn("change si la pluie baisse", texte_stabilite(ordres, s))
 
-    def test_resume_signale_les_egalites(self):
-        strategies = [{"rang": 1, "nom": "A", "actuelle": False}, {"rang": 1, "nom": "B", "actuelle": False},
-                      {"rang": 3, "nom": "C", "actuelle": True}]
-        texte = resume("Korhogo", "Soigner le sol", strategies, "Stable.", "Conseil.")
-        self.assertIn("1, à égalité. A", texte)
-        self.assertIn("3. C, votre rotation actuelle", texte)
-        self.assertTrue(texte.startswith("Pour Korhogo, avec la priorité soigner le sol"))
+    def conseil_test(self, rang_actuelle, eau_meilleure):
+        cultures = {"coton": {"nom": "coton", "legumineuse": False}, "mais": {"nom": "maïs", "legumineuse": False},
+                    "niebe": {"nom": "niébé", "legumineuse": True}}
+        couvertures = {"coton": {"couvertes": 20, "annees": 24}, "mais": {"couvertes": 8, "annees": 24},
+                       "niebe": {"couvertes": 15, "annees": 24}}
+        strategies = [
+            {"rang": 1, "nom": "Coton puis niébé", "actuelle": False, "cultures": ["coton", "niebe"],
+             "scores": {"eau": eau_meilleure, "debouche": 0.5}},
+            {"rang": rang_actuelle, "nom": "Coton puis maïs", "actuelle": True, "cultures": ["coton", "mais"],
+             "scores": {"eau": 0.58, "debouche": 0.5}},
+        ]
+        contexte = {"lieu": "Korhogo", "priorite": "Économiser l'eau", "debut_pluies": "14 avril",
+                    "stabilite": "Stable.", "avertissement": "Conseil."}
+        return conseil(contexte, strategies, couvertures, cultures)
+
+    def test_conseil_cite_les_chiffres_du_moteur(self):
+        texte = self.conseil_test(2, 0.73)
+        self.assertIn("les pluies démarrent en général vers le 14 avril", texte)
+        self.assertIn("étudier la rotation coton puis niébé", texte)
+        self.assertIn("la pluie a suffi pour le niébé 15 années sur 24", texte)
+        self.assertIn("Le niébé est une légumineuse", texte)
+        self.assertIn("la rotation coton puis niébé fait mieux que votre rotation actuelle", texte)
+        self.assertIn("le maïs n'a eu assez d'eau au moment clé que 8 années sur 24", texte)
+
+    def test_conseil_dit_quand_l_eau_ne_departage_pas(self):
+        self.assertIn("à peu près comme votre rotation actuelle", self.conseil_test(2, 0.60))
+
+    def test_conseil_signale_les_egalites(self):
+        texte = self.conseil_test(1, 0.60)
+        self.assertIn("2 rotations arrivent à égalité en tête", texte)
+        self.assertIn("1, à égalité. Coton puis maïs, votre rotation actuelle", texte)
 
     def test_article(self):
         self.assertEqual(de_la("arachide"), "de l'arachide")

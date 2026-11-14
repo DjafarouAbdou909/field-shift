@@ -108,14 +108,61 @@ def explications(rotation: dict, scores: dict, cultures: dict) -> list[dict]:
     return elements
 
 
-def resume(lieu: str, libelle_priorite: str, strategies: list[dict], stabilite: str, avertissement: str) -> str:
-    """Message de résultat, affiché et lu à voix haute."""
-    lignes = []
+def le_la(nom: str) -> str:
+    return f"l'{nom}" if nom[0] in "aeiouéèh" else f"le {nom}"
+
+
+def conseil(contexte: dict, strategies: list[dict], couvertures: dict, cultures: dict) -> str:
+    """Message de résultat, affiché et lu à voix haute, écrit pour un agriculteur.
+
+    contexte contient lieu, priorite, debut_pluies, stabilite et avertissement.
+    couvertures donne, par culture, les années où la pluie a couvert le besoin en eau.
+    Chaque chiffre vient du moteur. Les comparaisons tolèrent un écart de 0,05 sur des
+    scores de 0 à 1, en deçà duquel deux rotations sont dites équivalentes.
+    """
+    actuelle = next(s for s in strategies if s["actuelle"])
+    tete = [s for s in strategies if s["rang"] == 1]
+    lignes = [f"Pour votre champ près de {contexte['lieu']}, avec la priorité {contexte['priorite'].lower()}.",
+              f"Chez vous, les pluies démarrent en général vers le {contexte['debut_pluies']}."]
+    if actuelle in tete and len(tete) == 1:
+        lignes.append(f"Votre rotation actuelle, {actuelle['nom'].lower()}, reste la mieux placée pour cette priorité.")
+    else:
+        conseillees = [s for s in tete if not s["actuelle"]]
+        if len(tete) == 1:
+            lignes.append(f"Je vous propose d'étudier la rotation {conseillees[0]['nom'].lower()}.")
+        else:
+            noms = " et ".join(s["nom"].lower() for s in tete)
+            lignes.append(f"{len(tete)} rotations arrivent à égalité en tête, {noms}.")
+        meilleure = conseillees[0]
+        nouvelles = [c for c in meilleure["cultures"] if c not in actuelle["cultures"]]
+        for c in nouvelles:
+            couv = couvertures[c]
+            lignes.append(f"Au moment où la plante a le plus besoin d'eau, la pluie a suffi pour "
+                          f"{le_la(cultures[c]['nom'])} {couv['couvertes']} années sur {couv['annees']}.")
+            if cultures[c]["legumineuse"]:
+                lignes.append(f"{le_la(cultures[c]['nom']).capitalize()} est une légumineuse, qui peut enrichir le sol "
+                              "en azote. C'est à confirmer avec votre conseiller.")
+        ecart = meilleure["scores"]["eau"] - actuelle["scores"]["eau"]
+        nom = meilleure["nom"].lower()
+        lignes.append(f"Pour l'eau, la rotation {nom} " + (
+            "fait mieux que votre rotation actuelle." if ecart >= 0.05 else
+            "fait un peu moins bien que votre rotation actuelle." if ecart <= -0.05 else
+            "fait à peu près comme votre rotation actuelle."))
+        if meilleure["scores"]["debouche"] - actuelle["scores"]["debouche"] <= -0.05:
+            lignes.append("Elle laisse moins de place au coton, ce qui peut réduire vos ventes de coton.")
+        faible = min(actuelle["cultures"], key=lambda c: couvertures[c]["couvertes"] / couvertures[c]["annees"])
+        couv = couvertures[faible]
+        lignes.append(f"Votre rotation actuelle arrive en position {actuelle['rang']}. Avec elle, "
+                      f"{le_la(cultures[faible]['nom'])} n'a eu assez d'eau au moment clé que {couv['couvertes']} "
+                      f"années sur {couv['annees']}.")
+    lignes.append(contexte["stabilite"])
+    classement = []
     for s in strategies:
         egal = ", à égalité" if sum(t["rang"] == s["rang"] for t in strategies) > 1 else ""
-        lignes.append(f"{s['rang']}{egal}. {s['nom']}{', votre rotation actuelle' if s['actuelle'] else ''}")
-    return (f"Pour {lieu}, avec la priorité {libelle_priorite.lower()}, voici les rotations comparées.\n"
-            + "\n".join(lignes) + f"\n{stabilite}\n{avertissement}")
+        classement.append(f"{s['rang']}{egal}. {s['nom']}{', votre rotation actuelle' if s['actuelle'] else ''}")
+    lignes.append("Classement complet.\n" + "\n".join(classement))
+    lignes.append(contexte["avertissement"])
+    return "\n".join(lignes)
 
 
 def enregistrement(cle: str) -> str | None:
@@ -167,6 +214,7 @@ def construire(config: dict) -> dict:
     s = config["sensibilite"]
     for lieu in config["lieux"]:
         serie, debuts = series[lieu["id"]], debuts_par_annee(series[lieu["id"]], config)
+        debut_median = date_texte(quartiles([d.timetuple().tm_yday for d in debuts.values() if d])[1])
         resultats = {}
         for priorite, p in config["priorites"].items():
             analyse = sensibilite(serie, config, debuts, p["poids"])
@@ -182,7 +230,12 @@ def construire(config: dict) -> dict:
                 } for r, total, rang in analyse["classement"]],
             }
             r = resultats[priorite]
-            r["resume"] = resume(lieu["nom"], p["libelle"], r["strategies"], r["stabilite"], sortie["avertissement"])
+            for strategie in r["strategies"]:
+                strategie["cultures"] = rotations[strategie["id"]]["cultures"]
+            couvertures = {c: v for sc in analyse["scores"].values() for c, v in sc["cultures"].items()}
+            r["resume"] = conseil({"lieu": lieu["nom"], "priorite": p["libelle"], "debut_pluies": debut_median,
+                                   "stabilite": r["stabilite"], "avertissement": sortie["avertissement"]},
+                                  r["strategies"], couvertures, config["cultures"])
             r["cle_audio"] = f"{lieu['id']}_{priorite}"
             r["audio"] = enregistrement(r["cle_audio"])
         sortie["lieux"][lieu["id"]] = {"nom": lieu["nom"], "lat": lieu["lat"], "lon": lieu["lon"],
