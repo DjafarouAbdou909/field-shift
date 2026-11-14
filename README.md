@@ -8,7 +8,6 @@ Un outil d'aide à la décision qui compare au moins trois rotations des culture
 
 ```
 field-shift/
-├── CLAUDE.md                 consignes chargées par toute session Claude
 ├── README.md
 ├── requirements.txt          versions figées
 ├── .env.example              paramètres à copier en .env, jamais versionné
@@ -17,11 +16,15 @@ field-shift/
 │   ├── exemple.json          recommandation FICTIVE pour développer les interfaces
 │   ├── recommander.py        point d'entrée, recommander() et charger_exemple()
 │   ├── lieux.py              Korhogo, Bouaké
-│   ├── donnees.py            téléchargement vérifié NASA POWER et IMERG
-│   ├── indicateurs.py        indicateurs, tendance et variabilité
+│   ├── donnees.py            téléchargement vérifié POWER, IMERG et GHCN, pluie des neuf cases
+│   ├── controles.py          contrôles des séries, comparaison des sources de pluie
+│   ├── indicateurs.py        indicateurs annuels et par cycle, tendance et variabilité
 │   ├── cultures.py           cultures candidates et leurs caractéristiques sourcées
-│   ├── rotations.py          stratégies comparées
-│   └── criteres.py           scores, poids par priorité, sensibilité
+│   ├── rotations.py          trois stratégies retenues, appuis sourcés
+│   ├── criteres.py           indicateurs par critère, scores, poids, sensibilité
+│   ├── appeears.py           extractions NASA AppEEARS par points, compte Earthdata
+│   ├── sources.py            sources citées par le moteur, sous la forme du contrat
+│   └── evaluation.py         conformité, bon sens et sensibilité des recommandations
 ├── bot/                      bot WhatsApp
 │   ├── main.py               FastAPI, webhook vérifié          membre A
 │   ├── config.py             paramètres lus dans l'environnement membre A
@@ -36,13 +39,20 @@ field-shift/
 │       └── voix.py           transcription et synthèse vocale
 ├── app/app.py                application Streamlit
 ├── tests/                    unittest, avec des webhooks Meta enregistrés
+├── notebooks/                un notebook par phase de CRISP-DM, exécuté avant chaque commit
+│   └── executer.py           exécute les notebooks en place
 ├── docs/
 │   ├── cadrage.md            le problème en une page
+│   ├── donnees.md            compréhension et préparation des données
+│   ├── evaluation.md         évaluation des recommandations et limites
 │   ├── sources.md            registre de chaque source
 │   ├── travail_anterieur.md  ce qui existait avant le hackathon
 │   └── decisions.md          journal des décisions
 ├── presentation/pitch.md
 └── data/                     données, non versionnées
+    ├── raw/power/            séries POWER et IMERG, avec registre des empreintes
+    ├── raw/ghcn/             pluviomètres et thermomètres GHCN-Daily, avec registre
+    └── processed/            indicateurs annuels par lieu
 ```
 
 État au départ. Le contrat, l'exemple, la sécurité du webhook, le garde-fou, un premier gabarit et une application de démonstration sont écrits et testés. Les autres modules ne contiennent que leur cahier des charges, et leurs fonctions déjà déclarées lèvent `NotImplementedError`.
@@ -59,6 +69,24 @@ venv/bin/python -m unittest discover -s tests -t .
 
 La conversion audio demande aussi `ffmpeg`, par exemple `sudo apt install ffmpeg`.
 
+## Reproduire les données et les indicateurs
+
+```bash
+venv/bin/python -m moteur.controles     # télécharge les séries absentes et les contrôle
+venv/bin/python -m moteur.indicateurs   # calcule les indicateurs de Korhogo et Bouaké
+venv/bin/python -m moteur.criteres      # note les stratégies et teste la sensibilité
+venv/bin/python -m moteur.evaluation    # évalue les recommandations de recommander()
+venv/bin/python -m moteur.appeears suivre   # état et téléchargement des extractions AppEEARS
+```
+
+Les chiffres cités dans `docs/donnees.md` sont ceux qu'affichent ces deux commandes.
+
+Les notebooks de `notebooks/` appellent les fonctions de `moteur/` sans calcul propre, et se réexécutent avant chaque commit pour que leurs sorties soient visibles sur GitHub.
+
+```bash
+venv/bin/python notebooks/executer.py
+```
+
 ## Lancement
 
 ```bash
@@ -70,7 +98,7 @@ Meta exige une URL HTTPS publique pour le webhook, fournie par l'hébergeur ou p
 
 ## Démarrer une session Claude
 
-Ouvrir Claude Code à la racine du dépôt, sur sa branche, puis coller le message de son rôle. `CLAUDE.md` est chargé automatiquement.
+Ouvrir Claude Code à la racine du dépôt, sur sa branche, puis coller le message de son rôle. `CLAUDE.md` n'est pas versionné. Chaque membre en garde une copie à la racine, exclue par `.git/info/exclude`, et Claude la charge automatiquement.
 
 **Données et moteur, branche `moteur`**
 
@@ -110,4 +138,3 @@ audio, sans les supposer, et consigne le choix dans docs/decisions.md.
 ## Licence et attribution
 
 À définir par l'équipe avant la soumission.
-# field-shift
