@@ -37,6 +37,7 @@ def accueil() -> str:
             "de pluie des satellites de la NASA depuis 2001. Mes conseils sont indicatifs et ne remplacent pas "
             "votre conseiller ANADER.\n"
             "Pour vous répondre, je garde votre zone, votre rotation et votre priorité, sans votre numéro en clair. "
+            "Vos messages vocaux sont transcrits par le service Aethex, et Field Shift ne les garde pas. "
             "Acceptez-vous ?")
 
 
