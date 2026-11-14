@@ -500,6 +500,12 @@ async function demarrer() {
   addEventListener("offline", afficherReseau);
   // Le démarrage n'attend jamais le réseau. L'enregistrement se fait en arrière-plan.
   if ("serviceWorker" in navigator) {
+    // Quand une nouvelle version prend le relais, la page se recharge une fois pour l'afficher.
+    const avaitUneVersion = !!navigator.serviceWorker.controller;
+    let recharge = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (avaitUneVersion && !recharge) { recharge = true; location.reload(); }
+    });
     navigator.serviceWorker.register("sw.js").catch(() => { /* le site reste utilisable en ligne */ });
     verifierHorsLigne();
   }
