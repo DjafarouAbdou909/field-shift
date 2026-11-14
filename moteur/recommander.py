@@ -18,7 +18,8 @@ from pathlib import Path
 
 import pandas as pd
 
-from .contrat import Element, Indicateur, Lieu, Poids, Recommandation, Scores, Source, Strategie
+from .contrat import (AlerteVegetation, Diagnostic, Element, Indicateur, Lieu, Poids, Recommandation, Scores, Source,
+                      Strategie)
 from .criteres import (CRITERES, LIBELLES, POIDS_PAR_PRIORITE, Contexte, contextes_du_lieu, evaluer, scores_criteres,
                        sensibilite, tableau_scores)
 from .lieux import LIEUX
@@ -26,6 +27,8 @@ from .rotations import STRATEGIES
 from .sources import source
 
 EXEMPLE = Path(__file__).with_name("exemple.json")
+EXEMPLE_ALERTE = Path(__file__).with_name("exemple_alerte.json")
+EXEMPLE_DIAGNOSTIC = Path(__file__).with_name("exemple_diagnostic.json")
 NOTATION = Source(nom="Notation Field Shift CI, règles visibles appliquées aux données NASA et à FAO-56",
                   reference="moteur/criteres.py et docs/decisions.md du dépôt field-shift")
 SCENARIOS_EN_CLAIR = {"pluie_moins_20_pourcent": "la pluie baisse de 20 %",
@@ -51,6 +54,16 @@ AVERTISSEMENT = ("Conseil indicatif, fondé sur les données de la NASA de 2001 
 def charger_exemple() -> Recommandation:
     """Retourne la recommandation fictive qui sert à développer et tester les interfaces."""
     return Recommandation.model_validate(json.loads(EXEMPLE.read_text(encoding="utf-8")))
+
+
+def charger_exemple_alerte() -> AlerteVegetation:
+    """Retourne l'alerte fictive qui sert à développer et tester les interfaces."""
+    return AlerteVegetation.model_validate(json.loads(EXEMPLE_ALERTE.read_text(encoding="utf-8")))
+
+
+def charger_exemple_diagnostic() -> Diagnostic:
+    """Retourne le diagnostic fictif qui sert à développer et tester les interfaces."""
+    return Diagnostic.model_validate(json.loads(EXEMPLE_DIAGNOSTIC.read_text(encoding="utf-8")))
 
 
 def arrondi(valeur: float, decimales: int) -> float:

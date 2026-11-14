@@ -1,0 +1,12 @@
+{
+  "version": "2",
+  "donnees_fictives": true,
+  "culture": "coton",
+  "statut": "maladie_possible",
+  "maladie": "maladie fictive A",
+  "confiance": 0.72,
+  "liste": ["maladie fictive A", "maladie fictive B"],
+  "source_maladie": {"nom": "Source fictive", "reference": "exemple de développement, aucune donnée réelle"},
+  "origine_images": "Exemple fictif, aucune image réelle.",
+  "avertissement": "DONNÉES FICTIVES pour le développement, à ne jamais présenter. Maladie possible, à faire confirmer par votre conseiller ANADER."
+}

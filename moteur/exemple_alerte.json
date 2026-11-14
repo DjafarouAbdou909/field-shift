@@ -1,0 +1,16 @@
+{
+  "version": "2",
+  "donnees_fictives": true,
+  "lieu": {"id": "korhogo", "nom": "Korhogo", "lat": 9.458, "lon": -5.629},
+  "date": "2025-08-15",
+  "indice": "NDVI",
+  "statut": "faible",
+  "valeur": 0.41,
+  "seuil": 0.48,
+  "observations_reference": 34,
+  "annees_reference": 9,
+  "texte": "La végétation de votre zone est plus faible que d'habitude pour cette période.",
+  "niveau": "calcule",
+  "source": {"nom": "NASA HLS, exemple fictif", "reference": "exemple de développement, aucune donnée réelle"},
+  "avertissement": "DONNÉES FICTIVES pour le développement, à ne jamais présenter. Aucune cause n'est déduite, à discuter avec votre conseiller ANADER."
+}

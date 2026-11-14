@@ -1,5 +1,5 @@
 {
-  "version": "1",
+  "version": "2",
   "donnees_fictives": true,
   "lieu": {"id": "korhogo", "nom": "Korhogo", "lat": 9.458, "lon": -5.629},
   "priorite": "eau",

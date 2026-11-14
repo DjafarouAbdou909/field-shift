@@ -3,9 +3,9 @@ import unittest
 
 from pydantic import ValidationError
 
-from moteur import charger_exemple
-from moteur.contrat import Element, Indicateur, Poids, Recommandation
-from moteur.recommander import EXEMPLE
+from moteur import charger_exemple, charger_exemple_alerte, charger_exemple_diagnostic
+from moteur.contrat import AlerteVegetation, Diagnostic, Element, Indicateur, Poids, Recommandation
+from moteur.recommander import EXEMPLE, EXEMPLE_ALERTE, EXEMPLE_DIAGNOSTIC
 
 
 class TestContrat(unittest.TestCase):
@@ -50,6 +50,39 @@ class TestContrat(unittest.TestCase):
         self.donnees["rendement_garanti"] = 3
         with self.assertRaises(ValidationError):
             Recommandation.model_validate(self.donnees)
+
+
+
+class TestContratVersion2(unittest.TestCase):
+    def setUp(self):
+        self.alerte = json.loads(EXEMPLE_ALERTE.read_text(encoding="utf-8"))
+        self.diagnostic = json.loads(EXEMPLE_DIAGNOSTIC.read_text(encoding="utf-8"))
+
+    def test_version_2_et_exemples_fictifs(self):
+        self.assertEqual(charger_exemple().version, "2")
+        self.assertTrue(charger_exemple_alerte().donnees_fictives)
+        self.assertTrue(charger_exemple_diagnostic().donnees_fictives)
+
+    def test_alerte_faible_exige_une_valeur_sous_le_seuil(self):
+        with self.assertRaises(ValidationError):
+            AlerteVegetation.model_validate(dict(self.alerte, valeur=0.5))
+        AlerteVegetation.model_validate(dict(self.alerte, valeur=0.5, statut="normale"))
+
+    def test_alerte_indisponible_sans_valeur(self):
+        AlerteVegetation.model_validate(dict(self.alerte, statut="indisponible", valeur=None, seuil=None))
+        with self.assertRaises(ValidationError):
+            AlerteVegetation.model_validate(dict(self.alerte, statut="indisponible"))
+
+    def test_diagnostic_dans_la_liste_fermee(self):
+        with self.assertRaises(ValidationError):
+            Diagnostic.model_validate(dict(self.diagnostic, maladie="maladie hors liste"))
+        Diagnostic.model_validate(dict(self.diagnostic, statut="inconnu", maladie=None, source_maladie=None))
+        with self.assertRaises(ValidationError):
+            Diagnostic.model_validate(dict(self.diagnostic, statut="inconnu"))
+
+    def test_diagnostic_renvoie_au_conseiller(self):
+        with self.assertRaises(ValidationError):
+            Diagnostic.model_validate(dict(self.diagnostic, avertissement="Maladie possible."))
 
 
 if __name__ == "__main__":

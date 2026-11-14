@@ -13,7 +13,7 @@ class TestAucuneDonneeFictive(unittest.TestCase):
         """Ni l'application ni le bot ne chargent l'exemple fictif, réservé aux tests."""
         for fichier in list((RACINE / "app").rglob("*.py")) + list((RACINE / "bot").rglob("*.py")):
             texte = fichier.read_text(encoding="utf-8")
-            self.assertIsNone(re.search(r"charger_exemple|exemple\.json", texte), fichier.name)
+            self.assertIsNone(re.search(r"charger_exemple|exemple[_a-z]*\.json", texte), fichier.name)
 
 
 @unittest.skipUnless(DONNEES_PRESENTES, "séries NASA absentes de data/raw, lancer venv/bin/python -m moteur.controles")
