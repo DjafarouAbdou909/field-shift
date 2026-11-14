@@ -587,8 +587,8 @@ function chargerScript(adresse) {
 
 async function session() {
   if (sessionDiagnostic) return sessionDiagnostic;
-  if (!window.ort) await chargerScript(DOSSIER_DIAGNOSTIC + "ort.min.js");
-  ort.env.wasm.wasmPaths = DOSSIER_DIAGNOSTIC;
+  if (!window.ort) await chargerScript(DOSSIER_DIAGNOSTIC + "ort.wasm.min.js");
+  ort.env.wasm.wasmPaths = new URL(DOSSIER_DIAGNOSTIC, location.href).href;
   ort.env.wasm.numThreads = 1;
   sessionDiagnostic = await ort.InferenceSession.create(DOSSIER_DIAGNOSTIC + "modele.onnx",
     { executionProviders: ["wasm"] });
@@ -643,7 +643,7 @@ async function analyser(fichier) {
     const classe = probabilites[meilleure] >= fiche.seuil ? fiche.classes[meilleure] : "inconnu";
     dire(MESSAGES_DIAGNOSTIC[classe] || MESSAGES_DIAGNOSTIC.inconnu, suite);
   } catch (e) {
-    dire("Le diagnostic n'a pas pu tourner sur ce téléphone.", suite);
+    dire(`Le diagnostic n'a pas pu tourner sur ce téléphone.\nDétail technique, ${e && e.message ? e.message : e}.`, suite);
   }
 }
 

@@ -4,7 +4,7 @@ Ce dossier reçoit le modèle de diagnostic des feuilles de maïs, entraîné da
 
 1. Dans Colab, exécutez le notebook. Il télécharge `diagnostic.zip`, qui contient `modele.onnx` et `modele.json`.
 2. Placez ces deux fichiers dans ce dossier.
-3. Ajoutez le moteur d'exécution ONNX Runtime Web, `ort.min.js` et ses fichiers `.wasm` et `.mjs`, en version figée.
+3. Le moteur d'exécution ONNX Runtime Web 1.20.1 est déjà présent, `ort.wasm.min.js`, `ort-wasm-simd-threaded.wasm` et `ort-wasm-simd-threaded.mjs`, vérifiés contre les empreintes publiées par jsDelivr.
 4. Listez dans `fichiers.json` tous les fichiers du dossier à garder sur le téléphone.
 
 Tant que `modele.json` est absent, l'application ne propose pas le diagnostic.
