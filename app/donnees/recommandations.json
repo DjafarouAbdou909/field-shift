@@ -1,0 +1,1076 @@
+{
+ "version": "20261114143524",
+ "periode": "2001 à 2024",
+ "rayon_couverture_km": 60,
+ "avertissement": "Conseil indicatif, fondé sur le climat passé. À discuter avec votre conseiller ANADER.",
+ "priorites": {
+  "eau": "Économiser l'eau",
+  "sol": "Soigner le sol",
+  "debouche": "Vendre facilement"
+ },
+ "rotation_actuelle": "coton_mais",
+ "lieux": {
+  "korhogo": {
+   "nom": "Korhogo",
+   "lat": 9.458,
+   "lon": -5.629,
+   "indicateurs": [
+    {
+     "texte": "Les pluies démarrent en général vers le 14 avril, entre le 3 avril et le 27 avril une année sur deux.",
+     "niveau": "calcule",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": "Début trouvé 24 années sur 24."
+    },
+    {
+     "texte": "Aucune tendance robuste du début des pluies n'est établie, le résultat dépend du critère retenu.",
+     "niveau": "calcule",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": "Avec 7 jours secs au plus, 14,4 jours par décennie, intervalle à 95 % de 8,6 à 23,0. Avec 10 jours secs au plus, 6,5 jours par décennie, intervalle à 95 % de moins 1,8 à 15,3. Avec 14 jours secs au plus, 0,7 jours par décennie, intervalle à 95 % de moins 8,8 à 11,7."
+    },
+    {
+     "texte": "Pluie annuelle moyenne 1202 mm, écart type 115 mm.",
+     "niveau": "mesure",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": ""
+    },
+    {
+     "texte": "Tendance de la pluie annuelle, 8 mm par décennie, intervalle à 95 % de moins 69 à 78.",
+     "niveau": "calcule",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": ""
+    }
+   ],
+   "resultats": {
+    "eau": {
+     "stable": false,
+     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "ordres": {
+      "reference": [
+       [
+        "coton_mais_arachide",
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "pluie_reduite": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "semis_retarde": [
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais"
+       ]
+      ]
+     },
+     "strategies": [
+      {
+       "id": "coton_mais_arachide",
+       "nom": "Coton, maïs puis arachide",
+       "actuelle": false,
+       "rang": 1,
+       "total": 0.5667,
+       "scores": {
+        "eau": 0.7222,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 12 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 31 à 69 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau de l'arachide 17 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 51 à 85 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_sorgho_niebe",
+       "nom": "Coton, sorgho puis niébé",
+       "actuelle": false,
+       "rang": 1,
+       "total": 0.5667,
+       "scores": {
+        "eau": 0.7222,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du sorgho 16 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 47 à 82 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du niébé 13 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 35 à 72 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais",
+       "nom": "Coton puis maïs",
+       "actuelle": true,
+       "rang": 3,
+       "total": 0.5375,
+       "scores": {
+        "eau": 0.7292,
+        "sol": 0.0,
+        "debouche": 0.5
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 12 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 31 à 69 %."
+        },
+        {
+         "texte": "Aucune légumineuse sur 2 années.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 2.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      }
+     ]
+    },
+    "sol": {
+     "stable": false,
+     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "ordres": {
+      "reference": [
+       [
+        "coton_mais_arachide",
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "pluie_reduite": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "semis_retarde": [
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais"
+       ]
+      ]
+     },
+     "strategies": [
+      {
+       "id": "coton_mais_arachide",
+       "nom": "Coton, maïs puis arachide",
+       "actuelle": false,
+       "rang": 1,
+       "total": 0.4111,
+       "scores": {
+        "eau": 0.7222,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 12 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 31 à 69 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau de l'arachide 17 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 51 à 85 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_sorgho_niebe",
+       "nom": "Coton, sorgho puis niébé",
+       "actuelle": false,
+       "rang": 1,
+       "total": 0.4111,
+       "scores": {
+        "eau": 0.7222,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du sorgho 16 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 47 à 82 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du niébé 13 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 35 à 72 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais",
+       "nom": "Coton puis maïs",
+       "actuelle": true,
+       "rang": 3,
+       "total": 0.2458,
+       "scores": {
+        "eau": 0.7292,
+        "sol": 0.0,
+        "debouche": 0.5
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 12 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 31 à 69 %."
+        },
+        {
+         "texte": "Aucune légumineuse sur 2 années.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 2.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      }
+     ]
+    },
+    "debouche": {
+     "stable": false,
+     "stabilite": "Attention, ce classement change si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "ordres": {
+      "reference": [
+       [
+        "coton_mais"
+       ],
+       [
+        "coton_mais_arachide",
+        "coton_sorgho_niebe"
+       ]
+      ],
+      "pluie_reduite": [
+       [
+        "coton_mais"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ]
+      ],
+      "semis_retarde": [
+       [
+        "coton_mais"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ]
+      ]
+     },
+     "strategies": [
+      {
+       "id": "coton_mais",
+       "nom": "Coton puis maïs",
+       "actuelle": true,
+       "rang": 1,
+       "total": 0.4458,
+       "scores": {
+        "eau": 0.7292,
+        "sol": 0.0,
+        "debouche": 0.5
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 12 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 31 à 69 %."
+        },
+        {
+         "texte": "Aucune légumineuse sur 2 années.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 2.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais_arachide",
+       "nom": "Coton, maïs puis arachide",
+       "actuelle": false,
+       "rang": 2,
+       "total": 0.4111,
+       "scores": {
+        "eau": 0.7222,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 12 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 31 à 69 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau de l'arachide 17 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 51 à 85 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_sorgho_niebe",
+       "nom": "Coton, sorgho puis niébé",
+       "actuelle": false,
+       "rang": 2,
+       "total": 0.4111,
+       "scores": {
+        "eau": 0.7222,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 23 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 80 à 99 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du sorgho 16 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 47 à 82 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du niébé 13 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 35 à 72 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      }
+     ]
+    }
+   }
+  },
+  "bouake": {
+   "nom": "Bouaké",
+   "lat": 7.69,
+   "lon": -5.03,
+   "indicateurs": [
+    {
+     "texte": "Les pluies démarrent en général vers le 18 mars, entre le 11 mars et le 7 avril une année sur deux.",
+     "niveau": "calcule",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": "Début trouvé 24 années sur 24."
+    },
+    {
+     "texte": "Aucune tendance robuste du début des pluies n'est établie, le résultat dépend du critère retenu.",
+     "niveau": "calcule",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": "Avec 7 jours secs au plus, 2,9 jours par décennie, intervalle à 95 % de moins 12,1 à 19,8. Avec 10 jours secs au plus, moins 3,0 jours par décennie, intervalle à 95 % de moins 9,6 à 4,8. Avec 14 jours secs au plus, moins 5,3 jours par décennie, intervalle à 95 % de moins 10,2 à 0,3."
+    },
+    {
+     "texte": "Pluie annuelle moyenne 1101 mm, écart type 172 mm.",
+     "niveau": "mesure",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": ""
+    },
+    {
+     "texte": "Tendance de la pluie annuelle, 67 mm par décennie, intervalle à 95 % de moins 16 à 168.",
+     "niveau": "calcule",
+     "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024",
+     "detail": ""
+    }
+   ],
+   "resultats": {
+    "eau": {
+     "stable": true,
+     "stabilite": "Ce classement tient si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "ordres": {
+      "reference": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "pluie_reduite": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "semis_retarde": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ]
+     },
+     "strategies": [
+      {
+       "id": "coton_sorgho_niebe",
+       "nom": "Coton, sorgho puis niébé",
+       "actuelle": false,
+       "rang": 1,
+       "total": 0.3833,
+       "scores": {
+        "eau": 0.4167,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du sorgho 11 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 28 à 65 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du niébé 9 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 21 à 57 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais_arachide",
+       "nom": "Coton, maïs puis arachide",
+       "actuelle": false,
+       "rang": 2,
+       "total": 0.35,
+       "scores": {
+        "eau": 0.3611,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau de l'arachide 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais",
+       "nom": "Coton puis maïs",
+       "actuelle": true,
+       "rang": 3,
+       "total": 0.325,
+       "scores": {
+        "eau": 0.375,
+        "sol": 0.0,
+        "debouche": 0.5
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "Aucune légumineuse sur 2 années.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 2.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      }
+     ]
+    },
+    "sol": {
+     "stable": true,
+     "stabilite": "Ce classement tient si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "ordres": {
+      "reference": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "pluie_reduite": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ],
+      "semis_retarde": [
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ],
+       [
+        "coton_mais"
+       ]
+      ]
+     },
+     "strategies": [
+      {
+       "id": "coton_sorgho_niebe",
+       "nom": "Coton, sorgho puis niébé",
+       "actuelle": false,
+       "rang": 1,
+       "total": 0.35,
+       "scores": {
+        "eau": 0.4167,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du sorgho 11 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 28 à 65 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du niébé 9 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 21 à 57 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais_arachide",
+       "nom": "Coton, maïs puis arachide",
+       "actuelle": false,
+       "rang": 2,
+       "total": 0.3389,
+       "scores": {
+        "eau": 0.3611,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau de l'arachide 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais",
+       "nom": "Coton puis maïs",
+       "actuelle": true,
+       "rang": 3,
+       "total": 0.175,
+       "scores": {
+        "eau": 0.375,
+        "sol": 0.0,
+        "debouche": 0.5
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "Aucune légumineuse sur 2 années.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 2.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      }
+     ]
+    },
+    "debouche": {
+     "stable": true,
+     "stabilite": "Ce classement tient si la pluie baisse de 20 % ou si les pluies démarrent 14 jours plus tard.",
+     "ordres": {
+      "reference": [
+       [
+        "coton_mais"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ]
+      ],
+      "pluie_reduite": [
+       [
+        "coton_mais"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ]
+      ],
+      "semis_retarde": [
+       [
+        "coton_mais"
+       ],
+       [
+        "coton_sorgho_niebe"
+       ],
+       [
+        "coton_mais_arachide"
+       ]
+      ]
+     },
+     "strategies": [
+      {
+       "id": "coton_mais",
+       "nom": "Coton puis maïs",
+       "actuelle": true,
+       "rang": 1,
+       "total": 0.375,
+       "scores": {
+        "eau": 0.375,
+        "sol": 0.0,
+        "debouche": 0.5
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "Aucune légumineuse sur 2 années.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 2.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_sorgho_niebe",
+       "nom": "Coton, sorgho puis niébé",
+       "actuelle": false,
+       "rang": 2,
+       "total": 0.35,
+       "scores": {
+        "eau": 0.4167,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du sorgho 11 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 28 à 65 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du niébé 9 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 21 à 57 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      },
+      {
+       "id": "coton_mais_arachide",
+       "nom": "Coton, maïs puis arachide",
+       "actuelle": false,
+       "rang": 3,
+       "total": 0.3389,
+       "scores": {
+        "eau": 0.3611,
+        "sol": 0.3333,
+        "debouche": 0.3333
+       },
+       "explications": [
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du coton 10 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 24 à 61 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau du maïs 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "Au stade de pleine croissance, la pluie a couvert le besoin en eau de l'arachide 8 années sur 24.",
+         "niveau": "calcule",
+         "source": "NASA GPM IMERG et NASA POWER, 2001 à 2024, FAO 56, tableaux 11 et 12",
+         "detail": "Intervalle à 95 % de 18 à 53 %."
+        },
+        {
+         "texte": "1 année de légumineuse sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que les légumineuses enrichissent le sol en azote. À confirmer localement."
+        },
+        {
+         "texte": "1 année de coton sur 3.",
+         "niveau": "hypothese",
+         "source": "",
+         "detail": "On suppose que le coton offre un débouché organisé. À confirmer localement."
+        }
+       ]
+      }
+     ]
+    }
+   }
+  }
+ }
+}
