@@ -108,3 +108,15 @@ Documentation officielle de Google lue le 14 novembre 2026 sur https://aistudio.
 | Âge | L'usage est réservé aux personnes de 18 ans ou plus, et un service probablement utilisé par des mineurs est exclu | docs/terms, section Age Requirements |
 | Disponibilité | La Côte d'Ivoire figure parmi les régions où l'API est disponible | docs/available-regions |
 | Coût | Niveau payant, 1,50 dollar par million de jetons en entrée et 7,50 dollars par million en sortie, réflexion comprise | docs/pricing |
+
+### Service de voix
+
+Aethex AI, choisi par le responsable le 14 novembre 2026. La documentation développeur, https://developers.aethexai.com/docs, coupe la connexion ce jour-là. Réglages dans `bot/langage/voix.py`.
+
+| Point vérifié | Constat | Source lue |
+|---|---|---|
+| Points d'accès | Transcription d'un fichier, `POST /api/v1/transcribe`, synthèse, `POST /api/v1/tts`, réponse en WAV, liste des voix, `GET /api/v1/voices`, clé dans l'en-tête `X-API-Key` | Code source du SDK aethexai 1.0.2, licence MIT, fichier kora.py |
+| Prix | 4 000 crédits valent 500 caractères de synthèse ou 3 minutes de transcription, forfaits mensuels à partir de 3 dollars | https://aethexai.com/pricing |
+| Langues | Kora 2.0 ajoute notamment le wolof, le bambara, le haoussa et le yoruba, sans langue de Côte d'Ivoire citée, et reste réservé aux entreprises avant l'accès par API | Annonce du 29 octobre 2026 sur https://aethexai.com/blog |
+| Données | Usage des données pour fournir et améliorer les services, conservation d'au plus un an, service réservé aux 18 ans ou plus | Politique de confidentialité du 10 avril 2026, https://aethexai.com/privacy |
+| Enregistrements d'appels | Désactivés par défaut, conservés 90 jours avec leurs transcriptions, supprimables plus tôt. Ne concerne que les agents vocaux, que le bot n'utilise pas | Page Enregistrement et transcription de la documentation, transmise par le responsable |
