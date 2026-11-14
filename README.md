@@ -36,6 +36,8 @@ field-shift/
 │       └── voix.py           transcription et synthèse vocale
 ├── app/app.py                application Streamlit
 ├── tests/                    unittest, avec des webhooks Meta enregistrés
+├── notebooks/                un notebook par phase de CRISP-DM, exécuté avant chaque commit
+│   └── executer.py           exécute les notebooks en place
 ├── docs/
 │   ├── cadrage.md            le problème en une page
 │   ├── donnees.md            compréhension et préparation des données
@@ -71,6 +73,12 @@ venv/bin/python -m moteur.indicateurs   # calcule les indicateurs de Korhogo et 
 ```
 
 Les chiffres cités dans `docs/donnees.md` sont ceux qu'affichent ces deux commandes.
+
+Les notebooks de `notebooks/` appellent les fonctions de `moteur/` sans calcul propre, et se réexécutent avant chaque commit pour que leurs sorties soient visibles sur GitHub.
+
+```bash
+venv/bin/python notebooks/executer.py
+```
 
 ## Lancement
 

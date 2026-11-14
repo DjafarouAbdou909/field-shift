@@ -12,15 +12,36 @@ rayonnement au sol ne dépasse pas le rayonnement extraterrestre de FAO-56. Le s
 PRECTOTCORR, et sert ici de repère, pas de borne.
 """
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 
-from .donnees import (PRODUITS, STATIONS_GHCN, centre_case_imerg, lire_pluie_station, lire_power, lire_tmax_station,
+from .donnees import (DOSSIER_POWER, PRODUITS, STATIONS_GHCN, centre_case_imerg, lire_pluie_station, lire_power, lire_tmax_station,
                       telecharger_point, telecharger_station, voisinage_imerg)
 from .indicateurs import rayonnement_extraterrestre
 from .lieux import LIEUX
 
 SEUIL_CUMUL_SUSPECT = 200.0
+
+
+POINTS_ESSAI_RESOLUTION = {"case 9,4 à 9,5 et -5,7 à -5,6, premier point": (9.42, -5.68),
+                           "même case, second point": (9.48, -5.62),
+                           "case voisine au nord": (9.52, -5.62)}
+
+
+def essai_resolution_imerg(dossier: Path = DOSSIER_POWER / "essai_resolution", debut: str = "20250801",
+                           fin: str = "20250810") -> pd.DataFrame:
+    """Pluie IMERG de POWER en trois points, deux dans une même case de 0,1 degré et un dans la case voisine.
+
+    Des valeurs identiques dans la même case et différentes dans la case voisine montrent
+    que POWER sert IMERG à sa résolution native de 0,1 degré. Les fichiers de l'essai sont
+    rangés à part, pour ne pas être confondus avec les séries complètes.
+    """
+    return pd.DataFrame({
+        nom: lire_power(telecharger_point(*point, "imerg", dossier, dossier / "registre.csv", debut, fin))["IMERG_PRECTOT"]
+        for nom, point in POINTS_ESSAI_RESOLUTION.items()
+    })
 
 
 def controler_serie(serie: pd.DataFrame, latitude: float, debut: str, fin: str) -> dict:
@@ -143,15 +164,62 @@ def climatologie_mensuelle(pluie: pd.Series) -> pd.DataFrame:
                          "q90_mm": mensuel.quantile(0.9)}).round(1)
 
 
+DEBUT_SERIES, FIN_SERIES = "2001-01-01", "2025-12-31"
+
+
+def charger_lieu(identifiant: str) -> dict:
+    """Charge les séries d'un lieu, en les téléchargeant si elles manquent.
+
+    Le résultat contient la météo POWER, la pluie IMERG des neuf cases, la case du lieu en
+    tête, la pluie IMERG de la case du pluviomètre, et la pluie et la température maximale
+    du pluviomètre GHCN-Daily sur la période des séries.
+    """
+    lieu = LIEUX[identifiant]
+    cases = voisinage_imerg(lieu["lat"], lieu["lon"])
+    station, lat_station, lon_station = STATIONS_GHCN[identifiant]
+    case_station = centre_case_imerg(lat_station, lon_station)
+    fichier_station = telecharger_station(station)
+    return {
+        "power": lire_power(telecharger_point(lieu["lat"], lieu["lon"], "power")),
+        "cases": cases,
+        "imerg": {case: lire_power(telecharger_point(*case, "imerg"))["IMERG_PRECTOT"] for case in cases},
+        "station": station,
+        "case_station": case_station,
+        "imerg_station": lire_power(telecharger_point(*case_station, "imerg"))["IMERG_PRECTOT"],
+        "pluie_station": lire_pluie_station(fichier_station).loc[DEBUT_SERIES:FIN_SERIES],
+        "tmax_station": lire_tmax_station(fichier_station).loc[DEBUT_SERIES:FIN_SERIES],
+    }
+
+
+def rupture_rapport(comparaison: pd.DataFrame, annee: int = 2020) -> pd.Series:
+    """Moyenne et écart-type du rapport PRECTOTCORR sur IMERG avant et à partir d'une année."""
+    avant, apres = comparaison.loc[:annee - 1, "rapport"], comparaison.loc[annee:, "rapport"]
+    return pd.Series({"moyenne_avant": avant.mean(), "ecart_type_avant": avant.std(),
+                      "moyenne_apres": apres.mean(), "ecart_type_apres": apres.std()})
+
+
+def case_la_plus_arrosee(dispersion: pd.DataFrame, coupure: int = 2013) -> pd.Series:
+    """Nombre d'années où la case du lieu est la plus arrosée des neuf, avant et à partir d'une année."""
+    premiere = dispersion["rang_case_du_lieu"] == 1
+    return pd.Series({"annees_avant": int((dispersion.index < coupure).sum()),
+                      "premiere_avant": int(premiere[dispersion.index < coupure].sum()),
+                      "annees_apres": int((dispersion.index >= coupure).sum()),
+                      "premiere_apres": int(premiere[dispersion.index >= coupure].sum())})
+
+
+def jours_par_annee(serie: pd.Series) -> pd.Series:
+    """Nombre de jours renseignés par année."""
+    return serie.dropna().groupby(serie.dropna().index.year).size()
+
+
 def executer() -> None:
-    debut, fin = "2001-01-01", "2025-12-31"
+    debut, fin = DEBUT_SERIES, FIN_SERIES
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 20)
     for identifiant, lieu in LIEUX.items():
         lat, lon = lieu["lat"], lieu["lon"]
-        power = lire_power(telecharger_point(lat, lon, "power"))
-        cases = voisinage_imerg(lat, lon)
-        imerg = {case: lire_power(telecharger_point(*case, "imerg"))["IMERG_PRECTOT"] for case in cases}
+        series = charger_lieu(identifiant)
+        power, cases, imerg = series["power"], series["cases"], series["imerg"]
         pluie = imerg[cases[0]]
         print(f"\n===== {lieu['nom']}, point {lat}, {lon}, case IMERG centrée en {cases[0]}")
         print("\nContrôles POWER")
@@ -161,32 +229,28 @@ def executer() -> None:
         print("\nComparaison annuelle IMERG et PRECTOTCORR")
         comparaison = comparer_pluies(pluie, power["PRECTOTCORR"])
         print(comparaison.to_string())
-        avant, apres = comparaison.loc[2001:2019, "rapport"], comparaison.loc[2020:, "rapport"]
-        print(f"rapport moyen 2001-2019 {avant.mean():.3f}, écart-type {avant.std():.3f}, "
-              f"2020-2025 {apres.mean():.3f}, écart-type {apres.std():.3f}")
+        rupture = rupture_rapport(comparaison)
+        print(f"rapport moyen 2001-2019 {rupture['moyenne_avant']:.3f}, écart-type {rupture['ecart_type_avant']:.3f}, "
+              f"2020-2025 {rupture['moyenne_apres']:.3f}, écart-type {rupture['ecart_type_apres']:.3f}")
         print(f"cumul annuel moyen 2001-2025, IMERG {comparaison['imerg_mm'].mean():.0f} mm, "
               f"PRECTOTCORR {comparaison['prectotcorr_mm'].mean():.0f} mm")
         print("\nDispersion entre la case du lieu et ses huit voisines")
         dispersion = dispersion_voisinage(imerg)
         print(dispersion.to_string())
-        premiere = dispersion["rang_case_du_lieu"] == 1
-        print(f"case du lieu la plus arrosée des neuf, {premiere.loc[2001:2012].sum()} années sur 12 "
-              f"de 2001 à 2012, {premiere.loc[2013:].sum()} sur {len(premiere.loc[2013:])} de 2013 à 2025")
+        premiere = case_la_plus_arrosee(dispersion)
+        print(f"case du lieu la plus arrosée des neuf, {premiere['premiere_avant']} années sur {premiere['annees_avant']} "
+              f"de 2001 à 2012, {premiere['premiere_apres']} sur {premiere['annees_apres']} de 2013 à 2025")
         print("\nÉcart de la case du lieu à la moyenne des neuf cases, pluie retenue pour le lieu")
         print(ecart_case_moyenne(dispersion).to_string())
         print("\nClimatologie mensuelle IMERG, case du lieu")
         print(climatologie_mensuelle(pluie).to_string())
-        station, lat_station, lon_station = STATIONS_GHCN[identifiant]
-        case_station = centre_case_imerg(lat_station, lon_station)
-        pluie_station = lire_pluie_station(telecharger_station(station)).loc[debut:fin]
-        imerg_station = lire_power(telecharger_point(*case_station, "imerg"))["IMERG_PRECTOT"]
+        station, case_station = series["station"], series["case_station"]
         print(f"\nComparaison au pluviomètre GHCN-Daily {station}, case IMERG {case_station}")
-        print(comparer_station(pluie_station, imerg_station, power["PRECTOTCORR"]).to_string())
+        print(comparer_station(series["pluie_station"], series["imerg_station"], power["PRECTOTCORR"]).to_string())
         print("jours de station par année")
-        print(pluie_station.groupby(pluie_station.index.year).size().to_string())
+        print(jours_par_annee(series["pluie_station"]).rename_axis("date").to_string())
         print(f"\nTempérature maximale de MERRA-2 et du thermomètre {station}")
-        tmax_station = lire_tmax_station(telecharger_station(station)).loc[debut:fin]
-        print(comparer_tmax_station(tmax_station, power["T2M_MAX"]).to_string())
+        print(comparer_tmax_station(series["tmax_station"], power["T2M_MAX"]).to_string())
     print(f"\nParamètres téléchargés {PRODUITS}")
 
 

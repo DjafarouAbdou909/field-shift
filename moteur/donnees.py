@@ -166,6 +166,14 @@ def lire_power(chemin: Path) -> pd.DataFrame:
     return donnees.drop(columns=["YEAR", "DOY"]).set_index(date.rename("date"))
 
 
+def parametres_entete(chemin: Path) -> dict[str, str]:
+    """Retourne la description que l'en-tête d'un fichier POWER donne de chaque paramètre."""
+    with gzip.open(chemin, "rt", encoding="utf-8") as fichier:
+        entete = fichier.read().split("-END HEADER-", 1)[0].splitlines()
+    debut = next(i for i, ligne in enumerate(entete) if ligne.startswith("parameter(s)")) + 1
+    return {ligne.split()[0]: ligne.split(None, 1)[1].strip() for ligne in entete[debut:] if ligne.strip()}
+
+
 def altitude_power(chemin: Path) -> float:
     """Lit dans l'en-tête l'altitude moyenne de la maille MERRA-2, en mètres."""
     with gzip.open(chemin, "rt", encoding="utf-8") as fichier:

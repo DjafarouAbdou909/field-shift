@@ -8,11 +8,11 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 
-from moteur.controles import (comparer_pluies, comparer_station, comparer_tmax_station, controler_serie,
-                              ecart_case_moyenne)
+from moteur.controles import (case_la_plus_arrosee, comparer_pluies, comparer_station, comparer_tmax_station,
+                              controler_serie, ecart_case_moyenne, jours_par_annee, rupture_rapport)
 from moteur.donnees import (altitude_power, centre_case_imerg, empreinte_sha256, lire_pluie_station, lire_power,
-                            lire_tmax_station, nom_fichier, pluie_lieu, reponse_complete, telecharger_point,
-                            voisinage_imerg)
+                            lire_tmax_station, nom_fichier, parametres_entete, pluie_lieu, reponse_complete,
+                            telecharger_point, voisinage_imerg)
 
 ENTETE = "-BEGIN HEADER-\nNASA/POWER\n-END HEADER-\n"
 TROIS_JOURS = ENTETE + "YEAR,DOY,IMERG_PRECTOT\n2024,366,1.5\n2025,1,-999\n2025,2,0.0\n"
@@ -46,6 +46,13 @@ class TestDonnees(unittest.TestCase):
             sortie.write("-BEGIN HEADER-\nelevation from MERRA-2: Average for 0.5 x 0.625 degree lat/lon region = 351.91 meters\n"
                          "-END HEADER-\nYEAR,DOY,T2M_MAX\n2025,1,30.0\n")
         self.assertEqual(altitude_power(fichier), 351.91)
+
+    def test_parametres_de_l_entete(self):
+        fichier = self.chemin / "imerg.csv.gz"
+        with gzip.open(fichier, "wt", encoding="utf-8") as sortie:
+            sortie.write("-BEGIN HEADER-\nNASA/POWER\nparameter(s): \nIMERG_PRECTOT     MERRA-2 Total Precipitation (mm/day) \n"
+                         "-END HEADER-\nYEAR,DOY,IMERG_PRECTOT\n2025,1,0.0\n")
+        self.assertEqual(parametres_entete(fichier), {"IMERG_PRECTOT": "MERRA-2 Total Precipitation (mm/day)"})
 
     def test_pluie_du_lieu_moyenne_des_cases(self):
         """Deux cases, 1 et 3 mm le 31 décembre, moyenne 2 mm. Une case manque le 1er janvier, la moyenne aussi."""
@@ -134,6 +141,25 @@ class TestControles(unittest.TestCase):
         self.assertEqual(table.loc["2013-2025", "ecart_moyen_mm"], -10.0)
         self.assertEqual(table.loc["2001-2025", "ecart_moyen_pct"], 0.0)
         self.assertEqual(table.loc["2001-2025", "ecart_min_pct"], -10.0)
+
+    def test_rupture_du_rapport(self):
+        """Rapports 1 et 3 avant 2020, moyenne 2 et écart-type 1,414. Rapport 5 seul après, écart-type indéfini."""
+        comparaison = pd.DataFrame({"rapport": [1.0, 3.0, 5.0]}, index=[2018, 2019, 2020])
+        rupture = rupture_rapport(comparaison)
+        self.assertEqual(rupture["moyenne_avant"], 2.0)
+        self.assertAlmostEqual(rupture["ecart_type_avant"], 2 ** 0.5)
+        self.assertEqual(rupture["moyenne_apres"], 5.0)
+        self.assertTrue(np.isnan(rupture["ecart_type_apres"]))
+
+    def test_case_la_plus_arrosee(self):
+        """Rangs 1 et 3 avant 2013, 1, 1 et 2 ensuite."""
+        dispersion = pd.DataFrame({"rang_case_du_lieu": [1.0, 3.0, 1.0, 1.0, 2.0]}, index=[2011, 2012, 2013, 2014, 2015])
+        self.assertEqual(case_la_plus_arrosee(dispersion).to_dict(),
+                         {"annees_avant": 2, "premiere_avant": 1, "annees_apres": 3, "premiere_apres": 2})
+
+    def test_jours_par_annee(self):
+        serie = pd.Series([1.0, np.nan, 2.0, 0.0], index=pd.to_datetime(["2015-01-01", "2015-01-02", "2015-06-01", "2016-01-01"]))
+        self.assertEqual(jours_par_annee(serie).to_dict(), {2015: 2, 2016: 1})
 
     def test_temperature_comparee_au_thermometre(self):
         """Trois jours communs, écarts de 1 °C. Au-delà de 35 °C, 35,5 à la station et 36,5 pour MERRA-2, 35,0 ne comptant pas."""
