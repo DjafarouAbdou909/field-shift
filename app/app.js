@@ -71,21 +71,70 @@ function demanderLieu() {
   proposer(options);
 }
 
-function localiser() {
-  if (!navigator.geolocation) { dire("La position n'est pas disponible sur ce téléphone. Choisissez votre zone.", demanderLieu); return; }
-  dire("Je cherche votre position avec le GPS du téléphone, qui fonctionne sans connexion.");
-  navigator.geolocation.getCurrentPosition((p) => {
-    const ici = { lat: p.coords.latitude, lon: p.coords.longitude };
-    const [id, km] = Object.entries(donnees.lieux)
-      .map(([cle, l]) => [cle, distanceKm(ici, l)]).sort((a, b) => a[1] - b[1])[0];
-    if (km > donnees.rayon_couverture_km) {
-      dire(`Votre champ est à plus de ${donnees.rayon_couverture_km} km des zones que je connais. `
-        + "Je ne peux pas encore vous conseiller pour votre zone. Vous pouvez consulter une zone proche.", demanderLieu);
-    } else {
-      choisirLieu(id);
-    }
-  }, () => dire("Je n'ai pas pu obtenir votre position. Choisissez votre zone.", demanderLieu),
-  { enableHighAccuracy: true, timeout: 20000 });
+// Sans connexion, le GPS ne reçoit pas l'aide du réseau et sa première position peut
+// prendre une à plusieurs minutes. La position est donc suivie jusqu'à atteindre la
+// précision voulue, et la meilleure obtenue est gardée.
+const PRECISION_VISEE_M = 100;
+const DUREE_MAX_MS = 120000;
+const MESSAGES_POSITION = {
+  1: "La localisation est refusée. Autorisez-la dans les réglages du téléphone, puis réessayez.",
+  2: "Position introuvable. Activez la localisation du téléphone, de préférence en extérieur, puis réessayez.",
+  3: "Le GPS n'a pas trouvé de position à temps. Mettez-vous à découvert, puis réessayez.",
+};
+
+function chercherPosition(precise) {
+  return new Promise((resoudre, rejeter) => {
+    let meilleure = null;
+    const fin = (position) => {
+      navigator.geolocation.clearWatch(suivi);
+      clearTimeout(minuteur);
+      position ? resoudre(position) : rejeter({ code: 3 });
+    };
+    const suivi = navigator.geolocation.watchPosition((p) => {
+      if (!meilleure || p.coords.accuracy < meilleure.coords.accuracy) meilleure = p;
+      if (p.coords.accuracy <= PRECISION_VISEE_M) fin(meilleure);
+    }, (erreur) => {
+      if (erreur.code === 1 || !meilleure) { navigator.geolocation.clearWatch(suivi); clearTimeout(minuteur); rejeter(erreur); }
+    }, { enableHighAccuracy: precise, maximumAge: 0, timeout: DUREE_MAX_MS });
+    const minuteur = setTimeout(() => fin(meilleure), DUREE_MAX_MS);
+  });
+}
+
+async function localiser() {
+  if (!navigator.geolocation) {
+    dire("La localisation n'est pas disponible sur ce téléphone. Choisissez votre zone.", demanderLieu);
+    return;
+  }
+  dire("Je cherche votre position avec le GPS du téléphone, qui fonctionne sans connexion. "
+    + "Sans réseau, cela peut prendre une ou deux minutes. Restez de préférence à découvert.");
+  let position;
+  try {
+    position = await chercherPosition(true);
+  } catch (erreur) {
+    if (erreur.code === 1) { echecPosition(erreur.code); return; }
+    try { position = await chercherPosition(false); } catch (seconde) { echecPosition(seconde.code); return; }
+  }
+  const ici = { lat: position.coords.latitude, lon: position.coords.longitude };
+  const precision = Math.round(position.coords.accuracy);
+  const [id, km] = Object.entries(donnees.lieux)
+    .map(([cle, l]) => [cle, distanceKm(ici, l)]).sort((a, b) => a[1] - b[1])[0];
+  const coordonnees = `${ici.lat.toFixed(5)}, ${ici.lon.toFixed(5)}`;
+  const precisionTexte = precision <= 1000 ? `à ${precision} m près` : `à environ ${Math.round(precision / 1000)} km près`;
+  if (km > donnees.rayon_couverture_km) {
+    dire(`Position trouvée ${precisionTexte}, ${coordonnees}. Votre champ est à ${Math.round(km)} km de `
+      + `${donnees.lieux[id].nom}, au-delà des ${donnees.rayon_couverture_km} km que je couvre. `
+      + "Je ne peux pas encore vous conseiller pour votre zone.", demanderLieu);
+    return;
+  }
+  dire(`Position trouvée ${precisionTexte}, ${coordonnees}, à ${Math.round(km)} km de ${donnees.lieux[id].nom}.`,
+    () => choisirLieu(id));
+}
+
+function echecPosition(code) {
+  dire(MESSAGES_POSITION[code] || MESSAGES_POSITION[2], () => proposer([
+    ["Réessayer", localiser],
+    ...Object.entries(donnees.lieux).map(([id, l]) => [l.nom, () => choisirLieu(id)]),
+  ]));
 }
 
 function choisirLieu(id) {

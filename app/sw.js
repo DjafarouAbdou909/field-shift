@@ -1,6 +1,6 @@
 // Fonctionnement hors connexion. L'interface est servie depuis le cache. Les
 // recommandations sont demandées au réseau quand il est disponible, sinon au cache.
-const CACHE = "conseil-rotation-v2";
+const CACHE = "conseil-rotation-v3";
 const FICHIERS = ["./", "index.html", "style.css", "app.js", "icone.svg", "manifest.webmanifest",
                   "donnees/recommandations.json"];
 
