@@ -45,3 +45,21 @@ footer button {
   border: 1px solid var(--bord); background: var(--bouton); color: var(--accent);
   font: inherit; font-weight: 600; cursor: pointer;
 }
+
+footer button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+footer button svg { width: 26px; height: 26px; flex: none; fill: currentColor; }
+footer button.entendu { outline: 3px solid var(--accent); outline-offset: 2px; }
+.bulle { position: relative; }
+.relire {
+  display: inline-flex; vertical-align: middle; margin-left: 6px; padding: 2px; border: none;
+  background: none; color: var(--accent); cursor: pointer;
+}
+.relire svg { width: 20px; height: 20px; fill: currentColor; }
+.agri audio { max-width: 100%; }
+#mode-voix {
+  margin-left: auto; display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 6px 12px;
+  border-radius: 20px; border: 1px solid var(--texte-entete); background: transparent;
+  color: var(--texte-entete); font: inherit; cursor: pointer;
+}
+#mode-voix svg { width: 22px; height: 22px; fill: currentColor; }
+#mode-voix[aria-pressed="true"] { background: var(--texte-entete); color: var(--entete); }
