@@ -115,20 +115,28 @@ def evapotranspiration_serie(meteo: pd.DataFrame, latitude: float, altitude: flo
 
 
 def indicateurs_cycle(pluie: pd.Series, tmax: pd.Series, et0: pd.Series, debut: pd.Timestamp,
-                      duree_jours: int) -> dict:
+                      duree_jours: int, kc: np.ndarray | None = None) -> dict:
     """Indicateurs d'un cycle de culture qui commence au début de saison et dure duree_jours.
 
-    Tout est manquant si le début manque ou si le cycle dépasse la fin des séries.
+    Avec la courbe journalière kc du coefficient cultural, le besoin en eau de la culture
+    est la somme de kc fois l'évapotranspiration de référence, équation 56 de FAO-56,
+    comparée à la pluie du cycle. Tout est manquant si le début manque ou si le cycle
+    dépasse la fin des séries.
     """
-    noms = ["pluie_cycle_mm", "et0_cycle_mm", "bilan_cycle_mm", "tmax_moyenne_cycle", "sequence_seche_cycle_jours"]
+    if kc is not None and len(kc) != duree_jours:
+        raise ValueError("la courbe du coefficient cultural doit couvrir chaque jour du cycle")
+    noms = ["pluie_cycle_mm", "et0_cycle_mm", "bilan_cycle_mm", "etc_cycle_mm", "pluie_moins_etc_mm",
+            "tmax_moyenne_cycle", "sequence_seche_cycle_jours"]
     if pd.isna(debut):
         return dict.fromkeys(noms, np.nan)
     cycle = pd.date_range(debut, periods=duree_jours, freq="D")
     if cycle[-1] > min(pluie.index[-1], tmax.index[-1], et0.index[-1]):
         return dict.fromkeys(noms, np.nan)
     pluie_cycle, et0_cycle = pluie.loc[cycle].sum(), et0.loc[cycle].sum()
+    etc_cycle = float((kc * et0.loc[cycle].to_numpy()).sum()) if kc is not None else np.nan
     return {
         "pluie_cycle_mm": pluie_cycle, "et0_cycle_mm": et0_cycle, "bilan_cycle_mm": pluie_cycle - et0_cycle,
+        "etc_cycle_mm": etc_cycle, "pluie_moins_etc_mm": pluie_cycle - etc_cycle,
         "tmax_moyenne_cycle": tmax.loc[cycle].mean(),
         "sequence_seche_cycle_jours": plus_longue_sequence_seche(pluie.loc[cycle].to_numpy()),
     }
@@ -190,24 +198,29 @@ def ecart_recherches(debuts_retenus: pd.Series, debuts_precoces: pd.Series) -> p
 
 
 def indicateurs_cultures(pluie: pd.Series, meteo: pd.DataFrame, et0: pd.Series, debuts: pd.Series,
-                         durees: dict[str, int]) -> pd.DataFrame:
-    """Indicateurs de cycle de chaque culture et de chaque année, à partir du début de saison de l'année."""
+                         courbes_kc: dict[str, np.ndarray]) -> pd.DataFrame:
+    """Indicateurs de cycle de chaque culture et de chaque année, à partir du début de saison de l'année.
+
+    La durée du cycle d'une culture est la longueur de sa courbe de coefficient cultural.
+    """
     lignes = []
-    for culture, duree in durees.items():
+    for culture, kc in courbes_kc.items():
         for annee, jour in debuts.items():
             debut = pd.NaT if pd.isna(jour) else pd.Timestamp(f"{annee}-01-01") + pd.Timedelta(days=int(jour) - 1)
-            lignes.append({"culture": culture, "annee": annee, "duree_jours": duree,
-                           **indicateurs_cycle(pluie, meteo["T2M_MAX"], et0, debut, duree)})
+            lignes.append({"culture": culture, "annee": annee, "duree_jours": len(kc),
+                           **indicateurs_cycle(pluie, meteo["T2M_MAX"], et0, debut, len(kc), kc)})
     return pd.DataFrame(lignes)
 
 
 def resume_cultures(table: pd.DataFrame) -> pd.DataFrame:
     """Médiane et quantiles 10 et 90 % entre années des indicateurs de cycle, par culture."""
-    colonnes = ["pluie_cycle_mm", "bilan_cycle_mm", "tmax_moyenne_cycle", "sequence_seche_cycle_jours"]
+    colonnes = ["pluie_cycle_mm", "etc_cycle_mm", "pluie_moins_etc_mm", "tmax_moyenne_cycle",
+                "sequence_seche_cycle_jours"]
     groupes = table.groupby("culture", sort=False)
     resume = pd.concat({
         "duree": groupes["duree_jours"].first(),
         "annees": groupes["pluie_cycle_mm"].count(),
+        "annees_pluie_sous_besoin": groupes["pluie_moins_etc_mm"].apply(lambda s: int((s < 0).sum())),
         **{f"{c} mediane": groupes[c].median() for c in colonnes},
         **{f"{c} q10": groupes[c].quantile(0.1) for c in colonnes},
         **{f"{c} q90": groupes[c].quantile(0.9) for c in colonnes},
@@ -252,7 +265,7 @@ def resume_interannuel(table: pd.DataFrame) -> pd.DataFrame:
 
 def executer() -> None:
     from .donnees import DOSSIER_POWER, RACINE, altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
-    from .cultures import CULTURES, duree_cycle
+    from .cultures import CULTURES, KC_FAO56, courbe_kc, cultures_comparees, duree_cycle
     from .lieux import LIEUX
 
     pd.set_option("display.width", 200)
@@ -278,13 +291,13 @@ def executer() -> None:
         print(ecart_recherches(table["debut_jour"], debuts_fevrier).to_string())
         print("début par année, 1er mars puis 1er février", {a: (int(table["debut_jour"][a]), int(debuts_fevrier[a]))
                                                              for a in table.index if table["debut_jour"][a] != debuts_fevrier[a]})
-        durees = {c: d.jours for c in CULTURES if (d := duree_cycle(c)).jours is not None}
+        courbes = {c: courbe_kc(duree_cycle(c).stades(), *KC_FAO56[c].reference()) for c in cultures_comparees()}
         cycles = indicateurs_cultures(pluie, meteo, evapotranspiration_serie(meteo, lieu["lat"], altitude),
-                                      table["debut_jour"], durees)
+                                      table["debut_jour"], courbes)
         cycles.to_csv(sortie / f"cycles_{identifiant}.csv", index=False, float_format="%.3f")
-        print("\nIndicateurs sur le cycle de chaque culture, durée de référence FAO-56, début du 1er mars")
+        print("\nIndicateurs sur le cycle de chaque culture, durée et coefficient cultural FAO-56, début du 1er mars")
         print(resume_cultures(cycles).to_string())
-        print("cultures sans durée sourcée", [c for c in CULTURES if c not in durees])
+        print("cultures hors comparaison chiffrée", [c for c in CULTURES if c not in courbes])
 
 
 if __name__ == "__main__":

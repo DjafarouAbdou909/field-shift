@@ -83,3 +83,10 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Anomalies du tableau signalées.** Pour les deux lignes du sorgho et pour le niébé, les stades imprimés ne somment pas au total imprimé, qui fait foi. La date de semis de la ligne West Africa de l'arachide est mal alignée dans la version HTML.
 - **Indicateurs de cycle calculés** pour huit cultures et les deux villes. Le bilan retranche l'évapotranspiration de référence et non le besoin propre de chaque culture, ce qui est écrit dans les limites.
 - **Registre des sources.** FAO-56 est ajouté aux connaissances agronomiques de docs/sources.md, partie que CLAUDE.md attribue au rôle présentation, qui en est informé par cette entrée.
+
+## 14 novembre 2026, responsable de l'équipe, besoin en eau et cultures comparées
+
+- **Besoin en eau de chaque culture.** C'est le coefficient cultural du tableau 12 de FAO-56 multiplié par l'évapotranspiration de référence, sur les stades du tableau 11, selon les équations 56 et 66 du bulletin, comparé à la pluie du cycle. L'équation 66 est vérifiée sur l'exemple 28 du bulletin. Les limites écrivent que ces coefficients supposent des conditions standard, sans stress ni variété locale, et sans ajustement climatique.
+- **Ligne de référence réelle.** Pour disposer de stades, la durée de référence est désormais une ligne réelle du tableau 11, la médiane, ou la plus courte des deux médianes. Le sorgho passe de 135 à 130 jours, le mil de 123 à 105 et le riz de 165 à 150. Quand les stades imprimés ne somment pas au total, le stade de fin absorbe l'écart.
+- **Igname et mucuna retirés de la comparaison chiffrée**, faute de durée et de coefficient sourcés, et cités dans les limites et les perspectives. Huit cultures restent, dont toutes celles des trois stratégies de l'exemple, ce que vérifie un test.
+- **Membre chargé de la présentation prévenu** par le responsable de l'ajout de FAO-56 au registre des sources.

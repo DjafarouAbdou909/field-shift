@@ -6,7 +6,7 @@ import pandas as pd
 from moteur.indicateurs import (RegleSaison, debut_saison, ecart_recherches, evapotranspiration_reference,
                                 evapotranspiration_serie,
                                 indicateurs_annuels, indicateurs_cultures, indicateurs_cycle, mann_kendall,
-                                pente_theil_sen,
+                                pente_theil_sen, resume_cultures,
                                 plus_longue_sequence_seche, pression_saturante, rayonnement_extraterrestre,
                                 troncature_debut)
 
@@ -100,11 +100,33 @@ class TestSaison(unittest.TestCase):
         """2021 commence au jour 152, le 1er juin, et donne 26 mm sur 10 jours. 2022 sans début reste manquante."""
         et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
         table = indicateurs_cultures(self.pluie, self.meteo, et0, pd.Series({2021: 152.0, 2022: np.nan}),
-                                     {"essai": 10})
+                                     {"essai": np.full(10, 0.5)})
         self.assertEqual(list(table["annee"]), [2021, 2022])
         self.assertEqual(table.loc[0, "pluie_cycle_mm"], 26.0)
         self.assertEqual(table.loc[0, "duree_jours"], 10)
         self.assertTrue(np.isnan(table.loc[1, "pluie_cycle_mm"]))
+        self.assertAlmostEqual(table.loc[0, "etc_cycle_mm"], 0.5 * et0.loc["2021-06-01":"2021-06-10"].sum())
+
+    def test_resume_par_culture(self):
+        """Écarts -10, 20 et 40 mm, médiane 20 mm, une année sous le besoin."""
+        table = pd.DataFrame({"culture": ["essai"] * 3, "duree_jours": [10] * 3, "pluie_cycle_mm": [50.0, 80.0, 100.0],
+                              "etc_cycle_mm": [60.0, 60.0, 60.0], "pluie_moins_etc_mm": [-10.0, 20.0, 40.0],
+                              "tmax_moyenne_cycle": [30.0, 31.0, 32.0], "sequence_seche_cycle_jours": [3, 4, 5]})
+        resume = resume_cultures(table)
+        self.assertEqual(resume.loc["essai", "annees_pluie_sous_besoin"], 1)
+        self.assertEqual(resume.loc["essai", "pluie_moins_etc_mm mediane"], 20.0)
+        self.assertEqual(resume.loc["essai", "annees"], 3)
+
+    def test_besoin_en_eau_avec_coefficient(self):
+        """Kc de 1 les cinq premiers jours puis 2, besoin égal à ET0 des jours 1 à 5 plus deux fois ET0 des jours 6 à 10."""
+        et0 = evapotranspiration_serie(self.meteo, 9.458, 350.0)
+        kc = np.array([1.0] * 5 + [2.0] * 5)
+        cycle = indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, pd.Timestamp("2021-06-01"), 10, kc)
+        attendu = et0.loc["2021-06-01":"2021-06-05"].sum() + 2 * et0.loc["2021-06-06":"2021-06-10"].sum()
+        self.assertAlmostEqual(cycle["etc_cycle_mm"], attendu)
+        self.assertAlmostEqual(cycle["pluie_moins_etc_mm"], 26.0 - attendu)
+        with self.assertRaises(ValueError):
+            indicateurs_cycle(self.pluie, self.meteo["T2M_MAX"], et0, pd.Timestamp("2021-06-01"), 9, kc)
 
     def test_troncature_par_la_date_de_recherche(self):
         """Recherche au jour 60. Écarts 0, 2, 10 et 20 jours. Un début témoin au jour 45 précède la recherche."""

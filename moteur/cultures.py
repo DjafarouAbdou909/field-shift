@@ -14,13 +14,22 @@ le niveau hypothese, même avec une source.
 
 La ligne de référence d'une culture est choisie par une règle visible. D'abord les
 lignes d'Afrique de l'Ouest, puis celles des tropiques, puis celles du reste de
-l'Afrique, et sinon toutes les lignes. Si plusieurs lignes restent, la durée de
-référence est la médiane de leurs totaux, arrondie au jour le plus proche, une
-demi-journée allant au jour supérieur. La plage est celle des totaux de toutes les
-lignes de la culture.
+l'Afrique, et sinon toutes les lignes. Si plusieurs lignes restent, la ligne de
+référence est celle du total médian, la plus courte des deux lignes médianes quand leur
+nombre est pair, afin que la référence soit toujours une ligne réelle avec ses stades.
+La plage est celle des totaux de toutes les lignes de la culture. Le total imprimé fait
+foi. Quand les stades imprimés ne lui somment pas, ce qui arrive sur trois lignes
+signalées par leur remarque, le stade de fin absorbe l'écart.
+
+Coefficient cultural. Il vient du tableau 12 du même chapitre, valeurs Kc ini, Kc mid
+et Kc end pour des cultures sans stress, bien conduites, en climat subhumide, humidité
+relative minimale d'environ 45 % et vent d'environ 2 m/s. Une culture sans Kc ini propre
+prend celui de son groupe, comme le tableau l'indique. Une valeur imprimée en plage
+donne sa plage, et sa référence est le milieu de la plage. La courbe journalière suit
+l'équation 66 de FAO-56, constante aux stades initial et de mi-saison, linéaire au
+développement et en fin de cycle. Aucun ajustement climatique n'est appliqué.
 """
 
-import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,7 +40,7 @@ CULTURES = [
 ]
 
 SOURCE_FAO56 = ("Allen R. G., Pereira L. S., Raes D., Smith M., 1998. Crop evapotranspiration, FAO Irrigation "
-                "and drainage paper 56, chapitre 6, tableau 11, https://www.fao.org/4/x0490e/x0490e0b.htm")
+                "and drainage paper 56, chapitre 6, tableaux 11 et 12, https://www.fao.org/4/x0490e/x0490e0b.htm")
 
 
 @dataclass(frozen=True)
@@ -103,27 +112,80 @@ ETAPES_REGION = [("Afrique de l'Ouest", ("West Africa", "Nigeria")), ("tropiques
 
 
 @dataclass(frozen=True)
+class CoefficientFAO56:
+    ligne: str
+    ini: float
+    mid: tuple[float, float]
+    end: tuple[float, float]
+    remarque: str = ""
+
+    def reference(self) -> tuple[float, float, float]:
+        return self.ini, sum(self.mid) / 2, sum(self.end) / 2
+
+
+KC_FAO56 = {
+    "coton": CoefficientFAO56("Cotton, Kc ini 0.35 du groupe g. Fibre Crops", 0.35, (1.15, 1.20), (0.70, 0.50)),
+    "maïs": CoefficientFAO56("Maize, Field (grain) (field corn), Kc ini 0.3 du groupe i. Cereals", 0.3, (1.20, 1.20),
+                             (0.60, 0.35), "Note 11, 0,60 pour une récolte humide, 0,35 après séchage au champ"),
+    "sorgho": CoefficientFAO56("Sorghum - grain, Kc ini 0.3 du groupe i. Cereals", 0.3, (1.00, 1.10), (0.55, 0.55)),
+    "mil": CoefficientFAO56("Millet, Kc ini 0.3 du groupe i. Cereals", 0.3, (1.00, 1.00), (0.30, 0.30)),
+    "arachide": CoefficientFAO56("Groundnut (Peanut), Kc ini 0.4 du groupe e. Legumes", 0.4, (1.15, 1.15),
+                                 (0.60, 0.60)),
+    "niébé": CoefficientFAO56("Green Gram and Cowpeas, Kc ini 0.4 du groupe e. Legumes", 0.4, (1.05, 1.05),
+                              (0.60, 0.35), "Note 6, 0,60 pour une récolte en frais, 0,35 en sec"),
+    "soja": CoefficientFAO56("Soybeans, Kc ini 0.4 du groupe e. Legumes", 0.4, (1.15, 1.15), (0.50, 0.50)),
+    "riz pluvial": CoefficientFAO56("Rice", 1.05, (1.20, 1.20), (0.90, 0.60),
+                                    "Le tableau ne distingue pas le riz pluvial, et un Kc ini de 1,05 suppose un sol "
+                                    "très souvent humide"),
+}
+
+
+@dataclass(frozen=True)
 class DureeCycle:
     culture: str
     jours: int | None
     bas: int | None
     haut: int | None
     niveau: str
-    lignes: tuple[LigneFAO56, ...]
+    ligne: LigneFAO56 | None
     regle: str
+
+    def stades(self) -> tuple[int, int, int, int]:
+        """Stades initial, développement, mi-saison et fin, le stade de fin complétant le total imprimé."""
+        l = self.ligne
+        return l.initial, l.developpement, l.mi_saison, l.total - l.initial - l.developpement - l.mi_saison
 
 
 def duree_cycle(culture: str) -> DureeCycle:
-    """Durée de référence du cycle d'une culture, sa plage et les lignes du tableau 11 qui la fondent."""
+    """Durée de référence du cycle d'une culture, sa plage et la ligne du tableau 11 qui la fonde."""
     lignes = LIGNES_FAO56.get(culture, [])
     if not lignes:
-        return DureeCycle(culture, None, None, None, "hypothese", (), "absente du tableau 11 de FAO-56")
-    retenues, regle = lignes, "médiane de toutes les lignes"
+        return DureeCycle(culture, None, None, None, "hypothese", None, "absente du tableau 11 de FAO-56")
+    retenues, regle = lignes, "ligne médiane de toutes les lignes"
     for nom, mots in ETAPES_REGION:
         choix = [l for l in lignes if any(mot in l.region for mot in mots)]
         if choix:
-            retenues, regle = choix, f"lignes {nom}"
+            retenues, regle = choix, f"ligne médiane des lignes {nom}"
             break
-    jours = math.floor(float(np.median([l.total for l in retenues])) + 0.5)
+    ligne = sorted(retenues, key=lambda l: l.total)[(len(retenues) - 1) // 2]
     totaux = [l.total for l in lignes]
-    return DureeCycle(culture, jours, min(totaux), max(totaux), "hypothese", tuple(retenues), regle)
+    return DureeCycle(culture, ligne.total, min(totaux), max(totaux), "hypothese", ligne, regle)
+
+
+def courbe_kc(stades: tuple[int, int, int, int], kc_ini: float, kc_mid: float, kc_end: float) -> np.ndarray:
+    """Coefficient cultural de chaque jour du cycle, équation 66 de FAO-56, jour i de 1 à la durée totale."""
+    initial, developpement, mi_saison, fin = stades
+    jours = np.arange(1, sum(stades) + 1)
+    kc = np.full(len(jours), kc_mid, dtype=float)
+    kc[jours <= initial] = kc_ini
+    dev = (jours > initial) & (jours <= initial + developpement)
+    kc[dev] = kc_ini + (jours[dev] - initial) / developpement * (kc_mid - kc_ini)
+    debut_fin = initial + developpement + mi_saison
+    tard = jours > debut_fin
+    kc[tard] = kc_mid + (jours[tard] - debut_fin) / fin * (kc_end - kc_mid)
+    return kc
+
+
+def cultures_comparees() -> list[str]:
+    """Cultures qui ont à la fois une durée et un coefficient cultural sourcés."""
+    return [c for c in CULTURES if duree_cycle(c).jours is not None and c in KC_FAO56]

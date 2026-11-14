@@ -75,7 +75,7 @@ La version et la chaîne de traitement d'IMERG servies par POWER, que l'API n'in
 ### Règles retenues
 
 - **Début de saison.** C'est le premier jour, à partir du 1er mars, qui ouvre trois jours cumulant au moins 20 mm sans séquence sèche de plus de 7 jours dans les 30 jours suivants. Ces seuils sont attribués à Sivakumar, 1988, par des sources secondaires. L'article n'a pas pu être lu, son dépôt à l'ICRISAT exigeant une authentification, et l'attribution reste à vérifier. Le 1er mars vaut pour les deux villes afin qu'elles restent comparables.
-- **Cycle de culture au lieu d'une fin de saison.** La pluie, l'évapotranspiration, leur bilan, la température maximale moyenne et la plus longue séquence sèche se mesurent sur la durée du cycle de chaque culture à partir du début de saison, par `indicateurs_cycle`. Les durées des cycles seront sourcées en phase 4, aucune n'est encore appliquée.
+- **Cycle de culture au lieu d'une fin de saison.** La pluie, l'évapotranspiration, leur bilan, la température maximale moyenne et la plus longue séquence sèche se mesurent sur la durée du cycle de chaque culture à partir du début de saison, par `indicateurs_cycle`. Les durées viennent du tableau 11 de FAO-56 et le besoin en eau du tableau 12, comme décrit plus bas.
 - **Température maximale moyenne au lieu des jours chauds.** Le nombre de jours au-dessus de 35 °C n'est plus calculé, pour la raison donnée plus bas.
 
 ### Résultats
@@ -103,47 +103,69 @@ Une recherche témoin à partir du 1er janvier montre ce que le 1er mars ne voit
 
 ### Durée du cycle des cultures
 
-Elle vient du tableau 11 du chapitre 6 du bulletin FAO-56, Allen, Pereira, Raes et Smith, 1998, lu le 14 novembre 2026 dans sa version HTML, https://www.fao.org/4/x0490e/x0490e0b.htm. Chaque ligne est recopiée dans `moteur/cultures.py`. La ligne de référence est choisie dans l'ordre parmi les lignes d'Afrique de l'Ouest, des tropiques, puis du reste de l'Afrique, et sinon parmi toutes, avec la médiane des totaux si plusieurs restent. La plage couvre toutes les lignes de la culture.
+Elle vient du tableau 11 du chapitre 6 du bulletin FAO-56, Allen, Pereira, Raes et Smith, 1998, lu le 14 novembre 2026 dans sa version HTML, https://www.fao.org/4/x0490e/x0490e0b.htm. Chaque ligne est recopiée dans `moteur/cultures.py`. La ligne de référence est choisie dans l'ordre parmi les lignes d'Afrique de l'Ouest, des tropiques, puis du reste de l'Afrique, et sinon parmi toutes. Si plusieurs restent, c'est la ligne du total médian, la plus courte des deux lignes médianes quand leur nombre est pair. La référence est ainsi toujours une ligne réelle, dont les stades servent au coefficient cultural. La plage couvre toutes les lignes de la culture.
 
-| Culture | Durée de référence, jours | Plage du tableau | Ligne ou lignes du tableau 11 |
+| Culture | Durée de référence, jours | Plage du tableau | Ligne du tableau 11, stades initial, développement, mi-saison et fin, total, semis, région |
 |---|---|---|---|
 | Coton | 195 | 180 à 225 | Cotton, 30, 50, 60, 55, total 195, Mar-May, Egypt; Pakistan; Calif. |
 | Maïs | 125 | 125 à 180 | Maize grain, 20, 35, 40, 30, total 125, June, Nigeria humid |
-| Sorgho | 135 | 130 à 140 | Médiane de Sorghum, total 130, May/June, USA, Pakis., Med., et Sorghum, total 140, Mar/April, Arid Region |
-| Mil | 123 | 105 à 140 | Médiane de Millet, total 105, June, Pakistan, et Millet, total 140, April, Central USA |
+| Sorgho | 130 | 130 à 140 | Sorghum, 20, 35, 40, 30, total 130, May/June, USA, Pakis., Med. |
+| Mil | 105 | 105 à 140 | Millet, 15, 25, 40, 25, total 105, June, Pakistan |
 | Arachide | 130 | 130 à 140 | Groundnut, 25, 35, 45, 25, total 130, Dry, West Africa |
 | Niébé | 110 | 110 | Green gram, cowpeas, 20, 30, 30, 20, total 110, March, Mediterranean |
 | Soja | 85 | 85 à 150 | Soybeans, 15, 15, 40, 15, total 85, Dec, Tropics |
-| Riz pluvial | 165 | 150 à 180 | Médiane de Rice, total 150, Dec; May, Tropics; Mediterranean, et Rice, total 180, May, Tropics |
-| Igname | Hypothèse, sans valeur | Sans objet | Absente du tableau 11 |
-| Mucuna | Hypothèse, sans valeur | Sans objet | Absent du tableau 11 |
+| Riz pluvial | 150 | 150 à 180 | Rice, 30, 30, 60, 30, total 150, Dec; May, Tropics; Mediterranean |
 
-Trois anomalies du tableau sont signalées. Les stades imprimés somment à 125 et 130 jours pour les deux lignes du sorgho, dont les totaux imprimés sont 130 et 140, et à 100 jours pour le niébé, au total imprimé de 110. Le total imprimé fait foi. Dans la version HTML, la date de semis de la ligne West Africa de l'arachide est imprimée Dry, le mot season passant à la ligne suivante, si bien que la période de semis de cette ligne reste incertaine.
+Trois anomalies du tableau sont signalées. Les stades imprimés somment à 125 et 130 jours pour les deux lignes du sorgho, dont les totaux imprimés sont 130 et 140, et à 100 jours pour le niébé, au total imprimé de 110. Le total imprimé fait foi et le stade de fin absorbe l'écart, 35 jours au lieu de 30 pour le sorgho et 30 au lieu de 20 pour le niébé. La ligne Soybeans Central USA imprime 30/35 au développement, et seule la valeur 35 fait somme avec son total. Dans la version HTML, la date de semis de la ligne West Africa de l'arachide est imprimée Dry, le mot season passant à la ligne suivante, si bien que la période de semis de cette ligne reste incertaine.
+
+### Coefficient cultural et besoin en eau
+
+Le besoin en eau d'une culture est la somme, sur chaque jour du cycle, de son coefficient cultural multiplié par l'évapotranspiration de référence, équation 56 du chapitre 5 de FAO-56. Le coefficient vient du tableau 12 du même chapitre et sa courbe suit l'équation 66, constante aux stades initial et de mi-saison, linéaire au développement et en fin de cycle, ce que vérifie l'exemple 28 du bulletin, reproduit à 0,01 près. Une culture sans Kc ini propre prend celui de son groupe, et une valeur imprimée en plage prend le milieu de sa plage.
+
+| Culture | Ligne du tableau 12 | Kc ini | Kc mid | Kc end |
+|---|---|---|---|---|
+| Coton | Cotton, Kc ini du groupe g. Fibre Crops | 0,35 | 1,15 à 1,20 | 0,70 à 0,50 |
+| Maïs | Maize, Field grain, Kc ini du groupe i. Cereals | 0,3 | 1,20 | 0,60 à 0,35, note 11 |
+| Sorgho | Sorghum, grain, Kc ini du groupe i. Cereals | 0,3 | 1,00 à 1,10 | 0,55 |
+| Mil | Millet, Kc ini du groupe i. Cereals | 0,3 | 1,00 | 0,30 |
+| Arachide | Groundnut, Kc ini du groupe e. Legumes | 0,4 | 1,15 | 0,60 |
+| Niébé | Green Gram and Cowpeas, Kc ini du groupe e. Legumes | 0,4 | 1,05 | 0,60 à 0,35, note 6 |
+| Soja | Soybeans, Kc ini du groupe e. Legumes | 0,4 | 1,15 | 0,50 |
+| Riz pluvial | Rice | 1,05 | 1,20 | 0,90 à 0,60 |
+
+La note 11 attribue 0,60 à une récolte de maïs humide et 0,35 à une récolte après séchage au champ, la note 6 attribue 0,60 au niébé récolté en frais et 0,35 en sec.
 
 ### Indicateurs sur le cycle des cultures
 
-Pour chaque année, chaque culture commence au début de saison de l'année et dure sa durée de référence. Les médianes entre années sont les suivantes, les quantiles 10 et 90 % figurant dans la sortie de la commande et dans `data/processed/cycles_<lieu>.csv`.
+Pour chaque année, chaque culture commence au début de saison de l'année et dure sa durée de référence. Les médianes entre années sont les suivantes, les quantiles 10 et 90 % figurant dans la sortie de la commande et dans `data/processed/cycles_<lieu>.csv`. La pluie moins le besoin est donnée avec sa plage des quantiles 10 à 90 %.
 
-| Culture | Pluie du cycle, mm, Korhogo puis Bouaké | Pluie moins évapotranspiration de référence, mm | Température maximale moyenne, °C | Plus longue séquence sèche, jours |
-|---|---|---|---|---|
-| Coton | 1 074 et 802 | 197 et 57 | 31,7 et 30,1 | 8 et 11 |
-| Maïs | 637 et 525 | 3 et 8 | 32,6 et 30,7 | 7 et 9 |
-| Sorgho | 700 et 570 | 45 et 24 | 32,4 et 30,5 | 7 et 10 |
-| Mil | 615 et 515 | 6 et 5 | 32,6 et 30,7 | 7 et 9 |
-| Arachide | 671 et 562 | 20 et -2 | 32,5 et 30,6 | 7 et 9 |
-| Niébé | 518 et 468 | -55 et -4 | 32,9 et 31,0 | 7 et 8 |
-| Soja | 360 et 366 | -93 et -7 | 33,9 et 31,5 | 7 et 7 |
-| Riz pluvial | 935 et 683 | 186 et 4 | 31,8 et 30,2 | 7 et 11 |
+| Culture | Pluie du cycle, mm, Korhogo puis Bouaké | Besoin en eau, mm | Pluie moins besoin, mm, médiane et plage | Années où la pluie reste sous le besoin, sur 25 | Température maximale moyenne, °C |
+|---|---|---|---|---|---|
+| Coton | 1 074 et 802 | 719 et 608 | 360, de 179 à 522, et 192, de 52 à 397 | 0 et 1 | 31,7 et 30,1 |
+| Maïs | 637 et 525 | 482 et 415 | 113, de 24 à 298, et 95, de -8 à 215 | 1 et 3 | 32,6 et 30,7 |
+| Sorgho | 671 et 562 | 453 et 390 | 193, de 89 à 358, et 128, de 29 à 293 | 0 et 1 | 32,5 et 30,6 |
+| Mil | 479 et 438 | 378 et 323 | 78, de 16 à 218, et 115, de 18 à 230 | 2 et 2 | 33,1 et 31,1 |
+| Arachide | 671 et 562 | 502 et 432 | 145, de 40 à 314, et 88, de -15 à 249 | 0 et 3 | 32,5 et 30,6 |
+| Niébé | 518 et 468 | 405 et 347 | 83, de 26 à 215, et 108, de -2 à 234 | 2 et 3 | 32,9 et 31,0 |
+| Soja | 360 et 366 | 399 et 334 | -40, de -115 à 73, et 36, de -51 à 129 | 15 et 8 | 33,9 et 31,5 |
+| Riz pluvial | 806 et 606 | 760 et 659 | 15, de -74 à 229, et -60, de -159 à 65 | 11 et 18 | 32,0 et 30,3 |
 
-Ces indicateurs décrivent le climat que traverse chaque cycle, pas la réponse de la culture. Ils ne disent pas encore que le mil ou le sorgho tolèrent mieux la sécheresse que le maïs, ce que la phase 4 devra tirer d'une source agronomique.
+Ces indicateurs décrivent le climat que traverse chaque cycle et le besoin d'une culture en conditions standard, pas la réponse d'une culture au manque d'eau. Le besoin du sorgho et du mil est plus faible que celui du maïs, mais que ces céréales tolèrent mieux la sécheresse reste à tirer d'une source agronomique en phase 4. L'écart entre cultures dépend aussi beaucoup de leur durée, le mil de 105 jours recevant moins de pluie que le sorgho de 130 jours.
 
 ### Limites
 
 - **Une seule saison à Bouaké.** Bouaké a deux saisons des pluies, ce que montre le creux de juillet de la phase 2, et seule la première est traitée.
 - **Début de Bouaké tronqué** près d'une année sur deux, comme décrit ci-dessus.
 - **Durées générales.** Les durées du tableau 11 de FAO-56 sont générales et ne sont pas propres aux variétés ivoiriennes. Aucune ligne ne décrit la Côte d'Ivoire, une seule l'Afrique de l'Ouest pour l'arachide, une le Nigeria pour le maïs, et le tableau ne distingue pas le riz pluvial du riz irrigué. Elles portent donc le niveau `hypothese`, même avec leur source.
-- **Igname et mucuna sans durée.** Absents du tableau 11, ils n'ont aucune durée et ne peuvent pas encore être comparés.
-- **Évapotranspiration de référence et non besoin de la culture.** Le bilan du cycle retranche l'évapotranspiration d'un gazon de référence, pas celle de chaque culture, qui demande les coefficients culturaux de FAO-56.
+- **Igname et mucuna hors comparaison chiffrée.** Absents des tableaux 11 et 12 de FAO-56, ils n'ont ni durée ni coefficient cultural sourcés et ne figurent dans aucun chiffre. Huit cultures restent comparées, dont toutes celles des trois stratégies de l'exemple.
+- **Conditions standard.** Les coefficients du tableau 12 supposent des cultures sans stress, bien conduites, à rendement maximal, sans variété locale. Kc mid et Kc end valent pour une humidité relative minimale d'environ 45 % et un vent d'environ 2 m/s, et FAO-56 demande de les ajuster sinon, ce qui n'est pas fait. Kc ini n'est qu'une approximation pour les études préliminaires selon le bulletin, et celui du riz, 1,05, suppose un sol très souvent humide qui ne convient pas forcément au riz pluvial.
+- **Pluie totale et non pluie utile.** Le besoin est comparé à toute la pluie du cycle, sans retirer le ruissellement ni l'infiltration profonde, et sans tenir compte de la répartition des pluies dans le cycle. L'écart surestime donc l'eau dont la culture dispose.
+
+### Perspectives
+
+- **Igname et mucuna.** Les réintégrer dès qu'une durée de cycle et un coefficient cultural sourcés seront disponibles, par exemple auprès du CNRA ou de l'ANADER.
+- **Ajustement climatique de Kc mid et Kc end**, selon les équations du chapitre 6 de FAO-56, avec l'humidité et le vent de POWER.
+- **Pluie utile**, par un bilan hydrique du sol fondé sur la texture de SoilGrids.
 
 ### Choix écartés et leur raison
 

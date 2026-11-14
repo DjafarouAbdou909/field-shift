@@ -1,6 +1,11 @@
 import unittest
 
-from moteur.cultures import CULTURES, LIGNES_FAO56, duree_cycle
+import json
+
+import numpy as np
+
+from moteur.cultures import CULTURES, KC_FAO56, LIGNES_FAO56, courbe_kc, cultures_comparees, duree_cycle
+from moteur.recommander import EXEMPLE
 
 
 class TestDureesFAO56(unittest.TestCase):
@@ -15,20 +20,22 @@ class TestDureesFAO56(unittest.TestCase):
         self.assertTrue(set(LIGNES_FAO56) <= set(CULTURES))
 
     def test_regle_de_choix(self):
-        """Valeurs attendues lues dans le tableau 11 et calculées à la main selon la règle du module."""
+        """Lignes lues dans le tableau 11, ligne médiane choisie à la main, la plus courte si le nombre est pair."""
         attendus = {
-            "coton": (195, 180, 225, "lignes reste de l'Afrique"),
-            "maïs": (125, 125, 180, "lignes Afrique de l'Ouest"),
-            "sorgho": (135, 130, 140, "médiane de toutes les lignes"),
-            "mil": (123, 105, 140, "médiane de toutes les lignes"),
-            "arachide": (130, 130, 140, "lignes Afrique de l'Ouest"),
-            "niébé": (110, 110, 110, "médiane de toutes les lignes"),
-            "soja": (85, 85, 150, "lignes tropiques"),
-            "riz pluvial": (165, 150, 180, "lignes tropiques"),
+            "coton": (195, 180, 225, "Egypt; Pakistan; Calif.", (30, 50, 60, 55)),
+            "maïs": (125, 125, 180, "Nigeria (humid)", (20, 35, 40, 30)),
+            "sorgho": (130, 130, 140, "USA, Pakis., Med.", (20, 35, 40, 35)),
+            "mil": (105, 105, 140, "Pakistan", (15, 25, 40, 25)),
+            "arachide": (130, 130, 140, "West Africa", (25, 35, 45, 25)),
+            "niébé": (110, 110, 110, "Mediterranean", (20, 30, 30, 30)),
+            "soja": (85, 85, 150, "Tropics", (15, 15, 40, 15)),
+            "riz pluvial": (150, 150, 180, "Tropics; Mediterranean", (30, 30, 60, 30)),
         }
-        for culture, (jours, bas, haut, regle) in attendus.items():
+        for culture, (jours, bas, haut, region, stades) in attendus.items():
             duree = duree_cycle(culture)
-            self.assertEqual((duree.jours, duree.bas, duree.haut, duree.regle), (jours, bas, haut, regle), culture)
+            self.assertEqual((duree.jours, duree.bas, duree.haut, duree.ligne.region), (jours, bas, haut, region), culture)
+            self.assertEqual(duree.stades(), stades, culture)
+            self.assertEqual(sum(duree.stades()), jours, culture)
             self.assertEqual(duree.niveau, "hypothese")
 
     def test_culture_absente_du_tableau(self):
@@ -36,7 +43,36 @@ class TestDureesFAO56(unittest.TestCase):
             duree = duree_cycle(culture)
             self.assertIsNone(duree.jours)
             self.assertEqual(duree.niveau, "hypothese")
-            self.assertEqual(duree.lignes, ())
+            self.assertIsNone(duree.ligne)
+
+
+class TestCoefficientCultural(unittest.TestCase):
+    def test_exemple_28_fao56(self):
+        """Haricot sec, stades 25, 25, 30 et 20 jours, Kc 0,15, 1,19 et 0,35, Kc publiés 0,15, 0,77, 1,19 et 0,56."""
+        kc = courbe_kc((25, 25, 30, 20), 0.15, 1.19, 0.35)
+        self.assertEqual(len(kc), 100)
+        for jour, attendu in [(20, 0.15), (40, 0.77), (70, 1.19), (95, 0.56)]:
+            self.assertAlmostEqual(kc[jour - 1], attendu, places=2)
+
+    def test_coefficients_du_tableau_12(self):
+        """Kc ini du groupe, milieu des plages imprimées, coton 1,175 à mi-saison et 0,60 en fin."""
+        for culture, attendu in [("coton", (0.35, 1.175, 0.60)), ("maïs", (0.3, 1.20, 0.475))]:
+            for valeur, cible in zip(KC_FAO56[culture].reference(), attendu):
+                self.assertAlmostEqual(valeur, cible)
+        self.assertEqual(KC_FAO56["arachide"].ini, 0.4)
+
+    def test_igname_et_mucuna_hors_comparaison(self):
+        comparees = cultures_comparees()
+        self.assertEqual(comparees, ["coton", "maïs", "sorgho", "mil", "arachide", "niébé", "soja", "riz pluvial"])
+        self.assertTrue(all(len(courbe_kc(duree_cycle(c).stades(), *KC_FAO56[c].reference())) == duree_cycle(c).jours
+                            for c in comparees))
+
+    def test_strategies_de_l_exemple_restent_comparables(self):
+        """Les trois stratégies de l'exemple n'utilisent ni igname ni mucuna."""
+        strategies = json.loads(EXEMPLE.read_text(encoding="utf-8"))["strategies"]
+        self.assertGreaterEqual(len(strategies), 3)
+        for strategie in strategies:
+            self.assertTrue(set(strategie["cultures"]) <= set(cultures_comparees()), strategie["id"])
 
 
 if __name__ == "__main__":
