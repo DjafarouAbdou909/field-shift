@@ -54,7 +54,7 @@ venv/bin/python -m moteur.exporter    # 5 secondes mesurées
 cd app && ../venv/bin/python -m http.server 8000
 ```
 
-Ouvrez http://localhost:8000 une première fois, puis coupez le serveur ou la connexion. L'application continue de fonctionner. Ce comportement a été vérifié dans Chrome, serveur arrêté, sur la conversation complète.
+Ouvrez http://localhost:8000, et non l'adresse 0.0.0.0 affichée par le serveur, sur laquelle le navigateur bloque le GPS, le micro et le mode hors connexion. Ouvrez-la une première fois, puis coupez le serveur ou la connexion. L'application continue de fonctionner. Ce comportement a été vérifié dans Chrome, serveur arrêté, sur la conversation complète.
 
 Pour les agriculteurs, l'application doit être publiée sur un hébergement HTTPS, puis ouverte une fois avec une connexion, par exemple au bureau de l'ANADER.
 

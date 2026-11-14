@@ -181,6 +181,7 @@ function chercherPosition(precise) {
 }
 
 async function localiser() {
+  if (!window.isSecureContext) { dire(MESSAGE_ADRESSE, demanderLieu); return; }
   if (!navigator.geolocation) {
     dire("La localisation n'est pas disponible sur ce téléphone. Choisissez votre zone.", demanderLieu);
     return;
@@ -307,11 +308,17 @@ async function garderNote(note) {
   });
 }
 
+// Le navigateur bloque le GPS et le micro sur une adresse non sécurisée, sans même
+// afficher la demande d'autorisation. Seules les adresses https et localhost sont sûres.
+const MESSAGE_ADRESSE = "Cette adresse n'est pas sécurisée, et le navigateur bloque la position et le micro "
+  + "sans demander d'autorisation. Ouvrez l'application par une adresse https, ou par localhost sur un ordinateur.";
+
 function suite() {
   if (etat.priorite) actionsResultat(); else demanderLieu();
 }
 
 async function enregistrer() {
+  if (!window.isSecureContext) { dire(MESSAGE_ADRESSE, suite); return; }
   if (!navigator.mediaDevices || !window.MediaRecorder) {
     dire("L'enregistrement de la voix n'est pas disponible sur ce téléphone.", suite);
     return;
