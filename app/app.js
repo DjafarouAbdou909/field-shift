@@ -559,6 +559,8 @@ const MESSAGES_DIAGNOSTIC = {
     + "Je ne propose aucun traitement.",
   helminthosporiose_nord: "Maladie possible, l'helminthosporiose du maïs. À faire confirmer par votre "
     + "conseiller ANADER. Je ne propose aucun traitement.",
+  pas_de_feuille: "Je ne vois pas de feuille sur cette photo. Prenez en photo une seule feuille de maïs, de près, "
+    + "à la lumière du jour.",
   inconnu: "Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille de maïs, à la "
     + "lumière du jour, ou montrez la plante à votre conseiller ANADER.",
 };
@@ -595,6 +597,20 @@ async function session() {
   return sessionDiagnostic;
 }
 
+// Le modèle n'a appris que sur des feuilles et peut se tromper avec assurance sur autre chose,
+// un mur ou le sol par exemple. Ce contrôle, ajouté après les tests de fiabilité et non mesuré
+// par eux, refuse une photo où moins de 15 % des pixels ont une teinte de végétation.
+const PART_VEGETATION_MIN = 0.15;
+
+function partVegetation(pixels) {
+  let vegetation = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i], g = pixels[i + 1], b = pixels[i + 2];
+    if (g >= 0.9 * r && g > b + 10) vegetation++;
+  }
+  return vegetation / (pixels.length / 4);
+}
+
 // Même préparation que l'évaluation de l'entraînement, petit côté à 256, centre de 224, normalisation.
 function tenseurImage(image, fiche) {
   const echelle = fiche.redimension / Math.min(image.width, image.height);
@@ -604,6 +620,7 @@ function tenseurImage(image, fiche) {
   const contexte = canevas.getContext("2d");
   contexte.drawImage(image, (fiche.taille - largeur) / 2, (fiche.taille - hauteur) / 2, largeur, hauteur);
   const pixels = contexte.getImageData(0, 0, fiche.taille, fiche.taille).data;
+  if (partVegetation(pixels) < PART_VEGETATION_MIN) return null;
   const n = fiche.taille * fiche.taille;
   const donneesTenseur = new Float32Array(3 * n);
   for (let i = 0; i < n; i++) {
@@ -612,6 +629,32 @@ function tenseurImage(image, fiche) {
     }
   }
   return new ort.Tensor("float32", donneesTenseur, [1, 3, fiche.taille, fiche.taille]);
+}
+
+// Fiabilité mesurée lors de l'entraînement, lue dans la fiche du modèle, jamais écrite ici.
+function detailFiabilite(fiche, classe) {
+  const f = fiche.fiabilite || {};
+  const sur100 = (x) => Math.round(100 * x);
+  const lignes = [];
+  if (classe === "striure" && f.test_independant_striure) {
+    lignes.push(`Testé sur ${f.test_independant_striure.images} photos du Ghana, un pays que je n'ai pas vu en apprenant. `
+      + `Quand je dis striure, j'ai raison ${sur100(f.test_independant_striure.precision)} fois sur 100.`);
+  }
+  if (classe === "saine" && f.test_independant_saine) {
+    lignes.push(`Au Ghana, quand je ne reconnais aucune maladie, j'ai raison ${sur100(f.test_independant_saine.precision)} `
+      + "fois sur 100. Mais je réponds souvent que je ne sais pas.");
+  }
+  if (classe === "helminthosporiose_nord") {
+    lignes.push("Cette maladie n'a été testée que sur des photos de la même source que mon apprentissage, en Ouganda. "
+      + "Ma fiabilité réelle est inconnue.");
+  }
+  const necrose = f.hors_liste_necrose_letale;
+  if (necrose && classe !== "inconnu" && classe !== "saine") {
+    lignes.push(`Je confonds la nécrose létale du maïs avec une maladie connue ${sur100(necrose.part_maladie_connue)} `
+      + "fois sur 100.");
+  }
+  lignes.push("Photos d'Afrique de l'Est, d'Afrique australe et du Ghana, pas de Côte d'Ivoire. Ce diagnostic ne vient pas de la NASA.");
+  return lignes.join(" ");
 }
 
 function photographier() {
@@ -634,6 +677,7 @@ async function analyser(fichier) {
   try {
     const modele = await session();
     const entree = tenseurImage(image, fiche);
+    if (!entree) { dire(MESSAGES_DIAGNOSTIC.pas_de_feuille, suite); return; }
     const sortie = (await modele.run({ [modele.inputNames[0]]: entree }))[modele.outputNames[0]].data;
     const maximum = Math.max(...sortie);
     const exp = Array.from(sortie, (v) => Math.exp(v - maximum));
@@ -641,7 +685,13 @@ async function analyser(fichier) {
     const probabilites = exp.map((v) => v / somme);
     const meilleure = probabilites.indexOf(Math.max(...probabilites));
     const classe = probabilites[meilleure] >= fiche.seuil ? fiche.classes[meilleure] : "inconnu";
-    dire(MESSAGES_DIAGNOSTIC[classe] || MESSAGES_DIAGNOSTIC.inconnu, suite);
+    dire(MESSAGES_DIAGNOSTIC[classe] || MESSAGES_DIAGNOSTIC.inconnu, (b) => {
+      const detail = document.createElement("div");
+      detail.className = "discret";
+      detail.textContent = detailFiabilite(fiche, classe);
+      b.appendChild(detail);
+      suite();
+    });
   } catch (e) {
     dire(`Le diagnostic n'a pas pu tourner sur ce téléphone.\nDétail technique, ${e && e.message ? e.message : e}.`, suite);
   }
