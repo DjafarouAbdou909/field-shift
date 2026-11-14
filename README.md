@@ -50,6 +50,8 @@ venv/bin/python -m moteur.exporter    # 5 secondes mesurées
 
 ## Essayer l'application
 
+Version publiée, https://conseil-rotation-ci.netlify.app, à ouvrir une première fois avec une connexion.
+
 ```bash
 cd app && ../venv/bin/python -m http.server 8000
 ```
