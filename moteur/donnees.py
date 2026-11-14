@@ -108,6 +108,22 @@ def telecharger_point(latitude: float, longitude: float, produit: str, dossier: 
     raise RuntimeError(f"série {produit} indisponible au point {latitude}, {longitude}")
 
 
+PAS_IMERG = 0.1
+
+
+def centre_case_imerg(latitude: float, longitude: float) -> tuple[float, float]:
+    """Retourne le centre de la case IMERG de 0,1 degré qui contient un point."""
+    return (round(float(np.floor(latitude / PAS_IMERG)) * PAS_IMERG + PAS_IMERG / 2, 3),
+            round(float(np.floor(longitude / PAS_IMERG)) * PAS_IMERG + PAS_IMERG / 2, 3))
+
+
+def voisinage_imerg(latitude: float, longitude: float) -> list[tuple[float, float]]:
+    """Retourne les neuf centres de cases autour du point, la case du point en premier."""
+    lat, lon = centre_case_imerg(latitude, longitude)
+    decalages = [(0, 0)] + [(i, j) for i in (-1, 0, 1) for j in (-1, 0, 1) if (i, j) != (0, 0)]
+    return [(round(lat + i * PAS_IMERG, 3), round(lon + j * PAS_IMERG, 3)) for i, j in decalages]
+
+
 URL_GHCN = "https://www.ncei.noaa.gov/data/global-historical-climatology-network-daily/access/{station}.csv"
 DOSSIER_GHCN = RACINE / "data" / "raw" / "ghcn"
 # Identifiant et coordonnées tirés de ghcnd-stations.txt de NOAA NCEI, consulté le 14 novembre 2026.
@@ -134,6 +150,12 @@ def lire_pluie_station(chemin: Path) -> pd.Series:
     return (donnees.set_index(pd.to_datetime(donnees["DATE"]).rename("date"))["PRCP"] / 10).rename("station")
 
 
+def lire_tmax_station(chemin: Path) -> pd.Series:
+    """Retourne la température maximale d'une station en °C, GHCN-Daily la diffusant en dixièmes de degré."""
+    donnees = pd.read_csv(chemin, usecols=["DATE", "TMAX"], low_memory=False).dropna()
+    return (donnees.set_index(pd.to_datetime(donnees["DATE"]).rename("date"))["TMAX"] / 10).rename("station")
+
+
 def lire_power(chemin: Path) -> pd.DataFrame:
     """Lit une série POWER, remplace le code -999 par une valeur manquante et date chaque ligne."""
     with gzip.open(chemin, "rt", encoding="utf-8") as fichier:
@@ -142,3 +164,24 @@ def lire_power(chemin: Path) -> pd.DataFrame:
     donnees = donnees.replace(VALEUR_MANQUANTE, np.nan)
     date = pd.to_datetime(donnees["YEAR"].astype(str), format="%Y") + pd.to_timedelta(donnees["DOY"] - 1, unit="D")
     return donnees.drop(columns=["YEAR", "DOY"]).set_index(date.rename("date"))
+
+
+def altitude_power(chemin: Path) -> float:
+    """Lit dans l'en-tête l'altitude moyenne de la maille MERRA-2, en mètres."""
+    with gzip.open(chemin, "rt", encoding="utf-8") as fichier:
+        entete = fichier.read().split("-END HEADER-", 1)[0]
+    ligne = next(l for l in entete.splitlines() if l.startswith("elevation from MERRA-2"))
+    return float(ligne.rsplit("=", 1)[1].split()[0])
+
+
+def pluie_lieu(cases: list[tuple[float, float]], dossier: Path = DOSSIER_POWER) -> pd.DataFrame:
+    """Retourne la pluie IMERG de chaque case et leur moyenne, pluie retenue pour le lieu.
+
+    La moyenne des neuf cases est la décision du 14 novembre 2026 notée dans
+    docs/decisions.md. Un jour où une case manque reste manquant dans la moyenne.
+    """
+    cases_pluie = pd.DataFrame({
+        case: lire_power(telecharger_point(*case, "imerg", dossier))["IMERG_PRECTOT"] for case in cases
+    })
+    cases_pluie["moyenne"] = cases_pluie.mean(axis=1, skipna=False)
+    return cases_pluie

@@ -67,3 +67,30 @@ Trois remarques en découlent. Le produit SMAP retenu, SPL3SMP_E, provient du ra
 ### Ce qui n'est pas vérifié
 
 La version et la chaîne de traitement d'IMERG servies par POWER, que l'API n'indique pas. La résolution effective du rayonnement CERES. La cause du constat 6. Le cumul annuel réel aux deux villes, aucune des trois sources ne permettant de trancher. La dernière année disponible de MCD12Q1, et l'extraction par AppEEARS, qui attend le compte Earthdata.
+
+## Préparation des données, phase 3
+
+Établie le 14 novembre 2026, sans les données qui attendent le compte Earthdata. Chaque nombre de cette section est affiché par `venv/bin/python -m moteur.indicateurs` ou par `venv/bin/python -m moteur.controles`. Les indicateurs annuels de 2001 à 2025 sont écrits dans `data/processed/indicateurs_<lieu>_<variante>.csv`. La pluie d'un lieu est la moyenne des neuf cases IMERG, la météo est celle de la maille POWER, et l'évapotranspiration suit FAO-56, vérifiée sur ses exemples 8 et 18.
+
+### Règles de saison
+
+Le début est le premier jour, à partir d'une date de recherche, qui ouvre trois jours cumulant au moins 20 mm sans séquence sèche de plus de 7 jours dans les 30 jours suivants. La fin est le dernier jour de pluie d'au moins 1 mm, à partir du 1er septembre, suivi de 20 jours secs. Ces seuils sont attribués à Sivakumar, 1988, par des sources secondaires. L'article n'a pas pu être lu, son dépôt à l'ICRISAT exigeant une authentification, et l'attribution reste à vérifier.
+
+### Résultats retenus, recherche du début à partir du 1er mars
+
+| Indicateur, médiane et plage des quantiles 10 à 90 % | Korhogo | Bouaké |
+|---|---|---|
+| Pluie annuelle, mm | 1 222, de 1 033 à 1 318 | 1 120, de 901 à 1 279 |
+| Évapotranspiration annuelle, mm | 1 930, de 1 772 à 2 014 | 1 529, de 1 436 à 1 633 |
+| Indice d'aridité, pluie sur évapotranspiration | 0,63, de 0,52 à 0,73 | 0,72, de 0,57 à 0,85 |
+| Début de saison | 13 avril, du 26 mars au 3 mai | 17 mars, du 2 mars au 29 avril |
+| Plus longue séquence sèche des 60 jours suivant le début, jours | 6, de 4 à 9 | 6, de 4 à 9 |
+| Jours au-dessus de 35 °C dans l'année, MERRA-2 | 144, de 80 à 174 | 50, de 24 à 86 |
+
+Les tendances de Theil-Sen ne sont pas significatives au seuil de 5 % pour la pluie annuelle, avec +13,6 mm par décennie à Korhogo, p = 0,797, et +60,1 mm à Bouaké, p = 0,072. Le début de saison recule de 9,1 jours par décennie à Korhogo, p = 0,037, et avance de 5,7 jours à Bouaké, p = 0,350. Ce recul de Korhogo reste fragile. Il disparaît avec la recherche du 1er mai, +1,9 jour par décennie et p = 0,373, et douze indicateurs testés par lieu laissent attendre environ un résultat significatif par hasard.
+
+### Défauts constatés
+
+1. **La règle de fin de saison ne convient pas à ces deux villes.** Elle place la fin au jour 321, soit le 17 novembre, en médiane à Korhogo, et au jour 329,5 à Bouaké, alors que la pluie mensuelle tombe à 25,6 mm en novembre à Korhogo. En novembre, 11,2 % des jours reçoivent encore au moins 1 mm à Korhogo et 19,1 % à Bouaké, si bien que vingt jours entièrement secs arrivent tard. La moyenne des neuf cases n'en est pas la cause. Elle compte 111 jours de pluie par an à Korhogo contre 114 pour la case de la ville, et la case seule donne une fin au jour 315 en médiane, avec 12 années sans fin trouvée. La longueur de saison, la pluie de saison, le bilan de saison et la chaleur en saison dépendent de cette fin et ne sont pas retenus.
+2. **La recherche du 1er mai coupe la saison.** Avec la recherche du 1er mars, le début tombe avant le 1er mai 21 années sur 25 à Korhogo et 22 sur 25 à Bouaké, ce que la recherche du 1er mai ne peut pas voir. La recherche du 1er mars n'est jamais atteinte à Korhogo, mais l'est 2 années sur 25 à Bouaké, dont la saison commence parfois en février.
+3. **MERRA-2 compte trop de jours chauds.** Sur 2 258 jours communs avec le thermomètre de Korhogo, sa température maximale dépasse celle de la station de 0,46 °C en moyenne, avec une corrélation de 0,818, mais elle dépasse 35 °C sur 36,6 % des jours contre 27,5 % à la station. À Bouaké, sur 2 075 jours, l'écart moyen est de 0,10 °C, et la part des jours au-delà de 35 °C de 15,8 % contre 10,6 %. Un léger biais suffit à gonfler un décompte au-dessus d'un seuil.

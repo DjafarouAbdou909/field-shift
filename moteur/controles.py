@@ -15,26 +15,12 @@ PRECTOTCORR, et sert ici de repère, pas de borne.
 import numpy as np
 import pandas as pd
 
-from .donnees import (PRODUITS, STATIONS_GHCN, lire_pluie_station, lire_power, telecharger_point,
-                      telecharger_station)
+from .donnees import (PRODUITS, STATIONS_GHCN, centre_case_imerg, lire_pluie_station, lire_power, lire_tmax_station,
+                      telecharger_point, telecharger_station, voisinage_imerg)
 from .indicateurs import rayonnement_extraterrestre
 from .lieux import LIEUX
 
-PAS_IMERG = 0.1
 SEUIL_CUMUL_SUSPECT = 200.0
-
-
-def centre_case_imerg(latitude: float, longitude: float) -> tuple[float, float]:
-    """Retourne le centre de la case IMERG de 0,1 degré qui contient un point."""
-    return (round(float(np.floor(latitude / PAS_IMERG)) * PAS_IMERG + PAS_IMERG / 2, 3),
-            round(float(np.floor(longitude / PAS_IMERG)) * PAS_IMERG + PAS_IMERG / 2, 3))
-
-
-def voisinage_imerg(latitude: float, longitude: float) -> list[tuple[float, float]]:
-    """Retourne les neuf centres de cases autour du point, la case du point en premier."""
-    lat, lon = centre_case_imerg(latitude, longitude)
-    decalages = [(0, 0)] + [(i, j) for i in (-1, 0, 1) for j in (-1, 0, 1) if (i, j) != (0, 0)]
-    return [(round(lat + i * PAS_IMERG, 3), round(lon + j * PAS_IMERG, 3)) for i, j in decalages]
 
 
 def controler_serie(serie: pd.DataFrame, latitude: float, debut: str, fin: str) -> dict:
@@ -103,6 +89,19 @@ def comparer_station(station: pd.Series, imerg: pd.Series, prectotcorr: pd.Serie
         "somme_station_mm": jours["station"].sum(),
         "somme_imerg_mm": jours["imerg"].sum(),
         "somme_prectotcorr_mm": jours["prectotcorr"].sum(),
+    }).round(3)
+
+
+def comparer_tmax_station(station: pd.Series, merra: pd.Series, seuil: float = 35.0) -> pd.Series:
+    """Compare la température maximale de MERRA-2 au thermomètre, sur les jours communs."""
+    jours = pd.concat({"station": station, "merra": merra}, axis=1, sort=True).dropna()
+    return pd.Series({
+        "jours_communs": len(jours),
+        "annees_avec_donnees": jours.index.year.nunique(),
+        "ecart_moyen_merra_moins_station": (jours["merra"] - jours["station"]).mean(),
+        "correlation": jours["merra"].corr(jours["station"]),
+        f"part_jours_station_au_dela_de_{seuil:.0f}": (jours["station"] > seuil).mean(),
+        f"part_jours_merra_au_dela_de_{seuil:.0f}": (jours["merra"] > seuil).mean(),
     }).round(3)
 
 
@@ -185,6 +184,9 @@ def executer() -> None:
         print(comparer_station(pluie_station, imerg_station, power["PRECTOTCORR"]).to_string())
         print("jours de station par année")
         print(pluie_station.groupby(pluie_station.index.year).size().to_string())
+        print(f"\nTempérature maximale de MERRA-2 et du thermomètre {station}")
+        tmax_station = lire_tmax_station(telecharger_station(station)).loc[debut:fin]
+        print(comparer_tmax_station(tmax_station, power["T2M_MAX"]).to_string())
     print(f"\nParamètres téléchargés {PRODUITS}")
 
 

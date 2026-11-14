@@ -8,10 +8,11 @@ from unittest import mock
 import numpy as np
 import pandas as pd
 
-from moteur.controles import (centre_case_imerg, comparer_pluies, comparer_station, controler_serie,
-                              ecart_case_moyenne, voisinage_imerg)
-from moteur.donnees import empreinte_sha256, lire_pluie_station, lire_power, reponse_complete, telecharger_point
-from moteur.indicateurs import rayonnement_extraterrestre
+from moteur.controles import (comparer_pluies, comparer_station, comparer_tmax_station, controler_serie,
+                              ecart_case_moyenne)
+from moteur.donnees import (altitude_power, centre_case_imerg, empreinte_sha256, lire_pluie_station, lire_power,
+                            lire_tmax_station, nom_fichier, pluie_lieu, reponse_complete, telecharger_point,
+                            voisinage_imerg)
 
 ENTETE = "-BEGIN HEADER-\nNASA/POWER\n-END HEADER-\n"
 TROIS_JOURS = ENTETE + "YEAR,DOY,IMERG_PRECTOT\n2024,366,1.5\n2025,1,-999\n2025,2,0.0\n"
@@ -39,6 +40,24 @@ class TestDonnees(unittest.TestCase):
         self.assertTrue(np.isnan(serie.loc["2025-01-01", "IMERG_PRECTOT"]))
         self.assertEqual(serie.loc["2024-12-31", "IMERG_PRECTOT"], 1.5)
 
+    def test_altitude_lue_dans_l_entete(self):
+        fichier = self.chemin / "power.csv.gz"
+        with gzip.open(fichier, "wt", encoding="utf-8") as sortie:
+            sortie.write("-BEGIN HEADER-\nelevation from MERRA-2: Average for 0.5 x 0.625 degree lat/lon region = 351.91 meters\n"
+                         "-END HEADER-\nYEAR,DOY,T2M_MAX\n2025,1,30.0\n")
+        self.assertEqual(altitude_power(fichier), 351.91)
+
+    def test_pluie_du_lieu_moyenne_des_cases(self):
+        """Deux cases, 1 et 3 mm le 31 décembre, moyenne 2 mm. Une case manque le 1er janvier, la moyenne aussi."""
+        for case, valeurs in [((9.45, -5.65), ["1.0", "0.0", "0.0"]), ((9.55, -5.65), ["3.0", "-999", "4.0"])]:
+            with gzip.open(self.chemin / nom_fichier("imerg", *case), "wt", encoding="utf-8") as sortie:
+                sortie.write(ENTETE + "YEAR,DOY,IMERG_PRECTOT\n" + "".join(
+                    f"{a},{j},{v}\n" for (a, j), v in zip([(2024, 366), (2025, 1), (2025, 2)], valeurs)))
+        pluie = pluie_lieu([(9.45, -5.65), (9.55, -5.65)], self.chemin)
+        self.assertEqual(pluie.loc["2024-12-31", "moyenne"], 2.0)
+        self.assertTrue(np.isnan(pluie.loc["2025-01-01", "moyenne"]))
+        self.assertEqual(pluie.loc["2025-01-02", "moyenne"], 2.0)
+
     def test_telechargement_retente_puis_consigne(self):
         tronquee = mock.Mock(status_code=200, text=ENTETE + "YEAR,DOY,IMERG_PRECTOT\n2024,366,1.5\n", url="u")
         complete = mock.Mock(status_code=200, text=TROIS_JOURS, url="https://exemple/u")
@@ -63,11 +82,10 @@ class TestDonnees(unittest.TestCase):
         self.assertEqual(len(serie), 1)
         self.assertEqual(serie.loc["2025-08-01"], 12.5)
 
-
-class TestIndicateurs(unittest.TestCase):
-    def test_rayonnement_extraterrestre_exemple_8_fao56(self):
-        """Exemple 8 du bulletin FAO-56, 3 septembre, jour 246, à 20 degrés sud, 32,2 MJ par m²."""
-        self.assertAlmostEqual(rayonnement_extraterrestre(-20.0, 246), 32.2, delta=0.1)
+    def test_temperature_station_en_dixiemes_de_degre(self):
+        fichier = self.chemin / "station.csv"
+        fichier.write_text('"STATION","DATE","TMAX"\n"X","2025-03-01","362"\n', encoding="utf-8")
+        self.assertEqual(lire_tmax_station(fichier).loc["2025-03-01"], 36.2)
 
 
 class TestControles(unittest.TestCase):
@@ -117,6 +135,17 @@ class TestControles(unittest.TestCase):
         self.assertEqual(table.loc["2001-2025", "ecart_moyen_pct"], 0.0)
         self.assertEqual(table.loc["2001-2025", "ecart_min_pct"], -10.0)
 
+    def test_temperature_comparee_au_thermometre(self):
+        """Trois jours communs, écarts de 1 °C. Au-delà de 35 °C, 35,5 à la station et 36,5 pour MERRA-2, 35,0 ne comptant pas."""
+        dates = pd.date_range("2025-03-01", periods=4, freq="D")
+        station = pd.Series([34.0, 35.5, 30.0], index=dates[[0, 1, 3]])
+        merra = pd.Series([35.0, 36.5, 99.0, 31.0], index=dates)
+        resume = comparer_tmax_station(station, merra)
+        self.assertEqual(resume["jours_communs"], 3)
+        self.assertEqual(resume["ecart_moyen_merra_moins_station"], 1.0)
+        self.assertEqual(resume["part_jours_station_au_dela_de_35"], round(1 / 3, 3))
+        self.assertEqual(resume["part_jours_merra_au_dela_de_35"], round(1 / 3, 3))
+
     def test_comparaison_a_la_station_sur_jours_communs(self):
         """La station manque le 2 août et IMERG n'a pas de veille au 1er août, restent les 3 et 4 août.
 
@@ -125,7 +154,7 @@ class TestControles(unittest.TestCase):
         dates = pd.date_range("2025-08-01", periods=4, freq="D")
         station = pd.Series([1.0, 2.0, 3.0], index=dates[[0, 2, 3]])
         imerg = pd.Series([9.0, 1.0, 2.0, 3.0], index=dates)
-        prectotcorr = pd.Series([4.0, 0.0, 4.0, 4.0], index=dates)
+        prectotcorr = pd.Series([4.0, 0.0, 4.0, 5.0], index=dates)
         resume = comparer_station(station, imerg, prectotcorr)
         self.assertEqual(resume["jours_communs"], 2)
         self.assertEqual(resume["somme_station_mm"], 5.0)

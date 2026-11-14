@@ -60,3 +60,11 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **CLAUDE.md retiré du suivi partout.** Le retrait n'existait que sur la branche moteur. Il a été reporté sur main par le commit `cf0b8e7`, sans toucher au fichier du disque, puis bot-canal, bot-langage et presentation ont avancé jusqu'à main. Le fichier reste dans l'historique et dans la copie distante de main.
 - **Squelette déclaré comme travail antérieur.** L'heure exacte du début du hackathon n'étant pas connue, le contenu entier du premier commit `f3646cd` est déclaré par prudence dans docs/travail_anterieur.md.
 - **Cadrage sur une seule source.** Les trois articles repérés ne sont pas téléchargés. Le cadrage reste fondé sur la seule source lue, Zagbaï, Berti et Lebailly, 2006.
+
+## 14 novembre 2026, rôle données et moteur, phase 3 de CRISP-DM, partie sans Earthdata
+
+- **.gitignore rétabli.** La ligne CLAUDE.md non commitée est retirée, seul `.git/info/exclude` exclut ce fichier, et git status ne le montre plus.
+- **Indicateurs calculés pour Korhogo et Bouaké**, de 2001 à 2025, par `venv/bin/python -m moteur.indicateurs`, avec leur médiane, leurs quantiles 10 et 90 %, leur pente de Theil-Sen et un test de Mann-Kendall. Les résultats sont dans la section phase 3 de docs/donnees.md.
+- **Règles de saison paramétrées.** Leurs seuils sont attribués à Sivakumar, 1988, par des sources secondaires seulement, l'article n'ayant pas pu être lu.
+- **Trois défauts signalés au lieu d'être corrigés en silence.** La règle de fin de saison place la fin en novembre et n'est pas retenue. La recherche du début à partir du 1er mai coupe la saison 21 années sur 25 à Korhogo. MERRA-2 surestime d'environ un tiers la part des jours au-dessus de 35 °C par rapport au thermomètre de Korhogo.
+- **Décisions soumises au responsable.** Date de recherche du début, remplacement de la fin de saison, traitement des jours chauds.
