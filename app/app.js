@@ -371,10 +371,24 @@ async function partager(note) {
   }
 }
 
+// Vrai quand l'application et ses recommandations sont dans le cache du téléphone.
+let pretHorsLigne = false;
+
+async function verifierHorsLigne() {
+  if (!("serviceWorker" in navigator) || !window.caches) return;
+  await navigator.serviceWorker.ready;
+  for (const cle of await caches.keys()) {
+    const cache = await caches.open(cle);
+    if (await cache.match("donnees/recommandations.json") && await cache.match("app.js")) pretHorsLigne = true;
+  }
+  afficherReseau();
+}
+
 function afficherReseau() {
-  etatReseau.textContent = navigator.onLine
-    ? "Connexion disponible, tout fonctionne aussi sans"
-    : "Hors connexion, tout fonctionne";
+  if (!navigator.onLine) etatReseau.textContent = pretHorsLigne || donnees ? "Hors connexion, tout fonctionne" : "Hors connexion";
+  else if (!window.isSecureContext) etatReseau.textContent = "Adresse non sécurisée, mode hors connexion impossible";
+  else etatReseau.textContent = pretHorsLigne ? "Prête à fonctionner sans connexion"
+    : "Préparation du mode hors connexion, gardez la connexion";
 }
 
 async function demarrer() {
@@ -384,6 +398,7 @@ async function demarrer() {
   addEventListener("offline", afficherReseau);
   if ("serviceWorker" in navigator) {
     try { await navigator.serviceWorker.register("sw.js"); } catch (e) { /* le site reste utilisable en ligne */ }
+    verifierHorsLigne();
   }
   try {
     const reponse = await fetch("donnees/recommandations.json");
