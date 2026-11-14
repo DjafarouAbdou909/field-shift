@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from donnees.config import RACINE, charger
 
 from .criteres import debuts_par_annee, sensibilite
+from .saison import faux_departs
 from .series import series_lieux
 from .statistiques import quartiles, tendance
 
@@ -110,6 +111,67 @@ def explications(rotation: dict, scores: dict, cultures: dict) -> list[dict]:
 
 def le_la(nom: str) -> str:
     return f"l'{nom}" if nom[0] in "aeiouéèh" else f"le {nom}"
+
+
+def au(nom: str) -> str:
+    return f"à l'{nom}" if nom[0] in "aeiouéèh" else f"au {nom}"
+
+
+def conseil_court(priorite: str, strategies: list[dict], couvertures: dict, cultures: dict) -> str:
+    """Trois phrases au plus, pour un agriculteur. Le détail chiffré est dans conseil.
+
+    La raison retenue est celle du critère de la priorité si l'écart avec la rotation
+    actuelle atteint 0,05, sinon celle du premier autre critère qui atteint cet écart.
+    """
+    actuelle = next(s for s in strategies if s["actuelle"])
+    tete = [s for s in strategies if s["rang"] == 1]
+    fin = "Parlez-en à votre agent ANADER avant de changer."
+    if actuelle in tete and len(tete) == 1:
+        return (f"Gardez votre rotation actuelle, {actuelle['nom'].lower()}.\n"
+                "Chez vous, les autres rotations ne font pas mieux pour ce qui compte pour vous.\n" + fin)
+    conseillees = [s for s in tete if not s["actuelle"]]
+    if len(conseillees) == 1:
+        ligne = f"Rotation conseillée, {conseillees[0]['nom'].lower()}."
+    else:
+        ligne = f"{len(conseillees)} rotations sont conseillées, au choix.\n" + "\n".join(
+            f"{i}. {s['nom']}" for i, s in enumerate(conseillees, start=1))
+    meilleure = conseillees[0]
+    plusieurs = len(conseillees) > 1
+    raisons = []
+    for critere in [priorite] + [c for c in ("eau", "sol", "debouche") if c != priorite]:
+        if critere == "eau":
+            nouvelles = [c for c in meilleure["cultures"] if c not in actuelle["cultures"]]
+            remplacees = [c for c in actuelle["cultures"] if c not in meilleure["cultures"]]
+            part = lambda c: couvertures[c]["couvertes"] / couvertures[c]["annees"]
+            for n in sorted(nouvelles, key=part, reverse=True):
+                for r in remplacees:
+                    if part(n) - part(r) >= 0.05:
+                        avec = f"Avec la rotation {meilleure['nom'].lower()}, la" if plusieurs else "Chez vous, la"
+                        raisons.append(f"{avec} pluie suffit plus souvent {au(cultures[n]['nom'])} "
+                                       f"qu'{au(cultures[r]['nom'])}.")
+                        break
+                if raisons:
+                    break
+        elif meilleure["scores"][critere] - actuelle["scores"][critere] >= 0.05:
+            if critere == "sol" and plusieurs and all(
+                    any(cultures[c]["legumineuse"] for c in s["cultures"]) for s in conseillees):
+                raisons.append("Toutes deux ajoutent une légumineuse, qui peut enrichir votre sol."
+                               if len(conseillees) == 2 else "Toutes ajoutent une légumineuse, qui peut enrichir votre sol.")
+            elif critere == "sol":
+                legume = next(c for c in meilleure["cultures"] if cultures[c]["legumineuse"])
+                sujet = f"La rotation {meilleure['nom'].lower()} ajoute" if plusieurs else "Elle ajoute"
+                raisons.append(f"{sujet} {le_la(cultures[legume]['nom'])}, une légumineuse qui peut enrichir votre sol.")
+            else:
+                raisons.append("Elle garde plus de coton à vendre.")
+        if raisons:
+            break
+    return "\n".join([ligne] + raisons[:1] + [fin])
+
+
+def texte_faux_departs(faux: int, evaluees: int, critere: dict) -> str:
+    return (f"Attention aux faux départs. Chez vous, {faux} années sur {evaluees}, les premières pluies ont été "
+            f"suivies de plus de {critere['sequence_seche_max_jours']} jours sans pluie. Attendez que la pluie soit "
+            "bien installée, et demandez conseil à votre agent ANADER.")
 
 
 def conseil(contexte: dict, strategies: list[dict], couvertures: dict, cultures: dict) -> str:
@@ -214,6 +276,7 @@ def construire(config: dict) -> dict:
     s = config["sensibilite"]
     for lieu in config["lieux"]:
         serie, debuts = series[lieu["id"]], debuts_par_annee(series[lieu["id"]], config)
+        faux, evaluees = faux_departs(serie["jours"], serie["pluie"], debuts, config["saison"])
         debut_median = date_texte(quartiles([d.timetuple().tm_yday for d in debuts.values() if d])[1])
         resultats = {}
         for priorite, p in config["priorites"].items():
@@ -233,12 +296,14 @@ def construire(config: dict) -> dict:
             for strategie in r["strategies"]:
                 strategie["cultures"] = rotations[strategie["id"]]["cultures"]
             couvertures = {c: v for sc in analyse["scores"].values() for c, v in sc["cultures"].items()}
-            r["resume"] = conseil({"lieu": lieu["nom"], "priorite": p["libelle"], "debut_pluies": debut_median,
+            r["resume"] = conseil_court(priorite, r["strategies"], couvertures, config["cultures"])
+            r["detail"] = conseil({"lieu": lieu["nom"], "priorite": p["libelle"], "debut_pluies": debut_median,
                                    "stabilite": r["stabilite"], "avertissement": sortie["avertissement"]},
                                   r["strategies"], couvertures, config["cultures"])
             r["cle_audio"] = f"{lieu['id']}_{priorite}"
             r["audio"] = enregistrement(r["cle_audio"])
         sortie["lieux"][lieu["id"]] = {"nom": lieu["nom"], "lat": lieu["lat"], "lon": lieu["lon"],
+                                      "alerte": texte_faux_departs(faux, evaluees, config["saison"]),
                                       "indicateurs": indicateurs(serie, debuts, config), "resultats": resultats}
     return sortie
 

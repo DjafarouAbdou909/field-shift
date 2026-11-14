@@ -7,9 +7,9 @@ from donnees import power
 from donnees.config import charger, points
 from donnees.registre import Registre, ecrire_atomique
 from moteur.criteres import classer, groupes
-from moteur.exporter import conseil, de_la, texte_stabilite, texte_tendance
+from moteur.exporter import conseil, conseil_court, de_la, texte_stabilite, texte_tendance
 from moteur.fao56 import et0, kc_journalier, rayonnement_extraterrestre
-from moteur.saison import debut_des_pluies, plus_longue_sequence_seche
+from moteur.saison import debut_des_pluies, faux_departs, plus_longue_sequence_seche
 from moteur.statistiques import proportion_wilson
 
 
@@ -46,6 +46,13 @@ class TestSaison(unittest.TestCase):
         pluies.update({i: 8.0 for i in range(105, 160, 3)})
         jours, pluie = self.serie(pluies)
         self.assertEqual(debut_des_pluies(jours, pluie, 2020, self.critere), date(2020, 4, 10))
+
+    def test_faux_depart_compte(self):
+        pluies = {74: 25.0, 100: 8.0, 101: 8.0, 102: 8.0}
+        pluies.update({i: 8.0 for i in range(105, 160, 3)})
+        jours, pluie = self.serie(pluies)
+        debuts = {2020: debut_des_pluies(jours, pluie, 2020, self.critere)}
+        self.assertEqual(faux_departs(jours, pluie, debuts, self.critere), (1, 1))
 
     def test_aucun_debut(self):
         jours, pluie = self.serie({})
@@ -110,6 +117,23 @@ class TestCriteres(unittest.TestCase):
         self.assertIn("Le niébé est une légumineuse", texte)
         self.assertIn("la rotation coton puis niébé fait mieux que votre rotation actuelle", texte)
         self.assertIn("le maïs n'a eu assez d'eau au moment clé que 8 années sur 24", texte)
+
+    def test_conseil_court_en_trois_phrases(self):
+        cultures = {"coton": {"nom": "coton", "legumineuse": False}, "mais": {"nom": "maïs", "legumineuse": False},
+                    "sorgho": {"nom": "sorgho", "legumineuse": False}, "niebe": {"nom": "niébé", "legumineuse": True}}
+        couvertures = {"coton": {"couvertes": 10, "annees": 24}, "mais": {"couvertes": 8, "annees": 24},
+                       "sorgho": {"couvertes": 11, "annees": 24}, "niebe": {"couvertes": 9, "annees": 24}}
+        strategies = [
+            {"rang": 1, "nom": "Coton, sorgho puis niébé", "actuelle": False, "cultures": ["coton", "sorgho", "niebe"],
+             "scores": {"eau": 0.42, "sol": 0.33, "debouche": 0.33}},
+            {"rang": 2, "nom": "Coton puis maïs", "actuelle": True, "cultures": ["coton", "mais"],
+             "scores": {"eau": 0.38, "sol": 0.0, "debouche": 0.5}},
+        ]
+        texte = conseil_court("eau", strategies, couvertures, cultures)
+        self.assertEqual(texte.count("\n"), 2)
+        self.assertIn("Rotation conseillée, coton, sorgho puis niébé.", texte)
+        self.assertIn("la pluie suffit plus souvent au sorgho qu'au maïs", texte)
+        self.assertIn("Elle ajoute le niébé", conseil_court("sol", strategies, couvertures, cultures))
 
     def test_conseil_dit_quand_l_eau_ne_departage_pas(self):
         self.assertIn("à peu près comme votre rotation actuelle", self.conseil_test(2, 0.60))

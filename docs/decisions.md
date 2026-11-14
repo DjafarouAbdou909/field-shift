@@ -14,3 +14,5 @@
 - **Mise en ligne.** L'application est publiée par GitHub Pages, pour la première ouverture avec connexion.
 - **Inclusion des personnes qui ne lisent pas.** Chaque bouton porte un pictogramme. Le mode voix lit chaque message, et un bouton se touche une fois pour entendre son nom, une seconde fois pour le choisir.
 - **Notes vocales.** L'agriculteur enregistre un message dans sa langue, gardé sur le téléphone sans réseau et partageable avec son conseiller. L'application ne l'interprète pas. La reconnaissance vocale hors connexion n'est pas fiable dans un navigateur et n'existe pas en dioula ni en sénoufo.
+- **Réponse courte.** Le résultat tient en trois phrases, la rotation conseillée, une raison simple tirée des données et le renvoi au conseiller. Le détail chiffré reste derrière le bouton Pourquoi.
+- **Alerte faux départs.** Un faux départ est une première pluie de 20 mm en 3 jours qui ne satisfait pas le critère de début des pluies. Il est arrivé 8 années sur 24 à Korhogo comme à Bouaké. L'alerte invite à attendre une pluie bien installée et à consulter le conseiller, sans donner de date de semis.

@@ -250,8 +250,9 @@ function demanderPriorite() {
 function resultat(priorite) {
   etat.priorite = priorite;
   const r = donnees.lieux[etat.lieu].resultats[priorite];
-  dernierResume = r.resume;
-  dire(r.resume, actionsResultat);
+  const alerte = donnees.lieux[etat.lieu].alerte;
+  dernierResume = `${r.resume}\n${alerte}`;
+  dire(r.resume, () => dire(alerte, actionsResultat));
 }
 
 function actionsResultat() {
@@ -267,7 +268,8 @@ function actionsResultat() {
 
 function pourquoi() {
   const r = donnees.lieux[etat.lieu].resultats[etat.priorite];
-  let delai = 0;
+  bulle(r.detail);
+  let delai = 300;
   for (const s of r.strategies) {
     setTimeout(() => dire(`${s.nom}`, (b) => s.explications.forEach((e) => preuve(b, e))), delai);
     delai += 500;
