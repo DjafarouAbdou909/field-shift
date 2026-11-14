@@ -391,18 +391,29 @@ function afficherReseau() {
     : "Préparation du mode hors connexion, gardez la connexion";
 }
 
+// Les recommandations sont lues dans le cache si elles y sont, sans attendre le réseau.
+async function chargerDonnees() {
+  if (window.caches) {
+    const enCache = await caches.match("donnees/recommandations.json", { ignoreSearch: true });
+    if (enCache) return enCache.json();
+  }
+  const reponse = await fetch("donnees/recommandations.json");
+  return reponse.json();
+}
+
 async function demarrer() {
   afficherModeVoix();
   afficherReseau();
   addEventListener("online", afficherReseau);
   addEventListener("offline", afficherReseau);
+  // Le démarrage n'attend jamais le réseau. L'enregistrement se fait en arrière-plan.
   if ("serviceWorker" in navigator) {
-    try { await navigator.serviceWorker.register("sw.js"); } catch (e) { /* le site reste utilisable en ligne */ }
+    navigator.serviceWorker.register("sw.js").catch(() => { /* le site reste utilisable en ligne */ });
     verifierHorsLigne();
   }
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
   try {
-    const reponse = await fetch("donnees/recommandations.json");
-    donnees = await reponse.json();
+    donnees = await chargerDonnees();
   } catch (e) {
     bulle("Les données ne sont pas encore installées. Ouvrez l'application une première fois avec une connexion.");
     return;

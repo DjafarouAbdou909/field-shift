@@ -1,10 +1,10 @@
-// Fonctionnement hors connexion. L'interface est servie depuis le cache. Les
-// recommandations sont demandées au réseau quand il est disponible, sinon au cache.
-const CACHE = "conseil-rotation-v6";
-const FICHIERS = ["./", "index.html", "style.css", "app.js", "icone.svg", "manifest.webmanifest",
-                  "donnees/recommandations.json"];
+// Fonctionnement hors connexion. Tout est servi d'abord depuis le cache, pour que
+// l'application démarre même quand le réseau ne répond pas. Les recommandations sont
+// ensuite mises à jour en arrière-plan si le réseau répond.
+const CACHE = "conseil-rotation-v7";
+const FICHIERS = ["./", "index.html", "style.css", "app.js", "icone.svg", "icone-192.png", "icone-512.png",
+                  "manifest.webmanifest", "donnees/recommandations.json"];
 
-// Les enregistrements vocaux listés dans les recommandations sont aussi mis en cache.
 async function installer() {
   const cache = await caches.open(CACHE);
   await cache.addAll(FICHIERS);
@@ -24,13 +24,29 @@ self.addEventListener("activate", (e) => {
     .then(() => self.clients.claim()));
 });
 
+async function mettreAJour(requete) {
+  try {
+    const reponse = await fetch(requete, { cache: "no-store" });
+    if (reponse.ok) await (await caches.open(CACHE)).put(requete, reponse.clone());
+    return reponse;
+  } catch (e) {
+    return undefined;
+  }
+}
+
 self.addEventListener("fetch", (e) => {
-  const url = new URL(e.request.url);
-  if (url.pathname.endsWith("donnees/recommandations.json")) {
-    e.respondWith(fetch(e.request)
-      .then((r) => { const copie = r.clone(); caches.open(CACHE).then((c) => c.put(e.request, copie)); return r; })
-      .catch(() => caches.match(e.request)));
+  if (e.request.method !== "GET" || new URL(e.request.url).origin !== location.origin) return;
+  if (e.request.mode === "navigate") {
+    e.respondWith(caches.match("index.html").then((r) => r || fetch(e.request)));
     return;
   }
-  e.respondWith(caches.match(e.request).then((r) => r || fetch(e.request)));
+  e.respondWith(caches.match(e.request, { ignoreSearch: true }).then((enCache) => {
+    if (e.request.url.endsWith("donnees/recommandations.json")) {
+      const miseAJour = mettreAJour(e.request);
+      e.waitUntil(miseAJour);
+      if (enCache) return enCache;
+      return miseAJour.then((r) => r || Response.error());
+    }
+    return enCache || fetch(e.request);
+  }));
 });
