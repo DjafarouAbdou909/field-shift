@@ -105,3 +105,10 @@ Une entrée par étape, la plus récente en bas. Chaque entrée indique la date 
 - **Aucune étude ivoirienne lue.** Les notes du CNRA d'Akanza et collègues sur l'arachide et le niébé comme précédents du maïs, et la thèse de Bado au Burkina Faso, n'ont pas pu être téléchargées, les serveurs répondant 403 ou 404. Elles restent des pistes, non citées.
 - **Trois bénéfices restent des hypothèses sans source lue.** L'arachide comme précédent du maïs, l'arrière-effet des engrais du coton sur le maïs, et la meilleure tolérance du sorgho et du mil par rapport au maïs, que la FAO n'affirme que qualitativement et sans comparaison au maïs.
 - **Bloc-notes vidé pendant une reprise de session.** La copie de secours de CLAUDE.md et les PDF déjà lus ont disparu du dossier temporaire. La copie a été refaite. Les empreintes notées dans les documents restent celles des fichiers lus.
+
+## 14 novembre 2026, responsable de l'équipe, trois stratégies retenues
+
+- **Stratégies inscrites dans `moteur/rotations.py`.** Coton puis maïs, la rotation actuelle. Coton, niébé puis maïs. Sorgho puis niébé. Chaque bénéfice, lacune et risque porte son niveau et le code de sa source au registre, ce que vérifie un test.
+- **Niébé à la place de l'arachide.** Les trois conditions sont remplies. Sa durée, 110 jours, vient de la ligne Green gram, cowpeas du tableau 11 de FAO-56, son coefficient de la ligne Green Gram and Cowpeas du tableau 12, et son bénéfice de Yusuf et collègues 2009, où le maïs continu est inférieur au maïs après chacun des deux niébés, page 915. L'effet dépend de la variété et reste inférieur à celui du soja, page 920, ce qui figure dans les lacunes.
+- **Arachide dans les perspectives**, faute de source lue sur son effet sur le maïs suivant. Elle garde sa durée et son coefficient sourcés.
+- **Exemple fictif inchangé.** `moteur/exemple.json` garde sa stratégie avec arachide, car il ne sert qu'au développement des interfaces et le modifier relève d'une décision d'équipe sur le contrat.

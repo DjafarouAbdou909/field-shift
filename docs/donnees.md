@@ -164,6 +164,7 @@ Ces indicateurs décrivent le climat que traverse chaque cycle et le besoin d'un
 ### Perspectives
 
 - **Igname et mucuna.** Les réintégrer dès qu'une durée de cycle et un coefficient cultural sourcés seront disponibles, par exemple auprès du CNRA ou de l'ANADER.
+- **Arachide.** Elle a une durée et un coefficient sourcés, mais aucune source lue n'appuie encore son effet sur le maïs suivant, si bien qu'elle a été retirée de la stratégie coton, maïs et légumineuse au profit du niébé. Elle y reviendra si les notes du CNRA d'Akanza et collègues, ou la thèse de Bado, peuvent être lues et le confirment.
 - **Ajustement climatique de Kc mid et Kc end**, selon les équations du chapitre 6 de FAO-56, avec l'humidité et le vent de POWER.
 - **Pluie utile**, par un bilan hydrique du sol fondé sur la texture de SoilGrids.
 
