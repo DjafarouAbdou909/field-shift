@@ -1,0 +1,75 @@
+{
+  "version": "1",
+  "donnees_fictives": true,
+  "lieu": {"id": "korhogo", "nom": "Korhogo", "lat": 9.458, "lon": -5.629},
+  "priorite": "eau",
+  "poids": {"eau": 0.6, "revenu": 0.2, "sol": 0.2},
+  "indicateurs": [
+    {
+      "code": "retard_debut_pluies",
+      "texte": "Retard du début de la saison des pluies",
+      "valeur": 11, "bas": 4, "haut": 18, "unite": "jours",
+      "niveau": "calcule",
+      "source": {"nom": "NASA GPM IMERG via l'API NASA POWER", "reference": "https://power.larc.nasa.gov/", "periode": "2001-2023", "resolution": "0,1 degré"}
+    },
+    {
+      "code": "pluie_saison",
+      "texte": "Pluie de la saison de culture",
+      "valeur": 980, "bas": 760, "haut": 1190, "unite": "mm",
+      "niveau": "mesure",
+      "source": {"nom": "NASA GPM IMERG via l'API NASA POWER", "reference": "https://power.larc.nasa.gov/", "periode": "2001-2023", "resolution": "0,1 degré"}
+    },
+    {
+      "code": "sequence_seche",
+      "texte": "Plus longue séquence sèche en début de saison",
+      "valeur": 14, "bas": 8, "haut": 23, "unite": "jours",
+      "niveau": "calcule",
+      "source": {"nom": "NASA GPM IMERG via l'API NASA POWER", "reference": "https://power.larc.nasa.gov/", "periode": "2001-2023", "resolution": "0,1 degré"}
+    }
+  ],
+  "strategies": [
+    {
+      "id": "coton_mais",
+      "nom": "Coton puis maïs",
+      "actuelle": true,
+      "cultures": ["coton", "maïs"],
+      "scores": {"eau": 2, "revenu": 4, "sol": 1},
+      "pourquoi": [{"texte": "Rotation actuelle, servant de référence.", "niveau": "hypothese"}],
+      "preuves": [{"texte": "La saison démarre plus tard qu'en début de période.", "niveau": "calcule", "source": {"nom": "NASA GPM IMERG via l'API NASA POWER", "reference": "https://power.larc.nasa.gov/"}}],
+      "benefices": [{"texte": "Filière coton organisée, débouché assuré.", "niveau": "hypothese"}],
+      "lacunes": [{"texte": "Pas de données de rendement à l'échelle de la parcelle.", "niveau": "hypothese"}],
+      "risques": [{"texte": "Épuisement du sol sans apport organique.", "niveau": "hypothese"}],
+      "confiance": "moyenne"
+    },
+    {
+      "id": "coton_mais_arachide",
+      "nom": "Coton, maïs puis arachide",
+      "actuelle": false,
+      "cultures": ["coton", "maïs", "arachide"],
+      "scores": {"eau": 3, "revenu": 3, "sol": 3},
+      "pourquoi": [{"texte": "Une légumineuse dans la rotation peut enrichir le sol en azote.", "niveau": "hypothese"}],
+      "preuves": [{"texte": "Pluie de saison suffisante pour une arachide de cycle court.", "niveau": "calcule", "source": {"nom": "NASA GPM IMERG via l'API NASA POWER", "reference": "https://power.larc.nasa.gov/"}}],
+      "benefices": [{"texte": "Moins d'engrais azoté pour le maïs suivant.", "niveau": "hypothese"}],
+      "lacunes": [{"texte": "Prix local de l'arachide non documenté.", "niveau": "hypothese"}],
+      "risques": [{"texte": "Variétés et semences à confirmer avec l'ANADER.", "niveau": "hypothese"}],
+      "confiance": "moyenne"
+    },
+    {
+      "id": "sorgho_niebe",
+      "nom": "Sorgho puis niébé",
+      "actuelle": false,
+      "cultures": ["sorgho", "niébé"],
+      "scores": {"eau": 4, "revenu": 2, "sol": 3},
+      "pourquoi": [{"texte": "Le sorgho tolère mieux les séquences sèches que le maïs.", "niveau": "hypothese"}],
+      "preuves": [{"texte": "Séquences sèches fréquentes en début de saison.", "niveau": "calcule", "source": {"nom": "NASA GPM IMERG via l'API NASA POWER", "reference": "https://power.larc.nasa.gov/"}}],
+      "benefices": [{"texte": "Moindre risque de perte en année sèche.", "niveau": "hypothese"}],
+      "lacunes": [{"texte": "Marché du sorgho moins structuré que celui du coton.", "niveau": "hypothese"}],
+      "risques": [{"texte": "Revenu plus faible en année favorable.", "niveau": "hypothese"}],
+      "confiance": "faible"
+    }
+  ],
+  "classement": ["sorgho_niebe", "coton_mais_arachide", "coton_mais"],
+  "classement_stable": false,
+  "lien_detail": "http://localhost:8501/?lieu=korhogo&rotation=coton_mais&priorite=eau",
+  "avertissement": "DONNÉES FICTIVES pour le développement, à ne jamais présenter. Conseil indicatif, à discuter avec votre conseiller ANADER."
+}
