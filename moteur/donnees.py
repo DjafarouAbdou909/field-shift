@@ -66,12 +66,19 @@ def nom_fichier(produit: str, latitude: float, longitude: float) -> str:
 
 
 def reponse_complete(texte: str, debut: str, fin: str) -> bool:
-    """Vrai si la réponse contient l'en-tête et une ligne par jour de la période."""
+    """Vrai si la réponse contient l'en-tête, une ligne par jour et au moins une valeur renseignée.
+
+    Une série entièrement à -999 est refusée. C'est ce que POWER renvoie pour IMERG en
+    temps solaire local, où cette source n'est pas disponible.
+    """
     if "-END HEADER-" not in texte:
         return False
     lignes = texte.split("-END HEADER-", 1)[1].strip().splitlines()
     jours = (pd.Timestamp(fin) - pd.Timestamp(debut)).days + 1
-    return len(lignes) == jours + 1
+    if len(lignes) != jours + 1:
+        return False
+    valeurs = [float(v) for ligne in lignes[1:] for v in ligne.split(",")[2:]]
+    return any(v != VALEUR_MANQUANTE for v in valeurs)
 
 
 def telecharger_point(latitude: float, longitude: float, produit: str, dossier: Path = DOSSIER_POWER,
@@ -171,7 +178,8 @@ def parametres_entete(chemin: Path) -> dict[str, str]:
     with gzip.open(chemin, "rt", encoding="utf-8") as fichier:
         entete = fichier.read().split("-END HEADER-", 1)[0].splitlines()
     debut = next(i for i, ligne in enumerate(entete) if ligne.startswith("parameter(s)")) + 1
-    return {ligne.split()[0]: ligne.split(None, 1)[1].strip() for ligne in entete[debut:] if ligne.strip()}
+    fin = next((i for i, ligne in enumerate(entete) if ligne.startswith("Message")), len(entete))
+    return {ligne.split()[0]: ligne.split(None, 1)[1].strip() for ligne in entete[debut:fin] if ligne.strip()}
 
 
 def altitude_power(chemin: Path) -> float:

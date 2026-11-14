@@ -235,6 +235,15 @@ def pente_theil_sen(annees: np.ndarray, valeurs: np.ndarray) -> float:
     return float(np.median(pentes))
 
 
+def tendance_theil_sen(serie: pd.Series) -> pd.Series:
+    """Droite de Theil-Sen d'une série annuelle, ordonnée à l'origine médiane des résidus."""
+    serie = serie.dropna()
+    annees, valeurs = serie.index.to_numpy(dtype=float), serie.to_numpy(dtype=float)
+    pente = pente_theil_sen(annees, valeurs)
+    origine = float(np.median(valeurs - pente * annees))
+    return pd.Series(origine + pente * annees, index=serie.index)
+
+
 def mann_kendall(valeurs: np.ndarray) -> tuple[float, float, float]:
     """Retourne la statistique S, sa variance corrigée des ex aequo et la probabilité bilatérale.
 
@@ -265,7 +274,7 @@ def resume_interannuel(table: pd.DataFrame) -> pd.DataFrame:
 
 def executer() -> None:
     from .donnees import DOSSIER_POWER, RACINE, altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
-    from .cultures import CULTURES, KC_FAO56, courbe_kc, cultures_comparees, duree_cycle
+    from .cultures import CULTURES, courbes_kc_comparees
     from .lieux import LIEUX
 
     pd.set_option("display.width", 200)
@@ -291,7 +300,7 @@ def executer() -> None:
         print(ecart_recherches(table["debut_jour"], debuts_fevrier).to_string())
         print("début par année, 1er mars puis 1er février", {a: (int(table["debut_jour"][a]), int(debuts_fevrier[a]))
                                                              for a in table.index if table["debut_jour"][a] != debuts_fevrier[a]})
-        courbes = {c: courbe_kc(duree_cycle(c).stades(), *KC_FAO56[c].reference()) for c in cultures_comparees()}
+        courbes = courbes_kc_comparees()
         cycles = indicateurs_cultures(pluie, meteo, evapotranspiration_serie(meteo, lieu["lat"], altitude),
                                       table["debut_jour"], courbes)
         cycles.to_csv(sortie / f"cycles_{identifiant}.csv", index=False, float_format="%.3f")

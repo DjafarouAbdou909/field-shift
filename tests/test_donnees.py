@@ -10,7 +10,7 @@ import pandas as pd
 
 from moteur.controles import (case_la_plus_arrosee, comparer_pluies, comparer_station, comparer_tmax_station,
                               controler_serie, ecart_case_moyenne, jours_par_annee, rupture_rapport)
-from moteur.donnees import (altitude_power, centre_case_imerg, empreinte_sha256, lire_pluie_station, lire_power,
+from moteur.donnees import (PRODUITS, altitude_power, centre_case_imerg, empreinte_sha256, lire_pluie_station, lire_power,
                             lire_tmax_station, nom_fichier, parametres_entete, pluie_lieu, reponse_complete,
                             telecharger_point, voisinage_imerg)
 
@@ -30,6 +30,23 @@ class TestDonnees(unittest.TestCase):
         self.assertTrue(reponse_complete(TROIS_JOURS, "20241231", "20250102"))
         self.assertFalse(reponse_complete(TROIS_JOURS, "20241231", "20250103"))
         self.assertFalse(reponse_complete("erreur", "20241231", "20250102"))
+
+    def test_serie_entierement_manquante_refusee(self):
+        """POWER renvoie -999 partout pour IMERG en temps solaire local."""
+        texte = ENTETE + "YEAR,DOY,IMERG_PRECTOT\n2025,213,-999.0\n2025,214,-999.0\n2025,215,-999.0\n"
+        self.assertFalse(reponse_complete(texte, "20250801", "20250803"))
+        self.assertTrue(reponse_complete(texte.replace("2025,215,-999.0", "2025,215,0.0"), "20250801", "20250803"))
+
+    def test_imerg_demande_en_temps_universel(self):
+        self.assertEqual(PRODUITS["imerg"]["temps"], "UTC")
+
+    def test_entete_avec_message(self):
+        fichier = self.chemin / "imerg_lst.csv.gz"
+        with gzip.open(fichier, "wt", encoding="utf-8") as sortie:
+            sortie.write("-BEGIN HEADER-\nparameter(s): \nIMERG_PRECTOT     MERRA-2 Total Precipitation (mm/day) \n"
+                         "Message(s): \nThe IMERG Source Data is not available at the Local Solar Time (LST) standard. \n"
+                         "-END HEADER-\nYEAR,DOY,IMERG_PRECTOT\n2025,213,-999.0\n")
+        self.assertEqual(list(parametres_entete(fichier)), ["IMERG_PRECTOT"])
 
     def test_lire_power_dates_et_manquants(self):
         fichier = self.chemin / "imerg.csv.gz"

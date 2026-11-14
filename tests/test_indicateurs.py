@@ -6,7 +6,7 @@ import pandas as pd
 from moteur.indicateurs import (RegleSaison, debut_saison, ecart_recherches, evapotranspiration_reference,
                                 evapotranspiration_serie,
                                 indicateurs_annuels, indicateurs_cultures, indicateurs_cycle, mann_kendall,
-                                pente_theil_sen, resume_cultures,
+                                pente_theil_sen, resume_cultures, tendance_theil_sen,
                                 plus_longue_sequence_seche, pression_saturante, rayonnement_extraterrestre,
                                 troncature_debut)
 
@@ -157,6 +157,16 @@ class TestTendance(unittest.TestCase):
     def test_pente_theil_sen(self):
         """Pentes -1, 0,5, 1, 4/3, 2 et 3, médiane (1 + 4/3) / 2 = 7/6."""
         self.assertAlmostEqual(pente_theil_sen(np.array([0, 1, 2, 3]), np.array([1.0, 3.0, 2.0, 5.0])), 7 / 6)
+
+    def test_droite_theil_sen(self):
+        """Valeurs 1, 3, 2 et 5 de 2000 à 2003, pente 7/6.
+
+        Avec les années comptées depuis 2000, résidus 1, 11/6, -1/3 et 3/2, médiane 5/4.
+        La droite vaut 1,25 en 2000 et 1,25 + 3 fois 7/6 = 4,75 en 2003.
+        """
+        droite = tendance_theil_sen(pd.Series([1.0, 3.0, 2.0, 5.0], index=[2000, 2001, 2002, 2003]))
+        self.assertAlmostEqual(droite[2000], 1.25, places=6)
+        self.assertAlmostEqual(droite[2003], 4.75, places=6)
 
     def test_mann_kendall_sans_ex_aequo(self):
         """S = 10, variance 5 fois 4 fois 15 sur 18, z = 9 / 4,0825 = 2,2045, p = 0,0275."""

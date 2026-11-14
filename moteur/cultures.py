@@ -189,3 +189,24 @@ def courbe_kc(stades: tuple[int, int, int, int], kc_ini: float, kc_mid: float, k
 def cultures_comparees() -> list[str]:
     """Cultures qui ont à la fois une durée et un coefficient cultural sourcés."""
     return [c for c in CULTURES if duree_cycle(c).jours is not None and c in KC_FAO56]
+
+
+def courbes_kc_comparees() -> dict[str, np.ndarray]:
+    """Courbe journalière du coefficient cultural de chaque culture comparée, sur sa durée de référence."""
+    return {c: courbe_kc(duree_cycle(c).stades(), *KC_FAO56[c].reference()) for c in cultures_comparees()}
+
+
+def tableau_cultures() -> list[dict]:
+    """Durée, plage, ligne du tableau 11 et coefficients du tableau 12 de chaque culture candidate."""
+    lignes = []
+    for culture in CULTURES:
+        duree, kc = duree_cycle(culture), KC_FAO56.get(culture)
+        lignes.append({
+            "culture": culture, "comparée": culture in cultures_comparees(), "durée": duree.jours,
+            "plage": f"{duree.bas} à {duree.haut}" if duree.jours else None,
+            "ligne du tableau 11": duree.ligne.region if duree.ligne else duree.regle,
+            "stades": duree.stades() if duree.ligne else None,
+            "Kc ini, mid, end": tuple(round(v, 3) for v in kc.reference()) if kc else None,
+        })
+    return lignes
+

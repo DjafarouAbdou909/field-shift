@@ -4,7 +4,8 @@ import json
 
 import numpy as np
 
-from moteur.cultures import CULTURES, KC_FAO56, LIGNES_FAO56, courbe_kc, cultures_comparees, duree_cycle
+from moteur.cultures import (CULTURES, KC_FAO56, LIGNES_FAO56, courbe_kc, courbes_kc_comparees, cultures_comparees,
+                             duree_cycle, tableau_cultures)
 from moteur.recommander import EXEMPLE
 
 
@@ -60,6 +61,15 @@ class TestCoefficientCultural(unittest.TestCase):
             for valeur, cible in zip(KC_FAO56[culture].reference(), attendu):
                 self.assertAlmostEqual(valeur, cible)
         self.assertEqual(KC_FAO56["arachide"].ini, 0.4)
+
+    def test_courbes_et_tableau(self):
+        courbes = courbes_kc_comparees()
+        self.assertEqual(list(courbes), cultures_comparees())
+        self.assertEqual(len(courbes["coton"]), 195)
+        tableau = {ligne["culture"]: ligne for ligne in tableau_cultures()}
+        self.assertEqual(tableau["mil"]["durée"], 105)
+        self.assertEqual(tableau["mil"]["ligne du tableau 11"], "Pakistan")
+        self.assertIsNone(tableau["igname"]["durée"])
 
     def test_igname_et_mucuna_hors_comparaison(self):
         comparees = cultures_comparees()
