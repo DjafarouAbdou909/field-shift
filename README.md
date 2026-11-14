@@ -17,6 +17,8 @@ FAO 56, tableaux 11 et 12 --->  moteur/    début des pluies, besoin en eau, cri
                     app/       application de conversation, hors connexion
 ```
 
+L'application est pensée pour les personnes qui ne lisent pas. Chaque bouton porte un pictogramme, un mode voix lit chaque message et le nom de chaque bouton, et l'agriculteur peut enregistrer une note vocale dans sa langue pour son conseiller. La note reste sur le téléphone sans réseau et se partage dès que le réseau revient. L'application ne prétend pas la comprendre.
+
 Le téléphone ne calcule rien et n'utilise ni réseau ni modèle de langage. Chaque phrase chiffrée vient du moteur, avec son niveau, mesuré, calculé ou hypothèse, et sa source. Le GPS situe le champ sans réseau.
 
 ## Architecture

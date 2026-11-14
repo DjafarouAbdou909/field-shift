@@ -12,3 +12,5 @@
 - **Égalité départagée.** Quand un scénario ne fait que départager des rotations à égalité, sans inverser aucun écart du classement de référence, le classement est déclaré stable et les rotations à égalité sont présentées comme équivalentes.
 - **Voix.** Un enregistrement humain placé dans `app/audio` remplace la voix du téléphone. Le texte exact à enregistrer est produit par le moteur.
 - **Mise en ligne.** L'application est publiée par GitHub Pages, pour la première ouverture avec connexion.
+- **Inclusion des personnes qui ne lisent pas.** Chaque bouton porte un pictogramme. Le mode voix lit chaque message, et un bouton se touche une fois pour entendre son nom, une seconde fois pour le choisir.
+- **Notes vocales.** L'agriculteur enregistre un message dans sa langue, gardé sur le téléphone sans réseau et partageable avec son conseiller. L'application ne l'interprète pas. La reconnaissance vocale hors connexion n'est pas fiable dans un navigateur et n'existe pas en dioula ni en sénoufo.
