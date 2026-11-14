@@ -20,8 +20,9 @@ field-shift/
 │   ├── controles.py          contrôles des séries, comparaison des sources de pluie
 │   ├── indicateurs.py        indicateurs annuels et par cycle, tendance et variabilité
 │   ├── cultures.py           cultures candidates et leurs caractéristiques sourcées
-│   ├── rotations.py          stratégies comparées
-│   └── criteres.py           scores, poids par priorité, sensibilité
+│   ├── rotations.py          trois stratégies retenues, appuis sourcés
+│   ├── criteres.py           indicateurs par critère, scores, poids, sensibilité
+│   └── appeears.py           extractions NASA AppEEARS par points, compte Earthdata
 ├── bot/                      bot WhatsApp
 │   ├── main.py               FastAPI, webhook vérifié          membre A
 │   ├── config.py             paramètres lus dans l'environnement membre A
@@ -70,6 +71,8 @@ La conversion audio demande aussi `ffmpeg`, par exemple `sudo apt install ffmpeg
 ```bash
 venv/bin/python -m moteur.controles     # télécharge les séries absentes et les contrôle
 venv/bin/python -m moteur.indicateurs   # calcule les indicateurs de Korhogo et Bouaké
+venv/bin/python -m moteur.criteres      # note les stratégies et teste la sensibilité
+venv/bin/python -m moteur.appeears suivre   # état et téléchargement des extractions AppEEARS
 ```
 
 Les chiffres cités dans `docs/donnees.md` sont ceux qu'affichent ces deux commandes.
