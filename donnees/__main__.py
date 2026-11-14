@@ -52,14 +52,17 @@ def main(arguments=None) -> int:
             alerte = ", ".join(f"{p} {n} jours manquants" for p, n in manquants.items() if n)
             print(f"POWER {point.id} acquis" + (f", {alerte}" if alerte else ""))
         try:
-            for avertissement in appeears.telecharger(grille, config, registre, http, options.attendre):
+            taches = config["appeears"] if config.get("appeears_actif", True) else []
+            for avertissement in appeears.telecharger(grille, {**config, "appeears": taches}, registre, http,
+                                                      options.attendre):
                 print(f"AVERTISSEMENT {avertissement}")
         except appeears.IdentifiantsManquants as erreur:
             print(f"AVERTISSEMENT {erreur}")
 
     absents = [f"POWER {p.id}" for p in grille if not registre.est_acquis(power.chemin(p), power.url(p, config))]
     etats = appeears.lire_taches()
-    absents += [f"AppEEARS {t['nom']}" for t in config["appeears"] if not appeears.est_complete(
+    absents += [f"AppEEARS {t['nom']}" for t in (config["appeears"] if config.get("appeears_actif", True) else [])
+                if not appeears.est_complete(
         etats.get(t["nom"]), appeears.empreinte_requete(appeears.requete(t, grille)), registre,
         appeears.DOSSIER / t["nom"])]
     for identifiant in absents:

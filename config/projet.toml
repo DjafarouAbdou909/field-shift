@@ -3,6 +3,11 @@
 # Distance au-delà de laquelle l'application déclare un agriculteur hors zone. Choix de conception.
 rayon_couverture_km = 60
 
+# Extractions AppEEARS désactivées le 14 novembre 2026. Les mêmes produits sur les mêmes
+# points sont extraits par le dépôt de l'équipe, et un compte Earthdata ne traite ses
+# tâches que les unes après les autres. Remettre à true pour les extraire ici.
+appeears_actif = false
+
 [periode]
 debut = "2001-01-01"
 fin = "2024-12-31"
