@@ -111,13 +111,13 @@ def choisir(entree: dict, options: dict[str, str], souple: bool = True) -> str |
 
 def phrases_fixes() -> list[str]:
     """Textes dits à l'identique à chaque fois, préparés en notes vocales au démarrage du bot."""
-    avec_choix = [(gabarits.accueil(), gabarits.BOUTONS_CONSENTEMENT), (gabarits.menu(), gabarits.BOUTONS_MENU),
+    avec_choix = [(gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT), (gabarits.menu(), gabarits.BOUTONS_MENU),
                   (gabarits.demande_lieu(), gabarits.LIGNES_LIEUX),
                   (gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS),
                   (gabarits.demande_priorite(), gabarits.BOUTONS_PRIORITE),
                   (gabarits.suite(), gabarits.BOUTONS_RESULTAT),
                   (gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)]
-    seuls = [gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
+    seuls = [gabarits.accueil(), gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
              gabarits.incompris(), gabarits.refus_photo(), gabarits.efface(), gabarits.zone_non_couverte(),
              gabarits.erreur_technique()]
     return [pour_la_voix(f"{texte}\n{gabarits.choix_a_dire(choix)}") for texte, choix in avec_choix] + \
@@ -139,7 +139,8 @@ PHRASES_FIXES = _PhrasesFixes()
 
 def pour_la_voix(texte: str) -> str:
     """Texte à lire à voix haute, sans la mise en forme ni les signes de WhatsApp."""
-    return re.sub(r"[*_~👇📸⚠️]", "", texte).replace("\ufe0f", "").strip()
+    sans_lien = re.sub(r"https?://\S+", "", texte)
+    return re.sub(r"[*_~👇📸⚠️]", "", sans_lien).replace("\ufe0f", "").strip()
 
 
 def sans_produit(texte: str) -> str:
@@ -241,7 +242,12 @@ class Conversation:
     # Débuts et menu
 
     def accueillir(self) -> None:
-        self.boutons(gabarits.accueil(), gabarits.BOUTONS_CONSENTEMENT)
+        """Accueil, puis consentement. En vocal, l'accueil est dit et son lien part toujours par écrit."""
+        if self.vocal and self.dire(gabarits.accueil()):
+            self.lien(gabarits.PLATEFORME)
+        else:
+            self.canal.envoyer_texte(self.numero, gabarits.accueil())
+        self.boutons(gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT)
         self.etape(Etat.CONSENTEMENT)
 
     def montrer_menu(self) -> None:

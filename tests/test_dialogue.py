@@ -98,7 +98,9 @@ class Base(unittest.TestCase):
 class TestConsentement(Base):
     def test_premier_message_demande_le_consentement(self):
         envois = self.envoyer(texte("Salut"))
-        self.assertEqual(envois, [("boutons", NUMERO, gabarits.accueil(), gabarits.BOUTONS_CONSENTEMENT)])
+        self.assertEqual(envois, [("texte", NUMERO, gabarits.accueil()),
+                                  ("boutons", NUMERO, gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT)])
+        self.assertIn("https://conseil-rotation-ci.netlify.app", envois[0][2])
         self.assertEqual(self.session().etat, "consentement")
 
     def test_acceptation_puis_menu(self):
@@ -115,7 +117,7 @@ class TestConsentement(Base):
     def test_rien_sans_consentement(self):
         """Un choix envoyé avant le consentement ramène à l'accueil."""
         envois = self.envoyer(ligne("korhogo"))
-        self.assertEqual(envois[-1][2], gabarits.accueil())
+        self.assertEqual(envois[0][2], gabarits.accueil())
 
     def test_stop_efface(self):
         self.consentir()
@@ -281,11 +283,13 @@ class TestVocal(Base):
     def types(self, envois):
         return [e[0] for e in envois]
 
-    def test_accueil_parle_sans_texte(self):
+    def test_accueil_parle_avec_le_lien_ecrit(self):
+        """L'accueil est dit, son lien part par écrit puisqu'un lien ne se dit pas, puis le consentement est dit."""
         envois = self.vocal("peu importe")
         self.transcrire.assert_not_called()
-        self.assertEqual(self.types(envois), ["audio", "boutons"])
-        self.assertEqual(envois[1][2], gabarits.INVITE_CHOIX)
+        self.assertEqual(self.types(envois), ["audio", "texte", "audio", "boutons"])
+        self.assertEqual(envois[1][2], gabarits.PLATEFORME)
+        self.assertEqual(envois[3][2], gabarits.INVITE_CHOIX)
 
     def test_consentement_donne_a_la_voix(self):
         self.envoyer(texte("Bonjour"))

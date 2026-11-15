@@ -17,6 +17,8 @@ analyse, d'où le consentement demandé avant le premier envoi, et elle n'est ja
 conservée.
 """
 
+import os
+
 from moteur.contrat import AlerteVegetation, Diagnostic, Recommandation
 from moteur.lieux import LIEUX
 from moteur.rotations import STRATEGIES
@@ -33,10 +35,21 @@ def zones_couvertes() -> str:
 
 # Accueil et consentement à la conversation
 
+PLATEFORME = os.environ.get("PLATEFORME_URL") or "https://conseil-rotation-ci.netlify.app"
+
+
 def accueil() -> str:
-    return ("Bonjour, je suis AgriBot. Je vous aide pour vos cultures, à l'écrit ou par message vocal. "
-            "Je garde seulement vos choix, et vos messages passent par des services d'intelligence artificielle. "
-            "Ce service est pour les adultes. Dites stop pour tout effacer. Êtes-vous d'accord ?")
+    """Premier message, texte du responsable du 15 novembre 2026, le lien restant toujours écrit."""
+    return ("Bonjour, j'espère que vous allez bien. Je suis AgriBot, votre assistant agricole, accessible directement "
+            "sur WhatsApp quand vous avez une connexion, ou sur notre plateforme en l'absence de connexion.\n"
+            f"{PLATEFORME}\n"
+            "Je suis disponible pour vos conseils agricoles et le diagnostic de certaines cultures. Je peux aussi vous "
+            "recommander des rotations.")
+
+
+def consentement() -> str:
+    return ("Pour vous aider, je garde seulement vos choix, et vos messages passent par des services d'intelligence "
+            "artificielle. Ce service est pour les adultes. Dites stop pour tout effacer. Êtes-vous d'accord ?")
 
 
 BOUTONS_CONSENTEMENT = {"accepte": "Oui, d'accord", "refuse": "Non merci"}
