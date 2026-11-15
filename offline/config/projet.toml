@@ -1,0 +1,156 @@
+# Paramètres du projet. Chaque valeur tirée d'une source cite sa ligne exacte.
+
+# Distance au-delà de laquelle l'application déclare un agriculteur hors zone. Choix de conception.
+rayon_couverture_km = 60
+
+# Extractions AppEEARS désactivées le 14 novembre 2026. Les mêmes produits sur les mêmes
+# points sont extraits par le dépôt de l'équipe, et un compte Earthdata ne traite ses
+# tâches que les unes après les autres. Remettre à true pour les extraire ici.
+appeears_actif = false
+
+[periode]
+debut = "2001-01-01"
+fin = "2024-12-31"
+
+# Chaque lieu est couvert par 3 x 3 points centrés sur les cases de 0,1 degré d'IMERG.
+[grille]
+pas = 0.1
+rayon = 1
+
+[[lieux]]
+id = "korhogo"
+nom = "Korhogo"
+lat = 9.458
+lon = -5.629
+
+[[lieux]]
+id = "bouake"
+nom = "Bouaké"
+lat = 7.690
+lon = -5.030
+
+[power]
+# IMERG n'est servi qu'en temps universel. En heure solaire locale, l'API renvoie -999.
+parametres = ["IMERG_PRECTOT", "T2M_MAX", "T2M_MIN", "T2MDEW", "ALLSKY_SFC_SW_DWN", "WS2M"]
+communaute = "AG"
+standard_temps = "UTC"
+
+# Extractions NASA AppEEARS sur les mêmes points. Produits et couches vérifiés dans le
+# catalogue AppEEARS le 14 novembre 2026. Un compte NASA Earthdata est requis.
+[[appeears]]
+nom = "relief"
+debut = "2000-02-11"
+fin = "2000-02-21"
+couches = [["SRTMGL1_NC.003", "SRTMGL1_DEM"]]
+
+[[appeears]]
+nom = "occupation_sol"
+debut = "2001-01-01"
+fin = "2024-12-31"
+couches = [["MCD12Q1.061", "LC_Type1"]]
+
+[[appeears]]
+nom = "vegetation"
+debut = "2001-01-01"
+fin = "2024-12-31"
+couches = [["MOD13Q1.061", "_250m_16_days_NDVI"], ["MOD13Q1.061", "_250m_16_days_pixel_reliability"]]
+
+[[appeears]]
+nom = "humidite_sol"
+debut = "2015-04-01"
+fin = "2024-12-31"
+couches = [["SPL3SMP_E.006", "Soil_Moisture_Retrieval_Data_AM_soil_moisture"],
+           ["SPL3SMP_E.006", "Soil_Moisture_Retrieval_Data_AM_retrieval_qual_flag"]]
+
+# Critère de début des pluies. Hypothèse de l'équipe, à valider par un agronome.
+[saison]
+debut_recherche = "03-01"
+fin_recherche = "07-31"
+cumul_mm = 20.0
+jours_cumul = 3
+jour_sec_mm = 1.0
+sequence_seche_max_jours = 7
+horizon_jours = 30
+# Une tendance du début des pluies n'est annoncée que si elle tient aussi avec ces
+# autres durées maximales de séquence sèche.
+variantes_sequence_seche = [10, 14]
+
+# Scénarios de sensibilité.
+[sensibilite]
+facteur_pluie = 0.8
+retard_jours = 14
+
+# Durées des stades initial, développement, mi-saison et arrière-saison en jours,
+# FAO 56 tableau 11. Coefficients culturaux, FAO 56 tableau 12. Pour une plage du
+# tableau 12, la valeur retenue est le milieu de la plage.
+[cultures.coton]
+nom = "coton"
+stades = [30, 50, 55, 45]
+ligne_tableau_11 = "Cotton, 30 50 55 45, 180 jours, April, Texas"
+kc = [0.35, 1.175, 0.60]
+ligne_tableau_12 = "g. Fibre Crops Kc ini 0.35, Cotton Kc mid 1.15-1.20, Kc end 0.70-0.50"
+legumineuse = false
+
+[cultures.mais]
+nom = "maïs"
+stades = [20, 35, 40, 30]
+ligne_tableau_11 = "Maize (grain), 20 35 40 30, 125 jours, June, Nigeria (humid)"
+kc = [0.30, 1.20, 0.475]
+ligne_tableau_12 = "i. Cereals Kc ini 0.3, Maize, Field (grain) Kc mid 1.20, Kc end 0.60-0.35"
+legumineuse = false
+
+[cultures.sorgho]
+nom = "sorgho"
+stades = [20, 35, 45, 30]
+ligne_tableau_11 = "Sorghum, 20 35 45 30, 130 jours, Mar/April, Arid Region"
+kc = [0.30, 1.05, 0.55]
+ligne_tableau_12 = "i. Cereals Kc ini 0.3, Sorghum grain Kc mid 1.00-1.10, Kc end 0.55"
+legumineuse = false
+
+[cultures.arachide]
+nom = "arachide"
+stades = [25, 35, 45, 25]
+ligne_tableau_11 = "Groundnut, 25 35 45 25, 130 jours, Dry season, West Africa"
+kc = [0.40, 1.15, 0.60]
+ligne_tableau_12 = "e. Legumes Kc ini 0.4, Groundnut (Peanut) Kc mid 1.15, Kc end 0.60"
+legumineuse = true
+
+[cultures.niebe]
+nom = "niébé"
+stades = [20, 30, 30, 20]
+ligne_tableau_11 = "Green gram, cowpeas, 20 30 30 20, 110 jours, March, Mediterranean"
+kc = [0.40, 1.05, 0.475]
+ligne_tableau_12 = "e. Legumes Kc ini 0.4, Green Gram and Cowpeas Kc mid 1.05, Kc end 0.60-0.35"
+legumineuse = true
+
+# La rotation actuelle est une hypothèse à faire confirmer par un conseiller de l'ANADER.
+[[rotations]]
+id = "coton_mais"
+nom = "Coton puis maïs"
+cultures = ["coton", "mais"]
+actuelle = true
+
+[[rotations]]
+id = "coton_mais_arachide"
+nom = "Coton, maïs puis arachide"
+cultures = ["coton", "mais", "arachide"]
+actuelle = false
+
+[[rotations]]
+id = "coton_sorgho_niebe"
+nom = "Coton, sorgho puis niébé"
+cultures = ["coton", "sorgho", "niebe"]
+actuelle = false
+
+# Poids des critères selon la priorité de l'agriculteur. Choix de conception de l'équipe.
+[priorites.eau]
+libelle = "Économiser l'eau"
+poids = { eau = 0.6, sol = 0.2, debouche = 0.2 }
+
+[priorites.sol]
+libelle = "Soigner le sol"
+poids = { eau = 0.2, sol = 0.6, debouche = 0.2 }
+
+[priorites.debouche]
+libelle = "Vendre facilement"
+poids = { eau = 0.2, sol = 0.2, debouche = 0.6 }
