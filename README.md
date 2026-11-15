@@ -1,45 +1,66 @@
-# AgriBot, Field Shift CI
+# AgriBot
 
-**Team CodeX Africa · NASA Space Apps Challenge 2026 · Challenge “Field Shift: Adapting Farms with NASA Data”**
+**Climate-informed crop rotation advice from NASA data, delivered by voice on WhatsApp to smallholder farmers in Côte d’Ivoire.**
 
-AgriBot turns 25 years of NASA climate data into crop rotation advice that a farmer in northern and central Côte d’Ivoire can understand on first hearing. The farmer sends a voice note on WhatsApp, and AgriBot answers with a voice note. AgriBot also gives a cautious first opinion on a photo of a sick plant and answers general farming questions. It never recommends a pesticide or any other product, and it always refers serious cases to the farmer’s ANADER extension advisor.
+[![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026-0B3D91)](https://www.spaceappschallenge.org/)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB)](https://www.python.org/)
+[![Tests](https://img.shields.io/badge/tests-unittest-2E7D32)](#testing-and-reproducibility)
 
-The pilot covers two towns with contrasting climates, **Korhogo** in the Poro region and **Bouaké** in the Gbêkê region.
+Team **CodeX Africa** · Challenge **Field Shift: Adapting Farms with NASA Data** · Pilot regions **Poro** (Korhogo) and **Gbêkê** (Bouaké)
 
-## What it does
+---
 
-| Feature | How it works |
+## Overview
+
+Farmers in northern and central Côte d’Ivoire decide what to sow on rain-fed land while the start of the rainy season moves by weeks from one year to the next. Many of them cannot read, so written or web-based advice rarely reaches them.
+
+AgriBot closes that gap. A transparent engine turns 25 years of NASA precipitation, temperature, humidity, wind and radiation data into a ranked comparison of crop rotations, with uncertainty ranges. AgriBot then delivers the result in one or two plain French sentences, as a WhatsApp voice note, and refers the farmer to their ANADER extension advisor.
+
+| | |
 |---|---|
-| **Rotation advice** | Compares three rotations, including the farmer’s current one, for the farmer’s town and priority, either enough water, a good market or a richer soil |
-| **Voice first** | Voice notes in and out, in simple French, for farmers who cannot read |
-| **Photo diagnosis** | A short, plain explanation of what the photo shows, the likely problem, what favours it and what to do in the field, with no product named |
-| **Vegetation alert** | Compares the latest NASA HLS satellite images of the farmer's area with the same dates of past years, without ever guessing a cause |
-| **Farming conversation** | Free questions about farming, answered in two or three sentences |
-| **Advisor app** | A Streamlit app that shows every score, its source and its uncertainty range |
-| **Offline platform** | The same advice on a web platform for areas without a network, https://conseil-rotation-ci.netlify.app |
+| **Problem** | Shifting rains, plant diseases recognised too late, and advice that does not reach farmers who cannot read |
+| **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery, a first opinion on plant photos, all by voice on WhatsApp |
+| **Users** | Smallholder farmers, and the extension advisors who support them |
+| **Demo deck** | [presentation/AgriBot_Presentation_FR.pdf](presentation/AgriBot_Presentation_FR.pdf), 7 slides, in French |
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **Rotation advice** | Ranks three rotations, including the farmer’s current one, for the farmer’s town and priority: enough water, a good market or a richer soil |
+| **Vegetation alert** | Compares the latest NASA HLS images of the farmer’s area with the same dates in past years, and never guesses a cause |
+| **Photo diagnosis** | Explains what a plant photo shows, the likely problem and what to do in the field, with no product ever named |
+| **Farming conversation** | Answers free farming questions in two or three sentences |
+| **Voice first** | Voice notes in and out; if the farmer writes, AgriBot writes back |
+| **Advisor app** | Streamlit app showing every score with its source and uncertainty |
+| **Offline platform** | The same advice for areas without a network: https://conseil-rotation-ci.netlify.app |
 
 ## NASA data
 
-| Dataset | Access | Variables | Use |
+| Dataset | Access | Variables | Role |
 |---|---|---|---|
-| GPM IMERG | NASA POWER API | Daily precipitation, mean of the 9 cells around each town, 2001 to 2025 | Rain onset, dry spells, rain over each crop cycle |
-| MERRA-2 | NASA POWER API | Temperature, dew point, wind speed, corrected precipitation | Crop water need, second rain source to confirm any change |
-| CERES | NASA POWER API | Solar radiation | Crop water need |
-| MODIS MCD12Q1 | NASA AppEEARS | Land cover type 1 | Choice of 50 vegetation points per town |
-| HLS L30 and S30 | NASA AppEEARS | Vegetation indices and quality mask | Vegetation alert on 50 points per town, April 2013 to November 2026 |
+| **GPM IMERG** | NASA POWER API | Daily precipitation, mean of the 9 cells around each town, 2001 to 2025 | Rain onset, dry spells, rain over each crop cycle |
+| **MERRA-2** | NASA POWER API | Temperature, dew point, wind speed, corrected precipitation | Crop water need; independent rain source to confirm any climate shift |
+| **CERES** | NASA POWER API | Surface solar radiation | Crop water need |
+| **MODIS MCD12Q1** | NASA AppEEARS | Land cover, IGBP classes | Selection of 50 vegetation points per town |
+| **HLS L30 and S30** | NASA AppEEARS | NDVI and Fmask quality layer, April 2013 to November 2026 | Vegetation alert |
 
-NOAA GHCN-Daily rain gauges are used only as an independent check. Every source is listed in [docs/sources.md](docs/sources.md), and every downloaded series is recorded with its SHA-256 checksum.
+NOAA GHCN-Daily rain gauges serve only as an independent check. Every source is registered in [docs/sources.md](docs/sources.md), and every downloaded series is logged with its SHA-256 checksum.
 
-## How the advice is computed
+## Method
 
-1. **Crop water need.** FAO-56 Penman-Monteith reference evapotranspiration from MERRA-2 and CERES, multiplied by the FAO-56 crop coefficient of each crop, day by day.
-2. **Rain onset.** The first 20 mm in 3 days after 1 March, with no dry spell longer than 7 days in the following 30 days.
-3. **Water criterion.** For each year from 2001 to 2025, whether IMERG rain covers the water need of each crop over its cycle, and whether a dry spell longer than 7 days hits the mid-season stage.
-4. **Income and soil criteria.** Share of years in cotton, which has an organised market, and share of years with a legume. Both are hypotheses drawn from published studies, not measurements.
-5. **Ranking.** The criterion chosen by the farmer weighs 0.6 and the other two 0.2 each. Every score carries a 90 % bootstrap interval, and the ranking is tested against reduced rain, a later onset, other cotton sowing dates and other cotton cycle lengths.
-6. **Climate change check.** A shift between 2001-2012 and 2013-2025 is told to a farmer only if IMERG and MERRA-2 both find it, in the same direction.
+| Step | Rule |
+|---|---|
+| **Crop water need** | FAO-56 Penman-Monteith reference evapotranspiration from MERRA-2 and CERES, times the FAO-56 crop coefficient, day by day |
+| **Rain onset** | First 20 mm in 3 days after 1 March, with no dry spell over 7 days in the next 30 days |
+| **Water criterion** | Per year, whether IMERG rain covers each crop’s need over its cycle, and whether a dry spell over 7 days hits the mid-season stage |
+| **Market and soil criteria** | Share of years in cotton, which has an organised market, and share of years with a legume; hypotheses from published studies |
+| **Ranking** | The farmer’s priority weighs 0.6, the other criteria 0.2 each; 90 % bootstrap interval on every score |
+| **Sensitivity** | Ranking re-run with 20 % less rain, a 14-day later onset, other cotton sowing dates and cycle lengths |
+| **Climate shift** | A change between 2001-2012 and 2013-2025 is announced only if IMERG and MERRA-2 agree in direction and significance |
+| **Vegetation alert** | Zone NDVI on each image date is the median of cloud-free HLS observations over 50 points; alert if it falls below the 10th percentile of the same calendar window in other years |
 
-## Key results
+## Results
 
 Water score from 0 to 5, higher is better, reference scenario.
 
@@ -47,122 +68,146 @@ Water score from 0 to 5, higher is better, reference scenario.
 |---|---|---|
 | Sorghum then cowpea | **4.65** | **4.35** |
 | Cotton, cowpea then maize | 4.27 | 3.40 |
-| Cotton then maize, current practice | 4.05 | 2.97 |
+| Cotton then maize (current practice) | 4.05 | 2.97 |
 
-- Bouaké is more exposed to water shortage than Korhogo, with a lower water score for every rotation. Median annual rain is 1,222 mm at Korhogo, range 1,033 to 1,318 mm, and 1,120 mm at Bouaké, range 901 to 1,279 mm.
-- At Bouaké, cotton then maize ranks last for water in every scenario tested. At Korhogo, the ranking changes with the cotton sowing date and cycle length, and AgriBot tells the farmer so.
-- Rain onset at Korhogo ranged from 24 March in 2013 to 28 May in 2017.
-- Vegetation alert from NASA HLS: at Korhogo, vegetation on 2 November 2026 was within its usual range for the season. Bouaké is too cloudy for a reliable comparison, so AgriBot says so instead of guessing. Over past dates, the alert fires about 10 % of the time at Korhogo, as designed.
-- Between 2001-2012 and 2013-2025, IMERG finds a 22-day later onset at Korhogo while MERRA-2 finds a 22-day earlier one. The two NASA sources disagree, so AgriBot announces no change.
+- **Bouaké is more exposed to water shortage** for every rotation. Median annual rain: 1,222 mm at Korhogo (1,033 to 1,318), 1,120 mm at Bouaké (901 to 1,279).
+- **The current practice ranks last for water in both towns.** At Bouaké it stays last in every scenario tested. At Korhogo the ranking depends on the cotton sowing date and cycle length, and AgriBot says so.
+- **Rain onset at Korhogo ranged from 24 March (2013) to 28 May (2017).**
+- **No climate shift is announced.** IMERG finds a 22-day later onset at Korhogo in 2013-2025, while MERRA-2 finds a 22-day earlier one.
+- **Vegetation alert.** At Korhogo, vegetation on 2 November 2026 was within its usual range; over past dates the alert fires 9.5 % of the time, against 10 % by design. Bouaké is too cloudy for a reliable comparison, and AgriBot says so rather than guess.
 
-Full evaluation and limits in [docs/evaluation.md](docs/evaluation.md).
+Full evaluation and limits: [docs/evaluation.md](docs/evaluation.md).
 
 ## Architecture
 
 ```
-WhatsApp Cloud API
-      │  signed webhook
-      ▼
-FastAPI server (bot/main.py)
-  signature check, idempotence, salted phone hash, SQLite sessions
-      │
-      ▼
-Dialogue state machine (bot/dialogue.py)
-  ├── rotation advice ──► engine (moteur/) ──► NASA POWER, IMERG, MERRA-2, CERES
-  ├── vegetation alert ► engine (moteur/alerte.py) ──► NASA HLS through AppEEARS
-  ├── voice notes ─────► Groq Whisper, then local faster-whisper, then Aethex
-  ├── conversation ────► Groq gpt-oss-120b, strict JSON, product filter
-  ├── photos ──────────► Google Gemini, photos only
-  └── voice replies ───► Aethex text to speech, OGG Opus
+Farmer ── WhatsApp ──► WhatsApp Cloud API ── signed webhook ──► FastAPI (bot/main.py)
+                                                                 │ HMAC signature, idempotence,
+                                                                 │ salted phone hash, SQLite sessions
+                                                                 ▼
+                                                  Dialogue state machine (bot/dialogue.py)
+     ┌───────────────────────┬─────────────────────┬────────────┴──────────┬─────────────────────┐
+     ▼                       ▼                     ▼                       ▼                     ▼
+ Rotation engine       Vegetation alert       Speech to text          Conversation          Photo diagnosis
+ moteur/               moteur/alerte.py       Groq Whisper,           Groq gpt-oss-120b,    Google Gemini
+ NASA POWER: IMERG,    NASA HLS via           local faster-whisper,   strict JSON schema,   (photos only)
+ MERRA-2, CERES        AppEEARS               Aethex as fallbacks     product filter
+                                                                 │
+                                                                 ▼
+                                            Aethex streaming text to speech ──► OGG Opus voice note
 ```
 
-The advice itself always comes from the engine. The AI services only listen, speak, word answers and look at photos.
+**Design principle:** every recommendation comes from the deterministic engine. AI models only transcribe, understand, word answers, read them aloud and look at photos.
+
+## Use of AI
+
+### In the product
+
+| Model or service | Role | Constraints |
+|---|---|---|
+| **Groq**, `whisper-large-v3-turbo` | Transcribes farmers’ voice notes | Local `faster-whisper` (base model), then Aethex, as fallbacks |
+| **Groq**, `openai/gpt-oss-120b` | Understands free answers and writes short replies to farming questions | Strict JSON schema; system prompt forbids products and speaking for ANADER; output filtered again |
+| **Google Gemini**, `gemini-4-hydrogen` | First opinion on plant photos | Called for photos only; never names a product; every answer ends with a fixed advisory notice |
+| **Aethex** | **AI-generated voice** of every spoken reply | Streaming synthesis; fixed phrases cached; daily character cap |
+
+AI never produces the rotation ranking, the scores or the vegetation alert. Texts built from engine outputs pass a guardrail that rejects any figure, crop, disease or cause the engine did not produce.
+
+### In development
+
+- **AI coding assistant.** The team used Claude Code (Anthropic) throughout the hackathon to write and refactor code, tests and documentation, and to draft the presentation. The team specified each task, reviewed the changes, ran the tests and notebooks, and took every design decision, logged in [docs/decisions.md](docs/decisions.md).
+- **Figures.** Every figure in this repository comes from code executed on the NASA data, not from a language model.
+- **Images.** No AI-generated images are used. Photos come from the team and from a Canva template.
+- **Prompt reuse.** The photo-diagnosis prompt was first adapted from the team’s earlier AGRI-BOT project, as declared in [docs/travail_anterieur.md](docs/travail_anterieur.md).
 
 ## Safety and privacy
 
-- **No products.** No pesticide, fertiliser, brand or dose is ever named. A filter removes any sentence that would name one.
-- **No impersonation.** AgriBot never speaks on behalf of ANADER and always refers serious or uncertain cases to the ANADER advisor.
-- **Guardrail.** Every advice text is checked so that no figure, crop or cause appears that the engine did not produce.
-- **Consent.** The first message asks for consent and says that messages and photos go through AI services. Saying “stop” erases everything.
-- **Minimal storage.** Phone numbers are stored only as a salted HMAC. AgriBot never writes photos or voice notes to disk. They are sent to Groq, Google or Aethex for processing under those providers’ own retention policies.
+| Principle | Implementation |
+|---|---|
+| **No product advice** | No pesticide, fertiliser, brand or dose is ever named; a filter removes any sentence that would |
+| **No impersonation** | AgriBot never speaks for ANADER and refers serious or uncertain cases to the ANADER advisor |
+| **Consent first** | The first message asks for consent and states that messages and photos go through AI services; “stop” erases everything |
+| **Data minimisation** | Phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; third-party processing under each provider’s retention policy |
+| **Honest uncertainty** | Scores carry ranges, fragile rankings name the scenario that would change them, unavailable data is stated as such |
 
-## Repository layout
+## Quickstart
 
-```
-field-shift/
-├── moteur/            NASA data, indicators, rotation engine, evaluation, AppEEARS, photo diagnosis
-├── bot/               WhatsApp webhook, sessions, dialogue, WhatsApp client, terminal simulator
-│   └── langage/       messages, guardrail, Groq, voice, local transcription
-├── app/app.py         Streamlit app for advisors
-├── notebooks/         one notebook per CRISP-DM phase, executed before each commit
-├── tests/             unit tests, no network calls, recorded Meta webhooks
-├── docs/              scoping, data, evaluation, sources, prior work, decision log
-└── presentation/      final deck, AgriBot_Presentation_FR.pptx
-```
-
-Documentation in `docs/` is written in French.
-
-## Getting started
-
-Python 3.12 and `ffmpeg` are required.
+Requirements: Python 3.12 and `ffmpeg`.
 
 ```bash
 python3.12 -m venv venv
 venv/bin/pip install -r requirements.txt
-cp .env.example .env          # fill in the keys, never commit .env
-mkdir -p data                 # not versioned, holds the NASA series and the bot database
+cp .env.example .env                 # add your keys; .env is never committed
+mkdir -p data                        # NASA series and bot database, not versioned
 venv/bin/python -m unittest discover -s tests -t .
 ```
 
-### Reproduce the data and the results
-
-```bash
-venv/bin/python -m moteur.controles      # downloads missing NASA series and checks them
-venv/bin/python -m moteur.indicateurs    # agroclimatic indicators for Korhogo and Bouaké
-venv/bin/python -m moteur.criteres       # scores and sensitivity of the rotations
-venv/bin/python -m moteur.evaluation     # evaluation of the published recommendations
-venv/bin/python -m moteur.evolution      # 2001-2012 versus 2013-2025, checked with MERRA-2
-venv/bin/python -m moteur.alerte         # HLS vegetation alert of each town
-venv/bin/python notebooks/executer.py    # re-runs the CRISP-DM notebooks
-```
-
-AppEEARS extractions need a NASA Earthdata account in `~/.netrc`, then `venv/bin/python -m moteur.appeears suivre`.
-
-### Run
+Run:
 
 ```bash
 set -a; . ./.env; set +a
-venv/bin/streamlit run app/app.py                      # advisor app, http://localhost:8501
-venv/bin/python -m bot.simulateur                      # AgriBot in the terminal, no WhatsApp needed
-venv/bin/uvicorn bot.main:app --host 127.0.0.1 --port 8000   # WhatsApp webhook on /webhook
+venv/bin/python -m bot.simulateur                              # AgriBot in the terminal, no WhatsApp needed
+venv/bin/streamlit run app/app.py                              # advisor app, http://localhost:8501
+venv/bin/uvicorn bot.main:app --host 127.0.0.1 --port 8000     # WhatsApp webhook on /webhook
 ```
 
-WhatsApp requires a public HTTPS URL for the webhook, from a host or a tunnel such as ngrok. In the simulator, `/photo path.jpg`, `/position 9.45 -5.63` and `/vocal path.ogg` imitate WhatsApp messages.
+WhatsApp requires a public HTTPS URL for the webhook, from a host or a tunnel such as ngrok. In the simulator, `/photo path.jpg`, `/position 9.45 -5.63` and `/vocal path.ogg` stand in for WhatsApp messages.
 
-### Environment variables
+### Configuration
 
 | Variable | Purpose |
 |---|---|
 | `WHATSAPP_VERIFY_TOKEN`, `WHATSAPP_APP_SECRET`, `WHATSAPP_ACCESS_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | WhatsApp Cloud API |
 | `SEL_NUMEROS` | Salt for hashing phone numbers |
 | `GROQ_API_KEY` | Transcription, understanding and written answers |
-| `GEMINI_API_KEY` or `AGENT_PLATFORM_PROJET` with `AGENT_PLATFORM_API_KEY` | Photo diagnosis, through the Gemini API or Google Cloud Agent Platform |
-| `AETHEX_API_KEY`, `AETHEX_VOICE_ID`, `AETHEX_CARACTERES_PAR_JOUR` | Voice replies and daily character cap |
-| `BASE_DE_DONNEES`, `URL_APPLICATION`, `PLATEFORME_URL` | Database path and links sent to the farmer |
+| `GEMINI_API_KEY`, or `AGENT_PLATFORM_PROJET` with `AGENT_PLATFORM_API_KEY` | Photo diagnosis through the Gemini API or Google Cloud Agent Platform |
+| `AETHEX_API_KEY`, `AETHEX_VOICE_ID`, `AETHEX_CARACTERES_PAR_JOUR` | Voice synthesis and daily character cap |
+| `BASE_DE_DONNEES`, `URL_APPLICATION`, `PLATEFORME_URL` | Database path and links sent to farmers |
 
-## Limitations
+## Testing and reproducibility
 
-- The advice predicts neither yield nor income, since no yield model or sourced crop prices are used.
-- The income and soil criteria rest on studies from Nigeria and Burkina Faso, not from the Poro or Gbêkê regions.
-- At Korhogo, the water ranking depends on the cotton sowing date and cycle length.
-- MODIS at 500 m sees mostly savanna, so the vegetation alert follows the whole area, never a single field.
-- No agronomist or ANADER advisor has reviewed the advice yet.
-- The photo diagnosis is indicative only and says so in every answer.
+```bash
+venv/bin/python -m unittest discover -s tests -t .   # unit tests, no network calls, recorded Meta webhooks
+venv/bin/python -m moteur.controles                  # download missing NASA series and check them
+venv/bin/python -m moteur.indicateurs                # agroclimatic indicators per town
+venv/bin/python -m moteur.criteres                   # rotation scores and sensitivity
+venv/bin/python -m moteur.evaluation                 # evaluation of the published recommendations
+venv/bin/python -m moteur.evolution                  # 2001-2012 versus 2013-2025, checked with MERRA-2
+venv/bin/python -m moteur.alerte                     # HLS vegetation alert per town
+venv/bin/python notebooks/executer.py                # re-run the five CRISP-DM notebooks
+```
 
-## Prior work
+AppEEARS extractions require a NASA Earthdata account in `~/.netrc`, then `venv/bin/python -m moteur.appeears suivre`.
 
-Work that existed before the hackathon is declared in [docs/travail_anterieur.md](docs/travail_anterieur.md). Every design decision is logged with its date in [docs/decisions.md](docs/decisions.md).
+## Repository layout
+
+```
+field-shift/
+├── moteur/          NASA data access, indicators, rotation engine, evaluation, vegetation alert, photo diagnosis
+├── bot/             WhatsApp webhook, sessions, dialogue, WhatsApp client, terminal simulator
+│   └── langage/     message templates, guardrail, Groq, voice, local transcription
+├── app/             Streamlit advisor app
+├── notebooks/       one notebook per CRISP-DM phase
+├── tests/           unit tests
+├── docs/            scoping, data, evaluation, sources, prior work, decision log (in French)
+└── presentation/    final deck, PDF and PowerPoint
+```
+
+## Limitations and roadmap
+
+| Limitation | Next step |
+|---|---|
+| No yield or income prediction, for lack of a yield model and sourced prices | Partner with CNRA and ANADER for local yield and price data |
+| Market and soil criteria rest on studies from Nigeria and Burkina Faso | Replace with studies from the Poro and Gbêkê regions |
+| No agronomist has reviewed the advice yet | Review by an ANADER advisor before any field use |
+| IMERG and MERRA-2 disagree on the rain onset trend at Korhogo | Arbitrate with Ivorian ground stations (SODEXAM) |
+| Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
+| MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
+| The bot currently runs on a team laptop | Deploy on a cloud virtual machine with a fixed HTTPS domain |
+
+## Prior work and decisions
+
+Work that existed before the hackathon is declared in [docs/travail_anterieur.md](docs/travail_anterieur.md). Every design decision is logged with its date and rationale in [docs/decisions.md](docs/decisions.md).
 
 ## License
 
-No license has been chosen yet. Until the team adds one, all rights are reserved by team CodeX Africa.
+No license has been chosen yet. Until one is added, all rights are reserved by team CodeX Africa.
