@@ -182,7 +182,8 @@ function distanceKm(a, b) {
 
 function accueil() {
   etat.lieu = etat.priorite = null;
-  dire("Bonjour ! Je vous aide à choisir quoi semer dans votre champ.\n"
+  dire("Bonjour ! Après le coton, faut-il semer du maïs, du sorgho, de l'arachide ou du niébé ?\n"
+    + "Je compare pour vous, selon la pluie de votre zone et ce qui compte pour vous.\n"
     + "Je peux aussi regarder une photo de feuille de maïs malade.\n"
     + "Pas besoin d'internet, et tout reste dans votre téléphone.\n"
     + "Où se trouve votre champ ?", (b) => {
