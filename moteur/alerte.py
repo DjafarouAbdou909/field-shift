@@ -92,6 +92,29 @@ def construire_alerte(identifiant: str, date: str, etat: dict) -> AlerteVegetati
         texte=TEXTES[etat["statut"]], niveau="calcule", source=SOURCES["HLS"], avertissement=AVERTISSEMENT)
 
 
+# Classes IGBP de MCD12Q1 exclues du suivi, zones bâties, neige et glace, sol nu, eau.
+CLASSES_EXCLUES = {13, 15, 16, 17}
+POINTS_HLS = 50
+GRAINE_POINTS = 2026
+
+
+def points_de_vegetation(table: pd.DataFrame, nombre: int = POINTS_HLS, graine: int = GRAINE_POINTS) -> list[dict]:
+    """Points à suivre par HLS, tirés parmi ceux que MCD12Q1 n'a jamais classés hors végétation.
+
+    Décision du responsable du 15 novembre 2026. Autour de Korhogo, MCD12Q1 classe environ
+    97 % des points en prairies et presque aucun en cultures, les petits champs mêlés à la
+    savane échappant sans doute à sa résolution de 500 m, si bien que l'alerte suit la
+    végétation de toute la zone et non les seuls champs. table est le fichier de résultats
+    AppEEARS de MCD12Q1, avec les colonnes ID, Category, Latitude, Longitude et la classe.
+    """
+    classe = [c for c in table.columns if c.endswith("LC_Type1")][0]
+    exclus = set(table.loc[table[classe].isin(CLASSES_EXCLUES), "ID"])
+    candidats = table[~table["ID"].isin(exclus)].drop_duplicates("ID").sort_values("ID")
+    tires = candidats.sample(n=min(nombre, len(candidats)), random_state=graine).sort_values("ID")
+    return [{"id": r.ID, "category": r.Category, "latitude": float(r.Latitude), "longitude": float(r.Longitude)}
+            for r in tires.itertuples()]
+
+
 def requete_hls(nom: str, points: list[dict], fin: str) -> dict:
     """Tâche AppEEARS des quatre couches HLS sur des points, depuis le début de Landsat dans HLS, date MM-DD-YYYY."""
     from .appeears import requete_points

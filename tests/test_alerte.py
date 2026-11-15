@@ -88,3 +88,27 @@ class TestContratAlerte(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestPointsDeVegetation(unittest.TestCase):
+    def table(self):
+        lignes = []
+        for k in range(120):
+            for annee in (2001, 2025):
+                classe = 13 if k < 10 else (17 if k == 10 and annee == 2025 else 10)
+                lignes.append({"Category": "korhogo", "ID": f"korhogo_{k:04d}", "Latitude": 9.3 + k / 1000,
+                               "Longitude": -5.8, "Date": f"{annee}-01-01", "MCD12Q1_061_LC_Type1": float(classe)})
+        return pd.DataFrame(lignes)
+
+    def test_tirage_reproductible_hors_bati_et_eau(self):
+        from moteur.alerte import points_de_vegetation
+        points = points_de_vegetation(self.table())
+        self.assertEqual(len(points), 50)
+        self.assertEqual(points, points_de_vegetation(self.table()))
+        exclus = {f"korhogo_{k:04d}" for k in range(11)}
+        self.assertFalse(exclus & {p["id"] for p in points}, "zones bâties et eau, même une seule année, exclues")
+        self.assertEqual(set(points[0]), {"id", "category", "latitude", "longitude"})
+
+    def test_moins_de_candidats_que_demandes(self):
+        from moteur.alerte import points_de_vegetation
+        self.assertEqual(len(points_de_vegetation(self.table(), nombre=500)), 109)

@@ -156,6 +156,19 @@ def taches_occupation_du_sol() -> list[dict]:
     return requetes
 
 
+def taches_hls(fin: str | None = None) -> list[dict]:
+    """Une tâche HLS par ville dont l'occupation du sol MCD12Q1 est téléchargée, sur 50 points de végétation."""
+    import pandas as pd
+
+    from .alerte import points_de_vegetation, requete_hls
+    fin = fin or time.strftime("%m-%d-%Y")
+    requetes = []
+    for resultat in sorted(DOSSIER_APPEEARS.glob("mcd12q1_*/*-MCD12Q1-061-results.csv")):
+        ville = resultat.parent.name.removeprefix("mcd12q1_")
+        requetes.append(requete_hls(f"hls_{ville}", points_de_vegetation(pd.read_csv(resultat)), fin))
+    return requetes
+
+
 def suivre(session: SessionAppeears, journal: Path | None = None) -> dict[str, str]:
     """Affiche l'état de chaque tâche consignée et télécharge les résultats des tâches terminées."""
     statuts = {}
@@ -201,6 +214,10 @@ def executer(action: str) -> None:
         session = SessionAppeears()
         for requete in taches_occupation_du_sol():
             print(requete["task_name"], soumettre(session, requete))
+    elif action == "soumettre_hls":
+        session = SessionAppeears()
+        for requete in taches_hls():
+            print(requete["task_name"], len(requete["params"]["coordinates"]), "points", soumettre(session, requete))
     elif action == "suivre":
         suivre(SessionAppeears())
     elif action == "surveiller":
