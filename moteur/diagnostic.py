@@ -15,7 +15,9 @@ https://aistudio.google.com/docs, vers laquelle renvoie https://ai.google.dev/ge
   journalise pour une durée limitée, pour la seule détection des abus. Conditions
   additionnelles de l'API Gemini, en vigueur depuis le 23 mars 2026, page docs/terms.
 - Image envoyée en ligne, encodée en base64, jamais écrite sur disque par ce module. La
-  requête est limitée à 20 Mo, page docs/image-understanding.
+  requête est limitée à 20 Mo, page docs/image-understanding. En v1, texte et image vont
+  dans une étape user_input, l'image seule dans input étant refusée par l'API le 15 novembre
+  2026 avec le message que ce type n'existe qu'en v1beta.
 - Résolution high, environ 1 120 jetons par image, réglage recommandé pour les images par
   la page docs/media-resolution.
 
@@ -81,9 +83,10 @@ def requete(image: bytes, type_image: str, culture: str) -> dict:
     if len(image) > TAILLE_MAX_OCTETS:
         raise ValueError("image trop lourde pour une requête en ligne")
     return {"model": MODELE, "store": False,
-            "input": [{"type": "text", "text": consigne(culture)},
-                      {"type": "image", "data": base64.b64encode(image).decode("ascii"), "mime_type": type_image,
-                       "resolution": RESOLUTION}],
+            "input": [{"type": "user_input", "content": [
+                {"type": "text", "text": consigne(culture)},
+                {"type": "image", "data": base64.b64encode(image).decode("ascii"), "mime_type": type_image,
+                 "resolution": RESOLUTION}]}],
             "generation_config": {"seed": GRAINE, "thinking_level": NIVEAU_DE_REFLEXION},
             "response_format": {"type": "text", "mime_type": "application/json", "schema": schema(culture)}}
 

@@ -19,7 +19,8 @@ class TestDiagnostic(unittest.TestCase):
         enum = corps["response_format"]["schema"]["properties"]["reponse"]["enum"]
         self.assertEqual(enum, ["striure du maïs", "rouille commune du maïs", "helminthosporiose du maïs",
                                 "aucune_maladie_reconnue", "inconnu"])
-        self.assertEqual(corps["input"][1]["type"], "image")
+        self.assertEqual(corps["input"][0]["type"], "user_input")
+        self.assertEqual([c["type"] for c in corps["input"][0]["content"]], ["text", "image"])
 
     def test_requete_refusee(self):
         with self.assertRaises(ValueError):
