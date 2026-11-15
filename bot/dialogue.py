@@ -16,9 +16,12 @@ photo est acceptée à toute étape après le consentement, sa légende servant 
 déclarée. Reçue avant le consentement à son envoi chez Google, elle est mise en attente
 par son seul identifiant WhatsApp, puis analysée après l'accord ou oubliée après un refus.
 
-Un message vocal est transcrit par bot.langage.voix puis traité comme un texte, et
-seulement après le consentement. Un texte peut remplacer un bouton, par son titre, son
-identifiant ou son numéro dans l'ordre affiché. STOP efface la session, Bonjour ou Menu
+Voix d'abord, pour des agriculteurs qui souvent ne lisent pas. Un message vocal est
+écouté par Gemini, qui rend sa transcription et le choix reconnu parmi ceux de l'étape,
+la transcription d'Aethex servant de secours, puis traité comme un texte, seulement après le consentement
+ou en réponse à sa question, qui annonce la transcription. Une phrase dite ou écrite
+remplace un bouton, comprise par bot.langage.comprehension. Dès que l'agriculteur parle,
+le bot lui répond aussi par note vocale et lit les choix possibles, jusqu'à ce qu'il écrive. STOP efface la session, Bonjour ou Menu
 ramène au début. Une position hors des zones couvertes reçoit un message honnête. Les
 textes viennent de bot.langage.gabarits, jamais d'une chaîne écrite ici.
 
@@ -31,7 +34,6 @@ Aucune photo ni aucun audio n'est écrit sur disque, et aucune question libre n'
 
 import functools
 import logging
-import unicodedata
 from enum import Enum
 
 from moteur import recommander
@@ -41,7 +43,8 @@ from moteur.lieux import LIEUX
 
 from . import whatsapp
 from .config import parametres
-from .langage import gabarits, reformulation, voix
+from .langage import comprehension, gabarits, reformulation, voix
+from .langage.comprehension import normaliser
 from .securite import empreinte_numero
 from .sessions import Session, Sessions
 
@@ -68,23 +71,33 @@ def sessions(chemin: str) -> Sessions:
     return Sessions(chemin)
 
 
-def normaliser(texte: str) -> str:
-    decompose = unicodedata.normalize("NFKD", texte.lower().strip().rstrip(" .!?"))
-    return "".join(c for c in decompose if not unicodedata.combining(c))
+def choisir(entree: dict, options: dict[str, str], souple: bool = True) -> str | None:
+    """Identifiant choisi par un bouton, une ligne de liste, ou une phrase dite ou écrite.
 
-
-def choisir(entree: dict, options: dict[str, str]) -> str | None:
-    """Identifiant choisi par un bouton, une ligne de liste, ou un texte qui reprend un titre ou un numéro."""
+    souple à vrai, une phrase libre est comprise par ses mots-clés puis par Gemini. À faux,
+    seuls le titre, l'identifiant ou le numéro exacts comptent, pour laisser les questions
+    libres du résultat aller à la reformulation.
+    """
     if entree.get("choix") in options:
         return entree["choix"]
     texte = entree.get("texte")
     if not texte:
         return None
+    if souple:
+        return comprehension.comprendre(texte, options)
     texte = normaliser(texte)
     for rang, (identifiant, titre) in enumerate(options.items(), start=1):
         if texte in (normaliser(identifiant), normaliser(titre), str(rang)):
             return identifiant
     return None
+
+
+def options_de_l_etape(etat: str) -> dict[str, str]:
+    """Choix proposés à une étape, que Gemini cherche dans une note vocale."""
+    return {Etat.CONSENTEMENT.value: gabarits.BOUTONS_CONSENTEMENT, Etat.MENU.value: gabarits.BOUTONS_MENU,
+            Etat.LIEU.value: gabarits.LIGNES_LIEUX, Etat.ROTATION.value: gabarits.LIGNES_ROTATIONS,
+            Etat.PRIORITE.value: gabarits.BOUTONS_PRIORITE, Etat.RESULTAT.value: gabarits.BOUTONS_RESULTAT,
+            Etat.CONSENTEMENT_PHOTO.value: gabarits.BOUTONS_CONSENTEMENT_PHOTO}.get(etat, {})
 
 
 def lieu_proche(latitude: float, longitude: float) -> str | None:
@@ -123,14 +136,26 @@ class Conversation:
     def etape(self, etat: Etat, **changements) -> None:
         self.session = self.magasin.ecrire(self.session.avec(etat=etat.value, **changements))
 
+    def dire(self, texte: str) -> None:
+        """Répète un message en note vocale quand l'agriculteur parle au bot."""
+        if not (self.session.mode_vocal and voix.configuree()):
+            return
+        try:
+            self.canal.envoyer_audio(self.numero, voix.synthetiser(texte))
+        except Exception as erreur:
+            journal.warning("note vocale non envoyée, %s", type(erreur).__name__)
+
     def texte(self, texte: str) -> None:
         self.canal.envoyer_texte(self.numero, texte)
+        self.dire(texte)
 
     def boutons(self, texte: str, boutons: dict[str, str]) -> None:
         self.canal.envoyer_boutons(self.numero, texte, boutons)
+        self.dire(f"{texte}\n{gabarits.choix_a_dire(boutons)}")
 
     def liste(self, texte: str, lignes: dict[str, str]) -> None:
         self.canal.envoyer_liste(self.numero, texte, lignes, gabarits.LIBELLE_LISTE)
+        self.dire(f"{texte}\n{gabarits.choix_a_dire(lignes)}")
 
     # Débuts et menu
 
@@ -168,7 +193,7 @@ class Conversation:
         self.etape(Etat.RESULTAT)
 
     def suite_du_resultat(self, entree: dict) -> None:
-        choix = choisir(entree, gabarits.BOUTONS_RESULTAT)
+        choix = choisir(entree, gabarits.BOUTONS_RESULTAT, souple=False)
         reco = self.recommandation()
         if choix == "pourquoi":
             self.texte(gabarits.pourquoi(reco))
@@ -311,17 +336,28 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
     conversation = Conversation(numero, session, canal, magasin)
     try:
         entree = lire(message)
+        if "audio" in entree or "texte" in entree:
+            conversation.session = session.avec(mode_vocal="audio" in entree)
         if "audio" in entree:
-            if not session.consentement:
+            # La réponse à la question du consentement, qui annonce la transcription, peut être transcrite.
+            if not session.consentement and session.etat != Etat.CONSENTEMENT.value:
                 conversation.accueillir()
                 return
-            if not voix.configuree():
+            media_id, type_audio = entree["audio"]
+            audio = canal.telecharger_media(media_id)
+            entendu = comprehension.ecouter(audio, type_audio, options_de_l_etape(conversation.session.etat))
+            if entendu is not None:
+                entree = {"texte": entendu[0], "choix": entendu[1]}
+            elif voix.configuree():
+                entree = {"texte": voix.transcrire(audio, type_audio)}
+            else:
                 conversation.texte(gabarits.vocal_indisponible())
                 return
-            media_id, type_audio = entree["audio"]
-            entree = {"texte": voix.transcrire(canal.telecharger_media(media_id), type_audio)}
+            del audio
+            journal.info("note vocale comprise, %s caractères, option %s", len(entree["texte"]), entree.get("choix"))
             if not entree["texte"]:
                 conversation.texte(gabarits.incompris())
+                conversation.etape(Etat(conversation.session.etat))
                 return
         conversation.avancer(entree)
     except Exception as erreur:

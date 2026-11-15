@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 COLONNES = ("empreinte", "etat", "consentement", "lieu", "rotation", "priorite", "consentement_photo",
-            "photo_en_attente", "mise_a_jour")
+            "photo_en_attente", "mode_vocal", "mise_a_jour")
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class Session:
     priorite: str | None = None
     consentement_photo: bool = False
     photo_en_attente: str | None = None
+    mode_vocal: bool = False
     mise_a_jour: str = ""
 
     def avec(self, **changements) -> "Session":
@@ -43,7 +44,7 @@ class Sessions:
             self._connexion.execute(
                 "CREATE TABLE IF NOT EXISTS sessions (empreinte TEXT PRIMARY KEY, etat TEXT, consentement INTEGER, "
                 "lieu TEXT, rotation TEXT, priorite TEXT, consentement_photo INTEGER, photo_en_attente TEXT, "
-                "mise_a_jour TEXT)")
+                "mode_vocal INTEGER, mise_a_jour TEXT)")
             presentes = {ligne[1] for ligne in self._connexion.execute("PRAGMA table_info(sessions)")}
             for colonne in set(COLONNES) - presentes:
                 self._connexion.execute(f"ALTER TABLE sessions ADD COLUMN {colonne} TEXT")
@@ -55,8 +56,8 @@ class Sessions:
         if ligne is None:
             return Session(empreinte)
         valeurs = dict(zip(COLONNES, ligne))
-        return Session(**{**valeurs, "consentement": bool(valeurs["consentement"]),
-                          "consentement_photo": bool(valeurs["consentement_photo"])})
+        return Session(**{**valeurs, **{c: bool(valeurs[c]) for c in ("consentement", "consentement_photo",
+                                                                     "mode_vocal")}})
 
     def ecrire(self, session: Session) -> Session:
         session = session.avec(mise_a_jour=datetime.now(timezone.utc).isoformat(timespec="seconds"))
