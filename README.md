@@ -35,11 +35,12 @@ field-shift/
 │   ├── sessions.py           conversations dans SQLite         membre A
 │   ├── dialogue.py           machine à états du parcours       membre A
 │   ├── whatsapp.py           envoi, boutons, listes, médias    membre A
+│   ├── simulateur.py         conversation dans le terminal, sans WhatsApp
 │   └── langage/                                                membre B
 │       ├── gabarits.py       messages déterministes
-│       ├── garde_fou.py      aucun chiffre ni culture hors du moteur
-│       ├── reformulation.py  réponses libres, sous garde-fou
-│       └── voix.py           transcription et synthèse vocale
+│       ├── garde_fou.py      rien qui ne vienne du moteur, ni traitement ni produit
+│       ├── reformulation.py  réponses libres avec Gemini, sous garde-fou
+│       └── voix.py           notes vocales avec Aethex, transcription et synthèse
 ├── app/app.py                application Streamlit
 ├── tests/                    unittest, avec des webhooks Meta enregistrés
 ├── notebooks/                un notebook par phase de CRISP-DM, exécuté avant chaque commit
@@ -92,12 +93,18 @@ venv/bin/python notebooks/executer.py
 
 ## Lancement
 
+Les clés sont lues dans `.env`, copié depuis `.env.example` et jamais versionné. Chaque commande qui en a besoin le charge d'abord.
+
 ```bash
+set -a; . ./.env; set +a                            # charge les clés dans le terminal
 venv/bin/streamlit run app/app.py                   # application, http://localhost:8501
+venv/bin/python -m bot.simulateur                   # bot dans le terminal, sans WhatsApp
 venv/bin/uvicorn bot.main:app --port 8000           # bot, webhook sur /webhook
 ```
 
-Meta exige une URL HTTPS publique pour le webhook, fournie par l'hébergeur ou par un tunnel.
+Le simulateur fait tourner le vrai dialogue, avec Gemini et Aethex si leurs clés sont présentes. On y répond par le numéro ou le titre d'un bouton, et `/photo chemin.jpg`, `/position 9.45 -5.63` ou `/vocal chemin.ogg` imitent les envois WhatsApp.
+
+Pour WhatsApp, Meta exige une URL HTTPS publique pour le webhook, fournie par l'hébergeur ou par un tunnel, et les variables `WHATSAPP_*` de `.env`. Le jeton de vérification à saisir chez Meta est `WHATSAPP_VERIFY_TOKEN`.
 
 ## Démarrer une session Claude
 
