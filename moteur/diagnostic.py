@@ -2,11 +2,13 @@
 
 Décision du responsable du 15 novembre 2026. Le modèle répond librement, pour toute
 culture, en identifiant la plante, en donnant le diagnostic probable, en l'expliquant et
-en recommandant une action concrète. La consigne reprend celle de agri-bot,
+en recommandant un geste concret au champ, sans jamais nommer de produit, règle rétablie
+par le responsable le même jour. La consigne reprend celle de agri-bot,
 backend/nlp/prompts.py, DIAGNOSIS_PROMPT_TEMPLATE, et ses messages d'échec ceux de
 backend/vision/disease_client.py, le vouvoiement et le conseiller ANADER remplaçant le
-tutoiement et l'agent agricole. Le texte du modèle n'est ni filtré ni réécrit, sauf
-l'avertissement final, toujours rétabli.
+tutoiement et l'agent agricole, et l'interdiction des produits étant ajoutée. Le bot retire
+en plus toute phrase qui nommerait un produit, par bot.langage.conversation.filtrer, et
+l'avertissement final est toujours rétabli.
 
 Modèle, adresse et réglages vérifiés le 14 novembre 2026 dans la documentation officielle,
 https://aistudio.google.com/docs, vers laquelle renvoie https://ai.google.dev/gemini-api/docs.
@@ -28,6 +30,7 @@ https://aistudio.google.com/docs, vers laquelle renvoie https://ai.google.dev/ge
 import base64
 import logging
 import os
+import time
 
 import requests
 
@@ -41,6 +44,7 @@ ADRESSE = "https://generativelanguage.googleapis.com/v1/interactions"
 RESOLUTION = "high"
 NIVEAU_DE_REFLEXION = "low"
 GRAINE = 2026
+TENTATIVES, PAUSE_SECONDES, ERREURS_PASSAGERES = 2, 2, {429, 500, 502, 503, 504}
 TAILLE_MIN_OCTETS = 100
 TAILLE_MAX_OCTETS = 14 * 1024 * 1024  # base64 grossit de 4 tiers, la requête reste sous 20 Mo
 TYPES_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
@@ -56,7 +60,9 @@ Analyse cette image de plante et réponds en français simple, format WhatsApp (
 1. *Plante identifiée* : identifie ce que montre réellement l'image (fruit, feuille, tige de quelle culture ?). Base-toi UNIQUEMENT sur ce que tu vois, pas sur la culture déclarée par l'agriculteur ci-dessous.
 2. *Diagnostic probable* : la maladie ou le problème le plus probable visible. En cas de doute entre 2 possibilités proches, mentionne les deux brièvement.
 3. *Explication simple* : 1-2 phrases sur la cause probable.
-4. *Recommandation concrète* : action immédiate à prendre.
+4. *Recommandation concrète* : geste immédiat à faire au champ, comme observer le dessous des feuilles, arracher et éloigner les plants très atteints, ou montrer la plante au conseiller agricole. Ne nomme JAMAIS de produit : aucun pesticide, insecticide, fongicide, engrais, produit naturel à pulvériser, marque ni dose. Pour un traitement, dis de demander au conseiller agricole.
+
+Tu n'es pas un agent de l'ANADER et tu ne parles jamais en son nom.
 
 Si la plante identifiée à l'étape 1 NE correspond PAS à la culture déclarée par l'agriculteur ci-dessous, dis-le clairement dès le début de ta réponse (ex : "Cette image montre du cacao, pas de la tomate comme vous l'aviez mentionné.").
 
@@ -120,8 +126,15 @@ def appeler(corps: dict, session: requests.Session | None = None, cle: str | Non
     cle = cle or os.environ.get("GEMINI_API_KEY")
     if not cle:
         raise RuntimeError("clé GEMINI_API_KEY absente de l'environnement")
-    reponse = (session or requests).post(ADRESSE, json=corps, timeout=120,
-                                         headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
+    for tentative in range(TENTATIVES):
+        reponse = (session or requests).post(ADRESSE, json=corps, timeout=120,
+                                             headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
+        if reponse.status_code not in ERREURS_PASSAGERES or tentative == TENTATIVES - 1:
+            break
+        journal.warning("Gemini indisponible, code %s, nouvel essai", reponse.status_code)
+        time.sleep(PAUSE_SECONDES)
+    if reponse.status_code >= 400:
+        journal.warning("Gemini a refusé la requête, code %s", reponse.status_code)
     reponse.raise_for_status()
     return reponse.json()
 

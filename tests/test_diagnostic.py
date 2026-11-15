@@ -39,6 +39,7 @@ class TestRequete(unittest.TestCase):
 class TestDiagnostic(unittest.TestCase):
     def appel(self, *reponses):
         session = mock.Mock()
+        session.post.return_value.status_code = 200
         session.post.return_value.json.side_effect = list(reponses)
         return session
 
@@ -81,6 +82,17 @@ class TestDiagnostic(unittest.TestCase):
         appel = session.post.call_args
         self.assertEqual(appel.args[0], "https://generativelanguage.googleapis.com/v1/interactions")
         self.assertEqual(appel.kwargs["headers"]["x-goog-api-key"], "cle-de-test")
+
+    def test_nouvel_essai_si_erreur_passagere(self):
+        session = mock.Mock()
+        surcharge, succes = mock.Mock(status_code=503), mock.Mock(status_code=200)
+        succes.json.return_value = interaction(REPONSE)
+        session.post.side_effect = [surcharge, succes]
+        with mock.patch.object(diagnostic.time, "sleep") as pause:
+            d = diagnostic.diagnostiquer(JPEG, "image/jpeg", session=session, cle="c")
+        self.assertEqual(d.statut, "analyse")
+        self.assertEqual(session.post.call_count, 2)
+        pause.assert_called_once()
 
     def test_sans_cle(self):
         with mock.patch.dict("os.environ", {}, clear=True), self.assertRaises(RuntimeError):
