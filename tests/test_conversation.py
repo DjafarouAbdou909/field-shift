@@ -1,13 +1,7 @@
-import json
 import unittest
 from unittest import mock
 
 from bot.langage import conversation
-
-
-def interaction(**sortie):
-    return {"status": "completed", "steps": [{"type": "model_output", "content": [
-        {"type": "text", "text": json.dumps(sortie)}]}]}
 
 
 class TestFiltre(unittest.TestCase):
@@ -32,50 +26,30 @@ class TestFiltre(unittest.TestCase):
         self.assertEqual(conversation.filtrer("Ligne un.\nLigne deux."), "Ligne un.\nLigne deux.")
 
 
-class TestRepondre(unittest.TestCase):
+class TestMemoire(unittest.TestCase):
     def setUp(self):
         conversation.oublier("cle")
 
-    def test_question_et_memoire(self):
-        appel = mock.Mock(side_effect=[
-            interaction(transcription="", intention="question", reponse="Le niébé enrichit le sol."),
-            interaction(transcription="", intention="question", reponse="Oui, après le maïs.")])
-        self.assertEqual(conversation.repondre("cle", "À quoi sert le niébé ?", appel=appel)[:2],
-                         ("question", "Le niébé enrichit le sol."))
-        conversation.repondre("cle", "Et après quoi ?", appel=appel)
-        deuxieme = appel.call_args_list[1].args[0]
-        self.assertIn("Le niébé enrichit le sol.", deuxieme["input"][0]["content"][0]["text"])
-        self.assertIs(deuxieme["store"], False)
-        self.assertIn("Ne nomme jamais de produit", deuxieme["system_instruction"])
+    def test_six_echanges_au_plus(self):
+        for i in range(10):
+            conversation.retenir("cle", f"Q{i}", f"R{i}")
+        historique = conversation.historique("cle")
+        self.assertEqual(len(historique), 12)
+        self.assertEqual(historique[-1], ("Field Shift", "R9"))
 
-    def test_memoire_oubliee(self):
-        appel = mock.Mock(return_value=interaction(transcription="", intention="question", reponse="R."))
-        conversation.repondre("cle", "Q", appel=appel)
+    def test_oubli_sur_stop(self):
+        conversation.retenir("cle", "Q", "R")
         conversation.oublier("cle")
         self.assertEqual(conversation.historique("cle"), [])
 
     def test_memoire_expiree(self):
-        appel = mock.Mock(return_value=interaction(transcription="", intention="question", reponse="R."))
-        conversation.repondre("cle", "Q", appel=appel)
+        conversation.retenir("cle", "Q", "R")
         with mock.patch.object(conversation.time, "monotonic", return_value=10 ** 9):
             self.assertEqual(conversation.historique("cle"), [])
 
-    def test_demande_de_rotation(self):
-        appel = mock.Mock(return_value=interaction(transcription="je veux une rotation", intention="rotation", reponse="x"))
-        self.assertEqual(conversation.repondre("cle", audio=(b"OggS", "audio/ogg; codecs=opus"), appel=appel),
-                         ("rotation", "", "je veux une rotation"))
-        audio = appel.call_args.args[0]["input"][0]["content"][1]
-        self.assertEqual((audio["type"], audio["mime_type"]), ("audio", "audio/ogg"))
-
-    def test_reponse_filtree(self):
-        appel = mock.Mock(return_value=interaction(transcription="", intention="question",
-                                                   reponse="Arrachez les plants. Pulvérisez un insecticide."))
-        self.assertEqual(conversation.repondre("cle", "Que faire ?", appel=appel)[1],
-                         f"Arrachez les plants. {conversation.RENVOI}")
-
-    def test_panne(self):
-        self.assertEqual(conversation.repondre("cle", "Q", appel=mock.Mock(side_effect=RuntimeError()))[:2],
-                         ("indisponible", conversation.SECOURS))
+    def test_consigne(self):
+        for regle in ("vouvoyant", "Ne nomme jamais de produit", "jamais en son nom", "Ne prédis aucun rendement"):
+            self.assertIn(regle, conversation.CONSIGNE)
 
 
 if __name__ == "__main__":

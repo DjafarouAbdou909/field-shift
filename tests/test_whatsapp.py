@@ -88,28 +88,28 @@ class TestReformulation(unittest.TestCase):
     def setUp(self):
         from moteur import charger_exemple
         self.reco = charger_exemple()
+        self.env = mock.patch.dict(os.environ, {"GROQ_API_KEY": "g"})
+        self.env.start()
 
-    def interaction(self, texte):
-        return {"status": "completed", "steps": [{"type": "model_output", "content": [{"type": "text", "text": texte}]}]}
+    def tearDown(self):
+        self.env.stop()
 
     def test_reponse_fidele_gardee(self):
         from bot.langage import reformulation
-        appel = mock.Mock(return_value=self.interaction("Le sorgho demande moins d'eau."))
-        self.assertEqual(reformulation.repondre("Pourquoi le sorgho ?", self.reco, "secours", appel=appel),
+        generation = mock.Mock(return_value={"reponse": "Le sorgho demande moins d'eau."})
+        self.assertEqual(reformulation.repondre("Pourquoi le sorgho ?", self.reco, "secours", generation),
                          "Le sorgho demande moins d'eau.")
-        corps = appel.call_args.args[0]
-        self.assertIs(corps["store"], False)
-        self.assertIn("Pourquoi le sorgho ?", corps["input"])
+        self.assertIn("Pourquoi le sorgho ?", generation.call_args.args[1])
 
     def test_reponse_infidele_remplacee(self):
         from bot.langage import reformulation
-        appel = mock.Mock(return_value=self.interaction("Pulvérisez un fongicide, vous gagnerez 7 tonnes."))
-        self.assertEqual(reformulation.repondre("Que faire ?", self.reco, "secours", appel=appel), "secours")
+        generation = mock.Mock(return_value={"reponse": "Pulvérisez un fongicide, vous gagnerez 7 tonnes."})
+        self.assertEqual(reformulation.repondre("Que faire ?", self.reco, "secours", generation), "secours")
 
     def test_panne_remplacee(self):
         from bot.langage import reformulation
-        appel = mock.Mock(side_effect=RuntimeError("sans réseau"))
-        self.assertEqual(reformulation.repondre("Que faire ?", self.reco, "secours", appel=appel), "secours")
+        generation = mock.Mock(side_effect=RuntimeError("sans réseau"))
+        self.assertEqual(reformulation.repondre("Que faire ?", self.reco, "secours", generation), "secours")
 
 
 if __name__ == "__main__":

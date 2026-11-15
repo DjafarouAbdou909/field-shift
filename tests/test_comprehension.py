@@ -1,9 +1,8 @@
-import json
 import unittest
 from unittest import mock
 
 from bot.langage import gabarits
-from bot.langage.comprehension import comprendre, par_le_modele, par_les_mots
+from bot.langage.comprehension import comprendre, par_les_mots
 
 
 class TestParLesMots(unittest.TestCase):
@@ -29,44 +28,21 @@ class TestParLesMots(unittest.TestCase):
         self.assertIsNone(par_les_mots("eau et sol", gabarits.BOUTONS_PRIORITE))
 
 
-class TestParLeModele(unittest.TestCase):
-    def interaction(self, option):
-        return {"status": "completed", "steps": [{"type": "model_output", "content": [
-            {"type": "text", "text": json.dumps({"option": option})}]}]}
+class TestComprendre(unittest.TestCase):
+    def test_mots_avant_groq(self):
+        generation = mock.Mock()
+        with mock.patch.dict("os.environ", {"GROQ_API_KEY": "g"}):
+            self.assertEqual(comprendre("photo", gabarits.BOUTONS_MENU, generation), "photo")
+        generation.assert_not_called()
 
-    def test_option_choisie_dans_l_enumeration(self):
-        appel = mock.Mock(return_value=self.interaction("photo"))
-        self.assertEqual(par_le_modele("mes plants ont des taches", gabarits.BOUTONS_MENU, appel), "photo")
-        corps = appel.call_args.args[0]
-        self.assertIs(corps["store"], False)
-        self.assertEqual(corps["response_format"]["schema"]["properties"]["option"]["enum"],
-                         ["rotation", "photo", "aucun"])
+    def test_groq_en_dernier_recours(self):
+        generation = mock.Mock(return_value={"option": "korhogo"})
+        with mock.patch.dict("os.environ", {"GROQ_API_KEY": "g"}):
+            self.assertEqual(comprendre("mon chat est à côté du robot", gabarits.LIGNES_LIEUX, generation), "korhogo")
 
-    def test_aucun_ou_panne(self):
-        self.assertIsNone(par_le_modele("rien", gabarits.BOUTONS_MENU, mock.Mock(return_value=self.interaction("aucun"))))
-        self.assertIsNone(par_le_modele("rien", gabarits.BOUTONS_MENU, mock.Mock(side_effect=RuntimeError())))
-
-    def test_mots_avant_modele(self):
-        appel = mock.Mock()
-        self.assertEqual(comprendre("photo", gabarits.BOUTONS_MENU, appel), "photo")
-        appel.assert_not_called()
-
-
-class TestEcoute(unittest.TestCase):
-    def test_transcription_et_option(self):
-        from bot.langage.comprehension import ecouter
-        reponse = {"status": "completed", "steps": [{"type": "model_output", "content": [
-            {"type": "text", "text": json.dumps({"transcription": "Mon champ est à Korhogo", "option": "korhogo"})}]}]}
-        appel = mock.Mock(return_value=reponse)
-        self.assertEqual(ecouter(b"OggS", "audio/ogg; codecs=opus", gabarits.LIGNES_LIEUX, appel),
-                         ("Mon champ est à Korhogo", "korhogo"))
-        contenu = appel.call_args.args[0]["input"][0]["content"]
-        self.assertEqual((contenu[1]["type"], contenu[1]["mime_type"]), ("audio", "audio/ogg"))
-        self.assertIs(appel.call_args.args[0]["store"], False)
-
-    def test_panne(self):
-        from bot.langage.comprehension import ecouter
-        self.assertIsNone(ecouter(b"OggS", "audio/ogg", {}, mock.Mock(side_effect=RuntimeError())))
+    def test_sans_groq(self):
+        with mock.patch.dict("os.environ", {"GROQ_API_KEY": ""}):
+            self.assertIsNone(comprendre("mon chat est à côté du robot", gabarits.LIGNES_LIEUX))
 
 
 class TestChoixADire(unittest.TestCase):

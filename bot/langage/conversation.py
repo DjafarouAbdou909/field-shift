@@ -1,13 +1,11 @@
-"""Conversation agricole libre, à l'écrit comme à la voix, décision du responsable du 15 novembre 2026.
+"""Règles, mémoire et filtre de la conversation agricole libre, décision du responsable du 15 novembre 2026.
 
-L'agriculteur échange avec le bot sur ses cultures comme avec une personne. Gemini répond
-en français simple, en quelques phrases faciles à écouter, et dit si l'agriculteur demande
-un conseil de rotation, auquel cas le dialogue lance le parcours à choix multiples au lieu
-de répondre. Une note vocale est écoutée directement par Gemini, la transcription d'Aethex
-déformant les noms de lieux.
+L'agriculteur échange avec le bot sur ses cultures comme avec une personne, à l'écrit ou à
+la voix. La réponse est rédigée par bot.langage.groq avec la consigne CONSIGNE, puis passe
+par filtrer.
 
-Règles, données à Gemini puis vérifiées sur sa réponse.
-- Agriculture seulement.
+Règles, données au modèle puis vérifiées sur sa réponse.
+- Agriculture seulement, en vouvoyant l'agriculteur.
 - Aucun produit, ni pesticide, ni engrais du commerce, ni marque, ni dose, ni lieu d'achat.
   Toute phrase qui en cite un est retirée et remplacée par un renvoi au conseiller.
 - Le bot ne parle jamais comme un agent ou un conseiller de l'ANADER. Toute phrase qui le
@@ -15,18 +13,13 @@ Règles, données à Gemini puis vérifiées sur sa réponse.
 - Aucune prédiction de rendement ni chiffre inventé.
 
 Mémoire. Les six derniers échanges d'un agriculteur restent en mémoire vive trente minutes
-pour suivre la conversation, jamais sur disque, et sont oubliés sur STOP. Même modèle et
-mêmes réglages que le diagnostic, store à faux, donc rien n'est conservé par l'API.
+pour suivre la conversation, jamais sur disque, et sont oubliés sur STOP.
 """
 
-import base64
-import json
 import logging
 import re
 import time
 from collections import deque
-
-from moteur.diagnostic import GRAINE, MODELE, appeler, texte_de_sortie
 
 from .comprehension import normaliser
 
@@ -37,7 +30,7 @@ QUESTION_MAX = 800
 
 CONSIGNE = """Tu es Field Shift, un assistant agricole sur WhatsApp pour des agriculteurs du nord et du centre de la Côte d'Ivoire, autour de Korhogo et de Bouaké, qui cultivent surtout le coton, le maïs, le sorgho, le mil, le niébé, l'arachide et l'igname. Beaucoup ne lisent pas et t'écoutent en message vocal.
 
-Réponds comme dans une conversation, en français simple, en trois à cinq phrases courtes, faciles à comprendre à l'oral, sans liste, sans titre et sans emoji.
+Réponds comme dans une conversation, en français simple, en vouvoyant l'agriculteur, en trois à cinq phrases courtes, faciles à comprendre à l'oral, sans liste, sans titre et sans emoji.
 
 Règles absolues :
 - Parle seulement d'agriculture, d'élevage, de climat et de vie au champ. Pour tout autre sujet, dis poliment que tu ne peux aider que pour l'agriculture.
@@ -102,43 +95,3 @@ def filtrer(texte: str) -> str:
     if retirees:
         texte = f"{texte}{chr(10) if chr(10) in texte else ' '}{RENVOI}".strip()
     return texte or RENVOI
-
-
-def requete(question: str | None, audio: tuple[bytes, str] | None, passe: list[tuple[str, str]]) -> dict:
-    contexte = "\n".join(f"{qui} : {quoi}" for qui, quoi in passe) or "aucun"
-    demande = (f"Échanges précédents\n{contexte}\n\n" + (
-        f"Nouveau message de l'agriculteur\n{question[:QUESTION_MAX]}" if question else
-        "Nouveau message vocal de l'agriculteur, à transcrire fidèlement puis à traiter."))
-    contenu = [{"type": "text", "text": demande}]
-    if audio:
-        contenu.append({"type": "audio", "data": base64.b64encode(audio[0]).decode("ascii"),
-                        "mime_type": audio[1].split(";")[0].strip()})
-    return {"model": MODELE, "store": False, "system_instruction": CONSIGNE,
-            "input": [{"type": "user_input", "content": contenu}],
-            "generation_config": {"seed": GRAINE, "thinking_level": "low"},
-            "response_format": {"type": "text", "mime_type": "application/json", "schema": {
-                "type": "object",
-                "properties": {"transcription": {"type": "string"},
-                               "intention": {"type": "string", "enum": ["rotation", "question"]},
-                               "reponse": {"type": "string"}},
-                "required": ["transcription", "intention", "reponse"]}}}
-
-
-def repondre(cle: str, question: str | None = None, audio: tuple[bytes, str] | None = None,
-             appel=None) -> tuple[str, str, str]:
-    """Intention, rotation, question ou indisponible, réponse filtrée et transcription d'un message.
-
-    indisponible signale que Gemini n'a pas répondu, quota épuisé ou panne, pour que le
-    dialogue passe au secours local.
-    """
-    try:
-        sortie = json.loads(texte_de_sortie((appel or appeler)(requete(question, audio, historique(cle)))) or "{}")
-    except Exception as erreur:
-        journal.warning("conversation indisponible, %s", type(erreur).__name__)
-        return "indisponible", SECOURS, question or ""
-    transcription = (question or sortie.get("transcription") or "").strip()
-    if sortie.get("intention") == "rotation":
-        return "rotation", "", transcription
-    reponse = filtrer(sortie.get("reponse") or "") if sortie.get("reponse") else SECOURS
-    retenir(cle, transcription, reponse)
-    return "question", reponse, transcription

@@ -12,23 +12,22 @@ Parcours
     PHOTO               la photo est analysée puis oubliée
 
 Discussion, décision du responsable du 15 novembre 2026. Après le consentement,
-l'agriculteur échange librement avec le bot sur l'agriculture, par bot.langage.conversation,
-qui ne nomme aucun produit et ne parle jamais au nom de l'ANADER. Une question reçoit une
-réponse, sans lancer de calcul. Le parcours de rotation, à choix multiples, ne démarre que
-si l'agriculteur le demande, par un bouton ou par ses mots.
+l'agriculteur échange librement avec le bot sur l'agriculture. Groq rédige la réponse avec
+les règles de bot.langage.conversation, qui ne nomme aucun produit et ne parle jamais au nom
+de l'ANADER. Une question reçoit une réponse, sans lancer de calcul. Le parcours de
+rotation, à choix multiples, ne démarre que si l'agriculteur le demande, par un bouton ou
+par ses mots.
 
 Une seule forme de réponse. Si l'agriculteur parle, le bot répond seulement en note
 vocale, lue par Aethex, les boutons restant affichés sous un simple signe pour qui veut
 toucher son choix. S'il écrit, le bot répond seulement par écrit. Seul le lien de la page
 de détail part toujours par écrit, un lien ne se disant pas.
 
-Une note vocale est écoutée par Gemini, avec les choix de l'étape quand il y en a. Si
-Gemini ne répond pas, quota épuisé ou panne, Whisper la transcrit sur la machine du bot,
-puis Aethex en dernier recours. Sans Gemini, Grok de xAI répond à la question si sa clé
-XAI_API_KEY est présente, et Aethex lit la réponse. Sans Gemini ni Grok, les choix et la
+Une note vocale est transcrite par Groq, puis par Whisper sur la machine du bot, puis par
+Aethex. Elle n'est transcrite qu'après le consentement ou en réponse à sa question, qui
+annonce cette écoute. Gemini ne sert qu'à l'analyse des photos. Sans Groq, les choix et la
 demande d'une rotation se comprennent encore par leurs mots-clés, et une question libre
-reçoit un message qui dit que la discussion est momentanément indisponible. Elle n'est traitée qu'après le consentement ou
-en réponse à sa question, qui annonce cette écoute.
+reçoit un message qui dit que la discussion est momentanément indisponible.
 
 Diagnostic par photo, à la manière du projet agri-bot. Une photo est acceptée à toute
 étape après le consentement, sa légende servant de culture déclarée. Reçue avant le
@@ -60,7 +59,7 @@ from moteur.lieux import LIEUX
 
 from . import whatsapp
 from .config import parametres
-from .langage import comprehension, conversation, gabarits, grok, reformulation, transcription_locale, voix
+from .langage import comprehension, conversation, gabarits, groq, reformulation, transcription_locale, voix
 from .langage.comprehension import normaliser
 from .securite import empreinte_numero
 from .sessions import Session, Sessions
@@ -91,7 +90,7 @@ def sessions(chemin: str) -> Sessions:
 def choisir(entree: dict, options: dict[str, str], souple: bool = True) -> str | None:
     """Identifiant choisi par un bouton, une ligne de liste, ou une phrase dite ou écrite.
 
-    souple à vrai, une phrase libre est comprise par ses mots-clés puis par Gemini. À faux,
+    souple à vrai, une phrase libre est comprise par ses mots-clés puis par Groq. À faux,
     seuls le titre, l'identifiant ou le numéro exacts comptent, pour laisser les questions
     libres du résultat aller à la reformulation.
     """
@@ -109,14 +108,6 @@ def choisir(entree: dict, options: dict[str, str], souple: bool = True) -> str |
     return None
 
 
-def options_de_l_etape(etat: str) -> dict[str, str]:
-    """Choix proposés à une étape, que Gemini cherche dans une note vocale."""
-    return {Etat.CONSENTEMENT.value: gabarits.BOUTONS_CONSENTEMENT, Etat.MENU.value: gabarits.BOUTONS_MENU,
-            Etat.LIEU.value: gabarits.LIGNES_LIEUX, Etat.ROTATION.value: gabarits.LIGNES_ROTATIONS,
-            Etat.PRIORITE.value: gabarits.BOUTONS_PRIORITE, Etat.RESULTAT.value: gabarits.BOUTONS_RESULTAT,
-            Etat.CONSENTEMENT_PHOTO.value: gabarits.BOUTONS_CONSENTEMENT_PHOTO}.get(etat, {})
-
-
 def pour_la_voix(texte: str) -> str:
     """Texte à lire à voix haute, sans la mise en forme ni les signes de WhatsApp."""
     return re.sub(r"[*_~👇📸⚠️]", "", texte).replace("\ufe0f", "").strip()
@@ -130,8 +121,13 @@ def sans_produit(texte: str) -> str:
     return f"{conversation.filtrer(corps)}\n\n{AVERTISSEMENT_DIAGNOSTIC}"
 
 
-def transcrire_secours(audio: bytes, type_audio: str) -> str | None:
-    """Transcription sans Gemini, par Whisper sur la machine, puis par Aethex. None si les deux échouent."""
+def transcrire_note(audio: bytes, type_audio: str) -> str | None:
+    """Texte d'une note vocale, par Groq, puis par Whisper sur la machine, puis par Aethex. None si tout échoue."""
+    if groq.configure():
+        try:
+            return groq.transcrire(audio, type_audio)
+        except Exception as erreur:
+            journal.warning("transcription Groq indisponible, %s", type(erreur).__name__)
     try:
         return transcription_locale.transcrire(audio)
     except Exception as erreur:
@@ -284,43 +280,23 @@ class Conversation:
 
     # Discussion
 
-    def discuter(self, entree: dict) -> None:
-        """Répond à une question écrite ou vocale, ou lance le parcours de rotation s'il est demandé."""
-        intention, reponse, dit = conversation.repondre(self.session.empreinte, question=entree.get("texte"),
-                                                        audio=entree.get("audio_brut"))
-        if intention == "indisponible":
-            self.discuter_sans_gemini(entree)
-        elif entree.get("audio_brut") and normaliser(dit) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
-            self.avancer({"texte": dit})
-        elif intention == "rotation":
-            self.demander_lieu()
-        else:
-            self.texte(reponse)
-            self.etape(Etat.MENU)
+    def discuter(self, texte: str) -> None:
+        """Répond à une question écrite ou dite, ou lance le parcours de rotation s'il est demandé.
 
-    # Aiguillage
-
-    def discuter_sans_gemini(self, entree: dict) -> None:
-        """Secours quand Gemini ne répond pas. Les demandes se comprennent par mots-clés, les questions attendent."""
-        texte = entree.get("texte")
-        if entree.get("audio_brut"):
-            texte = transcrire_secours(*entree["audio_brut"])
-            journal.info("note vocale transcrite en secours, %s caractères", len(texte or ""))
-        if texte is None:
-            self.texte(gabarits.vocal_indisponible())
-            return
+        Groq rédige la réponse. Sans Groq, la demande d'une rotation ou d'une photo se
+        comprend par mots-clés stricts, et une question reçoit un message d'indisponibilité.
+        """
         if normaliser(texte) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
             self.avancer({"texte": texte})
             return
-        if grok.configure():
-            intention, reponse = grok.repondre(self.session.empreinte, texte)
-            if intention == "rotation":
-                self.demander_lieu()
-                return
-            if intention == "question":
-                self.texte(reponse)
-                self.etape(Etat.MENU)
-                return
+        intention, reponse = groq.repondre(self.session.empreinte, texte) if groq.configure() else ("indisponible", "")
+        if intention == "rotation":
+            self.demander_lieu()
+            return
+        if intention == "question":
+            self.texte(reponse)
+            self.etape(Etat.MENU)
+            return
         demande = comprehension.par_les_mots(texte, gabarits.BOUTONS_MENU, gabarits.MOTS_DEMANDE)
         if demande == "rotation":
             self.demander_lieu()
@@ -365,8 +341,8 @@ class Conversation:
                 self.demander_lieu()
             elif choix == "photo":
                 self.demander_photo()
-            elif entree.get("texte") or entree.get("audio_brut"):
-                self.discuter(entree)
+            elif entree.get("texte"):
+                self.discuter(entree["texte"])
             else:
                 self.montrer_menu()
 
@@ -442,21 +418,12 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
                 echange.accueillir()
                 return
             media_id, type_audio = entree["audio"]
-            audio = canal.telecharger_media(media_id)
-            if echange.session.consentement and echange.session.etat == Etat.MENU.value:
-                # En discussion, Gemini écoute et répond en un seul appel.
-                echange.avancer({"audio_brut": (audio, type_audio)})
-                return
-            entendu = comprehension.ecouter(audio, type_audio, options_de_l_etape(echange.session.etat))
-            if entendu is not None:
-                entree = {"texte": entendu[0], "choix": entendu[1]}
-            elif (secours := transcrire_secours(audio, type_audio)) is not None:
-                entree = {"texte": secours}
-            else:
+            texte = transcrire_note(echange.canal.telecharger_media(media_id), type_audio)
+            if texte is None:
                 echange.texte(gabarits.vocal_indisponible())
                 return
-            del audio
-            journal.info("note vocale comprise, %s caractères, option %s", len(entree["texte"]), entree.get("choix"))
+            entree = {"texte": texte}
+            journal.info("note vocale transcrite, %s caractères", len(entree["texte"]))
             if not entree["texte"]:
                 echange.texte(gabarits.incompris())
                 echange.etape(Etat(echange.session.etat))
