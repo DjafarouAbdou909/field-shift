@@ -327,6 +327,17 @@ class TestVocal(Base):
         self.vocal("Mon chat est à côté du robot")
         self.assertEqual(self.session().lieu, "korhogo")
 
+    def test_notes_fixes_identiques_a_celles_du_parcours(self):
+        """Les notes préparées au démarrage sont exactement celles que le parcours dit, donc déjà prêtes."""
+        dites = []
+        with mock.patch.object(dialogue.voix, "synthetiser", side_effect=lambda t: dites.append(t) or b"OggS"):
+            self.vocal("Bonjour")
+            self.vocal("Oui j'accepte")
+            self.avec_groq(repondre=("rotation", ""))
+            self.vocal("Je veux une rotation")
+        self.assertTrue(dites)
+        self.assertTrue(set(dites) <= set(dialogue.phrases_fixes()), set(dites) - set(dialogue.phrases_fixes()))
+
     def test_stop_dit_en_discussion(self):
         self.consentir()
         self.vocal("Stop.")

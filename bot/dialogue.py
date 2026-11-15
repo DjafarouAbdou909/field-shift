@@ -49,6 +49,7 @@ sur disque.
 import functools
 import logging
 import re
+import time
 from enum import Enum
 
 from moteur import recommander
@@ -106,6 +107,21 @@ def choisir(entree: dict, options: dict[str, str], souple: bool = True) -> str |
         if texte in (normaliser(identifiant), normaliser(titre), str(rang)):
             return identifiant
     return None
+
+
+def phrases_fixes() -> list[str]:
+    """Textes dits à l'identique à chaque fois, préparés en notes vocales au démarrage du bot."""
+    avec_choix = [(gabarits.accueil(), gabarits.BOUTONS_CONSENTEMENT), (gabarits.menu(), gabarits.BOUTONS_MENU),
+                  (gabarits.demande_lieu(), gabarits.LIGNES_LIEUX),
+                  (gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS),
+                  (gabarits.demande_priorite(), gabarits.BOUTONS_PRIORITE),
+                  (gabarits.suite(), gabarits.BOUTONS_RESULTAT),
+                  (gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)]
+    seuls = [gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
+             gabarits.incompris(), gabarits.refus_photo(), gabarits.efface(), gabarits.zone_non_couverte(),
+             gabarits.erreur_technique()]
+    return [pour_la_voix(f"{texte}\n{gabarits.choix_a_dire(choix)}") for texte, choix in avec_choix] + \
+        [pour_la_voix(texte) for texte in seuls]
 
 
 def pour_la_voix(texte: str) -> str:
@@ -238,7 +254,7 @@ class Conversation:
     def donner_resultat(self) -> None:
         self.texte(gabarits.calcul_en_cours())
         reco = self.recommandation()
-        self.texte(gabarits.resume(reco))
+        self.texte(gabarits.resume_vocal(reco) if self.vocal else gabarits.resume(reco))
         self.boutons(gabarits.suite(), gabarits.BOUTONS_RESULTAT)
         self.etape(Etat.RESULTAT)
 
@@ -408,6 +424,7 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
     magasin = magasin or sessions(reglages.base_de_donnees)
     session = magasin.lire(empreinte_numero(numero, reglages.sel_numeros))
     echange = Conversation(numero, session, canal, magasin)
+    debut = time.monotonic()
     try:
         entree = lire(message)
         if "audio" in entree or "texte" in entree:
@@ -429,6 +446,7 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
                 echange.etape(Etat(echange.session.etat))
                 return
         echange.avancer(entree)
+        journal.info("réponse envoyée %.1f s après la réception", time.monotonic() - debut)
     except Exception as erreur:
         journal.exception("erreur pendant le dialogue, %s", type(erreur).__name__)
         try:

@@ -127,6 +127,26 @@ def resume(reco: Recommandation) -> str:
     return "\n".join(lignes)
 
 
+RANGS = {1: "première", 2: "deuxième", 3: "troisième", 4: "quatrième", 5: "cinquième"}
+
+
+def resume_vocal(reco: Recommandation) -> str:
+    """Résumé court du classement, pour une note vocale rapide à produire et à écouter, sans chiffre."""
+    strategies = {s.id: s for s in reco.strategies}
+    premiere = strategies[reco.classement[0]]
+    actuelle = next(s for s in reco.strategies if s.actuelle)
+    rang = RANGS.get(reco.classement.index(actuelle.id) + 1, "")
+    lignes = [f"Pour {reco.lieu.nom}, la rotation la mieux classée pour votre priorité est {premiere.nom}."]
+    if premiere.id == actuelle.id:
+        lignes.append("C'est déjà votre rotation actuelle.")
+    else:
+        lignes.append(f"Votre rotation actuelle, {actuelle.nom}, est classée {rang}.")
+    if not reco.classement_stable:
+        lignes.append("Ce classement est incertain.")
+    lignes.append("C'est un conseil indicatif, à discuter avec votre conseiller ANADER.")
+    return " ".join(lignes)
+
+
 BOUTONS_RESULTAT = {"pourquoi": "Pourquoi ?", "ecouter": "Écouter", "detail": "Détail"}
 
 

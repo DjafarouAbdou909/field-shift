@@ -27,6 +27,18 @@ def registre(chemin: str) -> RegistreMessages:
     return RegistreMessages(chemin)
 
 
+def preparer_notes_fixes() -> None:
+    """Synthétise et téléverse une fois les notes vocales des questions fixes du parcours."""
+    from . import whatsapp
+    from .dialogue import phrases_fixes
+    from .langage import voix
+
+    if not (voix.configuree() and parametres().access_token):
+        return
+    for phrase in phrases_fixes():
+        whatsapp.televerser_audio(voix.synthetiser(phrase))
+
+
 def prechauffer() -> None:
     """Charge au démarrage ce qui ralentirait le premier message, les données NASA, Whisper et la voix."""
     import time
@@ -39,7 +51,8 @@ def prechauffer() -> None:
     debut = time.monotonic()
     for etape, action in [("données NASA", lambda: [donnees_du_lieu(lieu) for lieu in LIEUX]),
                           ("Whisper", transcription_locale._modele),
-                          ("voix Aethex", lambda: voix.configuree() and voix.voix())]:
+                          ("voix Aethex", lambda: voix.configuree() and voix.voix()),
+                          ("notes vocales fixes", preparer_notes_fixes)]:
         try:
             action()
         except Exception as erreur:

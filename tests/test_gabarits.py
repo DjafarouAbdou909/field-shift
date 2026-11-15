@@ -108,3 +108,16 @@ class TestGardeFouEtendu(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestResumeVocal(unittest.TestCase):
+    def test_court_fidele_et_sans_chiffre(self):
+        import re
+        for lieu in LIEUX:
+            for rotation in STRATEGIES:
+                reco = recommander(lieu, rotation.id, POIDS_PAR_PRIORITE["eau"])
+                texte = gabarits.resume_vocal(reco)
+                self.assertLess(len(texte), 400, texte)
+                self.assertFalse(re.search(r"\d", texte), texte)
+                self.assertEqual(ecarts(texte, reco), [])
+                self.assertIn("conseiller ANADER", texte)
