@@ -194,11 +194,10 @@ function accueil() {
   });
 }
 
-// Quatre choix au plus à la fois, pour garder la conversation visible et des annonces vocales
+// Cinq choix au plus à la fois, pour garder la conversation visible et des annonces vocales
 // courtes. Les choix moins fréquents sont regroupés sous « Autres choix ».
 function autresChoix(retour) {
   dire("Que voulez-vous faire ?", () => proposer([
-    ["Photo d'une feuille", photographier, "photo"],
     ["Message vocal pour mon conseiller", enregistrer, "micro"],
     ["Mes messages vocaux", mesNotes, "ecouter"],
     ...(etat.priorite ? [["Le climat de ma zone", climat, "climat"], ["Recommencer", accueil, "recommencer"]] : []),
@@ -209,6 +208,7 @@ function autresChoix(retour) {
 function demanderLieu() {
   const options = [["Utiliser ma position", localiser, "position"]];
   for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
+  options.push(["Photo d'une feuille", photographier, "photo"]);
   options.push(["Autres choix", () => autresChoix(demanderLieu), "plus"]);
   proposer(options);
 }
@@ -381,6 +381,7 @@ function actionsResultat() {
     ["Pourquoi ?", pourquoi, "pourquoi"],
     ["Écouter", ecouter, "ecouter"],
     ["Envoyer à mon conseiller", () => partager(null), "envoyer"],
+    ["Photo d'une feuille", photographier, "photo"],
     ["Autres choix", () => autresChoix(actionsResultat), "plus"],
   ]);
 }
