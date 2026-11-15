@@ -36,9 +36,11 @@ def accueil() -> str:
     return ("Bonjour, je suis Field Shift. Je compare des rotations de cultures pour votre zone, avec les données "
             "de pluie des satellites de la NASA depuis 2001. Mes conseils sont indicatifs et ne remplacent pas "
             "votre conseiller ANADER.\n"
+            "Ce service est réservé aux personnes de 18 ans ou plus.\n"
             "Pour vous répondre, je garde votre zone, votre rotation et votre priorité, sans votre numéro en clair. "
-            "Vos messages vocaux sont transcrits par le service Aethex, et Field Shift ne les garde pas. "
-            "Acceptez-vous ?")
+            "Vos messages vocaux sont transcrits par le service Aethex, et vos questions écrites peuvent être "
+            "analysées par le service Gemini de Google. Field Shift ne garde ni vos messages vocaux ni vos "
+            "questions. Écrivez STOP à tout moment pour tout effacer. Acceptez-vous ?")
 
 
 BOUTONS_CONSENTEMENT = {"accepte": "J'accepte", "refuse": "Non merci"}
@@ -46,6 +48,20 @@ BOUTONS_CONSENTEMENT = {"accepte": "J'accepte", "refuse": "Non merci"}
 
 def refus() -> str:
     return "D'accord, je ne garde rien. Écrivez Bonjour si vous changez d'avis."
+
+
+def efface() -> str:
+    return "C'est fait, je ne garde plus rien de notre conversation. Écrivez Bonjour pour recommencer."
+
+
+# Menu
+
+def menu() -> str:
+    return "Que voulez-vous faire ?"
+
+
+BOUTONS_MENU = {"rotation": "Conseil rotation", "photo": "Photo de feuille"}
+LIBELLE_LISTE = "Choisir"
 
 
 # Lieu
@@ -120,6 +136,18 @@ def pourquoi(reco: Recommandation) -> str:
     return "\n".join(lignes)
 
 
+def suite() -> str:
+    return "Voulez-vous en savoir plus ? Vous pouvez aussi m'écrire votre question."
+
+
+def calcul_en_cours() -> str:
+    return "Je compare les rotations avec les données de la NASA, cela prend quelques secondes."
+
+
+def voix_indisponible() -> str:
+    return "La réponse vocale n'est pas disponible pour l'instant. Le texte ci-dessus reste valable."
+
+
 def detail(reco: Recommandation) -> str:
     if reco.lien_detail:
         return f"Les chiffres, leurs sources et leurs limites sont sur cette page.\n{reco.lien_detail}"
@@ -159,6 +187,10 @@ def demande_photo() -> str:
     return "Envoyez une photo nette d'une seule feuille, prise à la lumière du jour."
 
 
+def photo_illisible() -> str:
+    return "Je n'arrive pas à lire cette image. Envoyez une photo au format habituel de votre téléphone."
+
+
 def refus_photo() -> str:
     return "D'accord, aucune photo n'est envoyée. Votre conseiller ANADER peut examiner la plante."
 
@@ -176,6 +208,10 @@ def diagnostic(d: Diagnostic) -> str:
 
 
 # Messages communs
+
+def vocal_indisponible() -> str:
+    return "Je ne peux pas écouter les messages vocaux pour l'instant. Répondez avec les boutons ou par écrit."
+
 
 def incompris() -> str:
     return "Je n'ai pas compris. Répondez avec les boutons, ou écrivez Bonjour pour recommencer."
