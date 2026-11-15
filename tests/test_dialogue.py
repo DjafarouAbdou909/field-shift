@@ -212,50 +212,51 @@ class TestPhoto(Base):
     def test_parcours_par_le_menu(self):
         self.consentir()
         envois = self.envoyer(bouton("photo"))
-        self.assertEqual(envois[-1][2], gabarits.consentement_photo())
-        envois = self.envoyer(bouton("photo_accepte"))
-        self.assertEqual(envois[-1][2], gabarits.demande_photo())
+        self.assertEqual(envois[-1][2], gabarits.demande_photo(), "aucun second accord pour les photos")
         with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic):
             envois = self.envoyer(image(legende="coton"))
         self.assertEqual(self.recu, (b"contenu-img1", "image/jpeg", "coton"))
         self.assertEqual(envois[0][2], self.TEXTE)
         self.assertEqual(self.session().etat, "menu")
-        envois = self.envoyer(bouton("photo"))
-        self.assertEqual(envois[-1][2], gabarits.demande_photo(), "le consentement photo est demandé une fois")
 
-    def test_photo_envoyee_directement_puis_consentement(self):
-        """Comme dans agri-bot, une photo peut arriver à toute étape, elle attend l'accord puis est analysée."""
+    def test_photo_envoyee_directement_analysee_aussitot(self):
+        """Comme dans agri-bot, une photo peut arriver à toute étape, et elle est analysée sans question."""
         self.consentir()
         self.envoyer(bouton("rotation"), ligne("korhogo"))
+        with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic):
+            envois = self.envoyer(image())
+        self.assertEqual(self.recu, (b"contenu-img1", "image/jpeg", None))
+        self.assertEqual(envois[0][2], self.TEXTE)
+        self.assertEqual(len(envois), 1)
+
+    def test_photo_avant_l_accord_analysee_apres_le_oui(self):
         with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic) as appel:
             envois = self.envoyer(image())
             appel.assert_not_called()
-            self.assertEqual(envois[-1][2], gabarits.consentement_photo())
+            self.assertEqual(envois[-1][2], gabarits.consentement())
             self.assertEqual(self.session().photo_en_attente, "img1|image/jpeg")
-            envois = self.envoyer(bouton("photo_accepte"))
-        self.assertEqual(self.recu, (b"contenu-img1", "image/jpeg", None))
+            envois = self.envoyer(bouton("accepte"))
         self.assertEqual(envois[0][2], self.TEXTE)
         self.assertIsNone(self.session().photo_en_attente)
-        self.assertTrue(self.session().consentement_photo)
+        self.assertTrue(self.session().consentement)
 
-    def test_photo_analysee_sans_redemander(self):
-        self.consentir()
-        self.envoyer(bouton("photo"), bouton("photo_accepte"))
-        with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic):
-            envois = self.envoyer(image())
-        self.assertEqual(envois[0][2], self.TEXTE)
-
-    def test_refus_de_la_photo_oublie_l_attente(self):
-        self.consentir()
+    def test_photo_avant_un_refus_oubliee(self):
         self.envoyer(image())
-        envois = self.envoyer(bouton("photo_refuse"))
-        self.assertIn(("texte", NUMERO, gabarits.refus_photo()), envois)
-        self.assertFalse(self.session().consentement_photo)
-        self.assertIsNone(self.session().photo_en_attente)
+        with mock.patch.object(dialogue, "diagnostiquer") as appel:
+            self.envoyer(bouton("refuse"))
+        appel.assert_not_called()
+        self.assertFalse(self.magasin._connexion.execute(
+            "SELECT 1 FROM sessions WHERE photo_en_attente IS NOT NULL").fetchall(), "le refus efface la photo en attente")
+
+    def test_ancienne_etape_d_accord_photo(self):
+        """Une session restée sur l'ancienne étape d'accord photo passe à la photo."""
+        self.consentir()
+        self.magasin._connexion.execute("UPDATE sessions SET etat = 'consentement_photo'")
+        envois = self.envoyer(texte("oui"))
+        self.assertEqual(envois[-1][2], gabarits.demande_photo())
 
     def test_image_hors_format(self):
         self.consentir()
-        self.envoyer(bouton("photo"), bouton("photo_accepte"))
         with mock.patch.object(dialogue, "diagnostiquer") as appel:
             envois = self.envoyer(image("image/gif"))
         appel.assert_not_called()

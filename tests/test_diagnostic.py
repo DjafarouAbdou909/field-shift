@@ -11,9 +11,9 @@ def interaction(texte, statut="completed"):
     return {"status": statut, "steps": [{"type": "model_output", "content": [{"type": "text", "text": texte}]}]}
 
 
-REPONSE = ("*Plante identifiée* : feuille de maïs.\n*Diagnostic probable* : rouille.\n"
-           "*Explication simple* : champignon favorisé par l'humidité.\n*Recommandation concrète* : action.\n\n"
-           + AVERTISSEMENT_DIAGNOSTIC)
+REPONSE = ("Cette photo montre une feuille de maïs avec de petites pustules orange.\n\n"
+           "Il s'agit probablement de la rouille, un champignon favorisé par l'humidité.\n\n"
+           "Regardez les plants voisins et montrez la plante à votre conseiller.\n\n" + AVERTISSEMENT_DIAGNOSTIC)
 
 
 class TestRequete(unittest.TestCase):
@@ -26,14 +26,23 @@ class TestRequete(unittest.TestCase):
         self.assertEqual([c["type"] for c in corps["input"][0]["content"]], ["text", "image"])
         self.assertNotIn("response_format", corps)
 
-    def test_consigne_d_agri_bot(self):
-        """Les quatre parties de la consigne de agri-bot, la culture déclarée et l'avertissement final."""
+    def test_consigne_explication_suivie(self):
+        """Explication suivie sans numéro, contenu attendu, aucun produit, culture déclarée et avertissement."""
         texte = diagnostic.consigne("coton")
-        for partie in ("*Plante identifiée*", "*Diagnostic probable*", "*Explication simple*",
-                       "*Recommandation concrète*", "Culture déclarée par l'agriculteur : coton",
-                       AVERTISSEMENT_DIAGNOSTIC):
+        for partie in ("sans aucun numéro", "signes", "problème le plus probable", "ce qu'il peut faire à la récolte",
+                       "gestes concrets", "Ne nomme JAMAIS de produit", "ANADER",
+                       "Culture déclarée par l'agriculteur : coton", AVERTISSEMENT_DIAGNOSTIC):
             self.assertIn(partie, texte)
+        self.assertNotIn("1.", texte)
         self.assertIn("non précisée", diagnostic.consigne(None))
+
+    def test_numerotation_retiree(self):
+        """Une réponse numérotée malgré la consigne devient un texte suivi, sans titres en gras."""
+        texte = ("1. *Plante identifiée* : feuille de maïs.\n2) **Diagnostic probable** : rouille.\n"
+                 "- Arrachez les plants très atteints.\nLe *champignon* aime l'humidité.")
+        self.assertEqual(diagnostic.sans_liste(texte), "feuille de maïs.\nrouille.\nArrachez les plants très "
+                                                        "atteints.\nLe champignon aime l'humidité.")
+        self.assertEqual(diagnostic.sans_liste("Pluie de 20 mm en 3 jours."), "Pluie de 20 mm en 3 jours.")
 
 
 class TestDiagnostic(unittest.TestCase):
@@ -49,10 +58,10 @@ class TestDiagnostic(unittest.TestCase):
 
     def test_avertissement_retabli(self):
         """Absent ou reformulé, l'avertissement final est remplacé par le texte exact."""
-        for texte in ("*Diagnostic probable* : rouille.",
-                      "*Diagnostic probable* : rouille.\n⚠️ Avis indicatif, voyez un agent agricole."):
+        for texte in ("Il s'agit probablement de la rouille.",
+                      "Il s'agit probablement de la rouille.\n⚠️ Avis indicatif, voyez un agent agricole."):
             d = diagnostic.diagnostiquer(JPEG, "image/jpeg", None, session=self.appel(interaction(texte)), cle="c")
-            self.assertEqual(d.texte, "*Diagnostic probable* : rouille.\n\n" + AVERTISSEMENT_DIAGNOSTIC)
+            self.assertEqual(d.texte, "Il s'agit probablement de la rouille.\n\n" + AVERTISSEMENT_DIAGNOSTIC)
 
     def test_photo_inexploitable(self):
         for image, type_image, message in ((b"", "image/jpeg", diagnostic.ILLISIBLE),

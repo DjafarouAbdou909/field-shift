@@ -42,7 +42,7 @@ class TestGabaritsSurDonneesReelles(unittest.TestCase):
 class TestGabarits(unittest.TestCase):
     def test_boutons_et_listes_dans_les_limites(self):
         for boutons in (gabarits.BOUTONS_CONSENTEMENT, gabarits.BOUTONS_PRIORITE, gabarits.BOUTONS_RESULTAT,
-                        gabarits.BOUTONS_MENU, gabarits.BOUTONS_CONSENTEMENT_PHOTO):
+                        gabarits.BOUTONS_MENU):
             self.assertLessEqual(len(boutons), 3)
             self.assertTrue(all(len(titre) <= 20 for titre in boutons.values()), boutons)
         for lignes in (gabarits.LIGNES_LIEUX, gabarits.LIGNES_ROTATIONS):
@@ -57,14 +57,14 @@ class TestGabarits(unittest.TestCase):
     def test_messages_fixes_sans_traitement(self):
         for message in (gabarits.accueil(), gabarits.refus(), gabarits.demande_lieu(), gabarits.zone_non_couverte(),
                         gabarits.demande_rotation(), gabarits.demande_priorite(),
-                        gabarits.consentement_photo(), gabarits.demande_photo(), gabarits.refus_photo(),
+                        gabarits.consentement(), gabarits.demande_photo(),
                         gabarits.incompris(), gabarits.erreur_technique()):
             self.assertFalse([t for t in TRAITEMENTS if _contient(message, t, racine=True)], message)
 
-    def test_consentement_photo_explicite(self):
-        texte = gabarits.consentement_photo()
-        self.assertIn("Google", texte)
-        self.assertIn("oubliée", texte)
+    def test_consentement_couvre_les_photos(self):
+        """Un seul accord, au premier message, qui annonce aussi l'envoi des photos à l'IA."""
+        self.assertIn("photos", gabarits.consentement())
+        self.assertFalse(hasattr(gabarits, "consentement_photo"))
 
     def test_zone_non_couverte_nomme_les_zones(self):
         texte = gabarits.zone_non_couverte()

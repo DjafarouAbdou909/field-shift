@@ -48,8 +48,9 @@ def accueil() -> str:
 
 
 def consentement() -> str:
-    return ("Pour vous aider, je garde seulement vos choix, et vos messages passent par des services d'intelligence "
-            "artificielle. Ce service est pour les adultes. Dites stop pour tout effacer. Êtes-vous d'accord ?")
+    return ("Pour vous aider, je garde seulement vos choix. Vos messages et vos photos passent par des services "
+            "d'intelligence artificielle. Ce service est pour les adultes. Dites stop pour tout effacer. "
+            "Êtes-vous d'accord ?")
 
 
 BOUTONS_CONSENTEMENT = {"accepte": "Oui, d'accord", "refuse": "Non merci"}
@@ -197,20 +198,8 @@ def alerte(a: AlerteVegetation) -> str:
 
 # Diagnostic par photo
 
-def consentement_photo() -> str:
-    return ("Votre photo sera regardée par un service d'intelligence artificielle de Google, puis oubliée. "
-            "Êtes-vous d'accord ?")
-
-
-BOUTONS_CONSENTEMENT_PHOTO = {"photo_accepte": "Oui, d'accord", "photo_refuse": "Non merci"}
-
-
 def demande_photo() -> str:
     return "Envoyez une photo nette de la partie malade de la plante, prise de près, à la lumière du jour."
-
-
-def refus_photo() -> str:
-    return "D'accord, aucune photo n'est envoyée. Votre conseiller ANADER peut examiner la plante."
 
 
 def diagnostic(d: Diagnostic) -> str:

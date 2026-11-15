@@ -3,7 +3,11 @@
 Décision du responsable du 15 novembre 2026. Le modèle répond librement, pour toute
 culture, en identifiant la plante, en donnant le diagnostic probable, en l'expliquant et
 en recommandant un geste concret au champ, sans jamais nommer de produit, règle rétablie
-par le responsable le même jour. La consigne reprend celle de agri-bot,
+par le responsable le même jour. Depuis une seconde décision du même jour, la réponse est une
+explication suivie, en trois ou quatre petits paragraphes sans numéro ni titre, plus
+complète sur les signes vus, la cause, le risque pour la récolte et les gestes à faire,
+pour être claire à l'écrit comme à la voix. Une numérotation que le modèle produirait
+malgré la consigne est retirée par sans_liste. La consigne reprend celle de agri-bot,
 backend/nlp/prompts.py, DIAGNOSIS_PROMPT_TEMPLATE, et ses messages d'échec ceux de
 backend/vision/disease_client.py, le vouvoiement et le conseiller ANADER remplaçant le
 tutoiement et l'agent agricole, et l'interdiction des produits étant ajoutée. Le bot retire
@@ -30,6 +34,7 @@ https://aistudio.google.com/docs, vers laquelle renvoie https://ai.google.dev/ge
 import base64
 import logging
 import os
+import re
 import time
 
 import requests
@@ -74,24 +79,25 @@ TYPES_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/hei
 ORIGINE = (f"Photo envoyée par l'utilisateur, analysée par Google Gemini, modèle {MODELE}, sans conservation "
            "par Field Shift.")
 
-CONSIGNE = """Tu es un assistant agricole qui aide à orienter un agriculteur, pas un laboratoire phytosanitaire certifié.
+CONSIGNE = """Tu es un assistant agricole qui aide un agriculteur ivoirien à comprendre ce qui arrive à sa plante. Tu n'es pas un laboratoire phytosanitaire certifié.
 
-IMPORTANT : la conversation est déjà en cours avec cet agriculteur. Ne commence JAMAIS ta réponse par une salutation ("Salut", "Bonjour", "Salut l'ami agriculteur", etc.). Va directement au diagnostic.
+IMPORTANT : la conversation est déjà en cours. Ne commence JAMAIS par une salutation. Va directement à l'explication.
 
-Analyse cette image de plante et réponds en français simple, format WhatsApp (court) :
+Regarde la photo et explique à l'agriculteur, en français simple et avec le vouvoiement, comme un technicien qui lui parle au bord du champ. Ta réponse peut être lue à voix haute. Écris donc des phrases complètes, en trois ou quatre petits paragraphes, sans aucun numéro, aucune liste, aucun titre, aucun astérisque et aucun tiret en début de ligne.
 
-1. *Plante identifiée* : identifie ce que montre réellement l'image (fruit, feuille, tige de quelle culture ?). Base-toi UNIQUEMENT sur ce que tu vois, pas sur la culture déclarée par l'agriculteur ci-dessous.
-2. *Diagnostic probable* : la maladie ou le problème le plus probable visible. En cas de doute entre 2 possibilités proches, mentionne les deux brièvement.
-3. *Explication simple* : 1-2 phrases sur la cause probable.
-4. *Recommandation concrète* : geste immédiat à faire au champ, comme observer le dessous des feuilles, arracher et éloigner les plants très atteints, ou montrer la plante au conseiller agricole. Ne nomme JAMAIS de produit : aucun pesticide, insecticide, fongicide, engrais, produit naturel à pulvériser, marque ni dose. Pour un traitement, dis de demander au conseiller agricole.
+Commence par ce que montre la photo, la culture et la partie de la plante, et décris précisément les signes que tu vois, leur couleur, leur forme et leur place sur la plante. Base-toi uniquement sur ce que tu vois. Dis ensuite le problème le plus probable, maladie, ravageur, manque d'eau ou sol pauvre, et pourquoi tu le penses. Si tu hésites entre deux problèmes, nomme les deux et dis quel signe permet de les distinguer au champ. Explique ensuite d'où vient ce problème, ce qui le favorise, comme l'humidité ou la chaleur, et ce qu'il peut faire à la récolte si rien n'est fait. Termine par deux ou trois gestes concrets que l'agriculteur peut faire dès aujourd'hui, par exemple regarder les plants voisins et le dessous des feuilles, arracher et éloigner les plants très atteints, nettoyer ses outils, ne pas travailler les plants mouillés, et dis-lui quand montrer la plante au conseiller agricole.
+
+Ne nomme JAMAIS de produit : aucun pesticide, insecticide, fongicide, herbicide, engrais, produit naturel à pulvériser, marque ni dose. Pour un traitement, dis de demander au conseiller agricole.
 
 Tu n'es pas un agent de l'ANADER et tu ne parles jamais en son nom.
 
-Si la plante identifiée à l'étape 1 NE correspond PAS à la culture déclarée par l'agriculteur ci-dessous, dis-le clairement dès le début de ta réponse (ex : "Cette image montre du cacao, pas de la tomate comme vous l'aviez mentionné.").
+Reste entre 120 et 200 mots, sans compter la phrase finale.
 
-Si l'image n'est pas une plante, dis-le clairement et n'invente pas de diagnostic.
+Si la plante que tu vois NE correspond PAS à la culture déclarée par l'agriculteur ci-dessous, dis-le dès ta première phrase (ex : "Cette image montre du cacao, pas de la tomate comme vous l'aviez mentionné.").
 
-Termine TOUJOURS par : "{avertissement}"
+Si l'image n'est pas une plante, ou si elle est trop floue pour juger, dis-le simplement, n'invente pas de diagnostic, et demande une photo nette prise de près à la lumière du jour.
+
+Termine TOUJOURS par cette phrase, seule sur sa dernière ligne : "{avertissement}"
 
 Culture déclarée par l'agriculteur : {culture}
 """
@@ -124,6 +130,18 @@ def texte_de_sortie(interaction: dict) -> str | None:
     return "".join(textes) or None
 
 
+DEBUT_DE_LISTE = re.compile(r"^\s*(?:\d+\s*[.)\-:]|[-•*]\s)\s*")
+TITRE_EN_TETE = re.compile(r"^\s*\*{1,2}[^*\n]{1,40}\*{1,2}\s*:\s*")
+ASTERISQUES = re.compile(r"\*{1,2}([^*\n]+)\*{1,2}")
+
+
+def sans_liste(texte: str) -> str:
+    """Retire numéros, puces, titres en gras et astérisques de début de ligne, pour un texte suivi."""
+    lignes = [ASTERISQUES.sub(r"\1", TITRE_EN_TETE.sub("", DEBUT_DE_LISTE.sub("", ligne)))
+              for ligne in texte.split("\n")]
+    return "\n".join(lignes)
+
+
 def avec_avertissement(texte: str) -> str:
     """Rétablit l'avertissement final, en remplaçant une dernière ligne d'avertissement reformulée."""
     lignes = texte.rstrip().split("\n")
@@ -141,7 +159,7 @@ def interpreter(texte: str | None, culture: str | None) -> Diagnostic:
     if not texte or not texte.strip():
         return echec(A_REESSAYER, culture)
     return Diagnostic(donnees_fictives=False, culture_declaree=culture, statut="analyse",
-                      texte=avec_avertissement(texte.strip()), origine_images=ORIGINE)
+                      texte=avec_avertissement(sans_liste(texte.strip())), origine_images=ORIGINE)
 
 
 def appeler(corps: dict, session: requests.Session | None = None, cle: str | None = None) -> dict:

@@ -8,7 +8,7 @@ Parcours
     ROTATION            liste des rotations actuelles possibles
     PRIORITE            trois boutons, eau, débouché, sol
     RESULTAT            résumé, boutons Pourquoi, Écouter, Détail, questions sur le conseil
-    CONSENTEMENT_PHOTO  accord pour envoyer la photo à Google, demandé une fois
+    CONSENTEMENT_PHOTO  ancienne étape, une session qui y était passe à la photo
     PHOTO               la photo est analysée puis oubliée
 
 Discussion, décision du responsable du 15 novembre 2026. Après le consentement,
@@ -115,10 +115,9 @@ def phrases_fixes() -> list[str]:
                   (gabarits.demande_lieu(), gabarits.LIGNES_LIEUX),
                   (gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS),
                   (gabarits.demande_priorite(), gabarits.BOUTONS_PRIORITE),
-                  (gabarits.suite(), gabarits.BOUTONS_RESULTAT),
-                  (gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)]
+                  (gabarits.suite(), gabarits.BOUTONS_RESULTAT)]
     seuls = [gabarits.accueil(), gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
-             gabarits.incompris(), gabarits.refus_photo(), gabarits.efface(), gabarits.zone_non_couverte(),
+             gabarits.incompris(), gabarits.efface(), gabarits.zone_non_couverte(),
              gabarits.erreur_technique()]
     return [pour_la_voix(f"{texte}\n{gabarits.choix_a_dire(choix)}") for texte, choix in avec_choix] + \
         [pour_la_voix(texte) for texte in seuls]
@@ -259,12 +258,8 @@ class Conversation:
         self.etape(Etat.LIEU)
 
     def demander_photo(self) -> None:
-        if self.session.consentement_photo:
-            self.texte(gabarits.demande_photo())
-            self.etape(Etat.PHOTO)
-        else:
-            self.boutons(gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)
-            self.etape(Etat.CONSENTEMENT_PHOTO)
+        self.texte(gabarits.demande_photo())
+        self.etape(Etat.PHOTO)
 
     # Conseil de rotation
 
@@ -299,11 +294,12 @@ class Conversation:
     # Diagnostic par photo
 
     def recevoir_photo(self, image: tuple[str, str], legende: str | None) -> None:
-        if self.session.consentement_photo:
-            self.analyser_photo(image, legende)
-        else:
-            self.session = self.session.avec(photo_en_attente="|".join(image))
-            self.demander_photo()
+        """Analyse aussitôt, le consentement du premier message couvrant les photos.
+
+        Décision du responsable du 15 novembre 2026, un second accord propre aux photos
+        demandant un temps que les agriculteurs n'ont pas.
+        """
+        self.analyser_photo(image, legende)
 
     def analyser_photo(self, image: tuple[str, str], legende: str | None) -> None:
         media_id, type_image = image
@@ -352,6 +348,11 @@ class Conversation:
             conversation.oublier(s.empreinte)
             self.texte(gabarits.efface())
             return
+        if "image" in entree and not s.consentement:
+            # Une photo envoyée avant l'accord attend celui-ci, puis est analysée sans être redemandée.
+            self.session = s = s.avec(photo_en_attente="|".join(entree["image"]))
+            self.accueillir()
+            return
         if not s.consentement and etat != Etat.CONSENTEMENT:
             self.accueillir()
             return
@@ -366,7 +367,10 @@ class Conversation:
             choix = choisir(entree, gabarits.BOUTONS_CONSENTEMENT)
             if choix == "accepte":
                 self.session = s.avec(consentement=True)
-                self.montrer_menu()
+                if s.photo_en_attente:
+                    self.analyser_photo(tuple(s.photo_en_attente.split("|", 1)), None)
+                else:
+                    self.montrer_menu()
             elif choix == "refuse":
                 self.magasin.effacer(s.empreinte)
                 self.texte(gabarits.refus())
@@ -416,18 +420,10 @@ class Conversation:
             self.suite_du_resultat(entree)
 
         elif etat == Etat.CONSENTEMENT_PHOTO:
-            choix = choisir(entree, gabarits.BOUTONS_CONSENTEMENT_PHOTO)
-            if choix == "photo_accepte":
-                self.session = s.avec(consentement_photo=True)
-                if s.photo_en_attente:
-                    self.analyser_photo(tuple(s.photo_en_attente.split("|", 1)), None)
-                else:
-                    self.demander_photo()
-            elif choix == "photo_refuse":
-                self.texte(gabarits.refus_photo())
-                self.etape(Etat.MENU, photo_en_attente=None)
+            if s.photo_en_attente:
+                self.analyser_photo(tuple(s.photo_en_attente.split("|", 1)), None)
             else:
-                self.boutons(gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)
+                self.demander_photo()
 
         elif etat == Etat.PHOTO:
             self.texte(gabarits.demande_photo())
