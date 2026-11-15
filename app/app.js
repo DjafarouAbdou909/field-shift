@@ -128,6 +128,7 @@ function proposer(options) {
     bouton.style.borderColor = fond;
     bouton.append(icone(nomIcone), libelle);
     bouton.addEventListener("click", () => {
+      attentePosition = false;
       bulle(libelle, "agri");
       choix.replaceChildren();
       aConfirmer = modeVoix ? `Vous avez choisi ${libelle}. ` : "";
@@ -169,7 +170,7 @@ function dire(texte, ensuite) {
     aConfirmer = "";
     if (modeVoix) parler(dernierTexteDit);
     if (ensuite) ensuite(b);
-  }, 450);
+  }, 300);
 }
 
 function distanceKm(a, b) {
@@ -212,33 +213,64 @@ function demanderLieu() {
   proposer(options);
 }
 
-// Sans connexion, le GPS ne reçoit pas l'aide du réseau et sa première position peut
-// prendre une à plusieurs minutes. La position est donc suivie jusqu'à atteindre la
-// précision voulue, et la meilleure obtenue est gardée.
-const PRECISION_VISEE_M = 100;
-const DUREE_MAX_MS = 120000;
+// Pour choisir entre les zones, quelques kilomètres de précision suffisent. L'application
+// répond donc en moins d'une seconde avec la position la plus récente que connaît le
+// téléphone. Sinon, elle laisse choisir la zone tout de suite et continue de chercher en
+// arrière-plan, sans faire attendre l'agriculteur. Sans réseau, la première position du GPS
+// peut en effet demander une ou plusieurs minutes.
+const DELAI_REPONSE_MS = 500;
+const PRECISION_SUFFISANTE_M = 5000;
+const RECHERCHE_FOND_MS = 120000;
+const AGE_MEMOIRE_MS = 7 * 24 * 3600 * 1000;
+const CLE_POSITION = "dernierePosition";
 const MESSAGES_POSITION = {
   1: "La localisation est refusée. Autorisez-la dans les réglages du téléphone, puis réessayez.",
   2: "Position introuvable. Activez la localisation du téléphone, de préférence en extérieur, puis réessayez.",
   3: "Le GPS n'a pas trouvé de position à temps. Mettez-vous à découvert, puis réessayez.",
 };
+let rechercheEnFond = null;
+let attentePosition = false;
 
-function chercherPosition(precise) {
-  return new Promise((resoudre, rejeter) => {
-    let meilleure = null;
-    const fin = (position) => {
-      navigator.geolocation.clearWatch(suivi);
-      clearTimeout(minuteur);
-      position ? resoudre(position) : rejeter({ code: 3 });
-    };
-    const suivi = navigator.geolocation.watchPosition((p) => {
-      if (!meilleure || p.coords.accuracy < meilleure.coords.accuracy) meilleure = p;
-      if (p.coords.accuracy <= PRECISION_VISEE_M) fin(meilleure);
-    }, (erreur) => {
-      if (erreur.code === 1 || !meilleure) { navigator.geolocation.clearWatch(suivi); clearTimeout(minuteur); rejeter(erreur); }
-    }, { enableHighAccuracy: precise, maximumAge: 0, timeout: DUREE_MAX_MS });
-    const minuteur = setTimeout(() => fin(meilleure), DUREE_MAX_MS);
+function memoriserPosition(position) {
+  try { localStorage.setItem(CLE_POSITION, JSON.stringify({ ...position, date: Date.now() })); } catch (e) { /* stockage indisponible */ }
+}
+
+function positionMemorisee() {
+  try {
+    const position = JSON.parse(localStorage.getItem(CLE_POSITION));
+    if (position && Date.now() - position.date < AGE_MEMOIRE_MS) return position;
+  } catch (e) { /* stockage indisponible */ }
+  return null;
+}
+
+function lirePosition(p) {
+  return { lat: p.coords.latitude, lon: p.coords.longitude, precision: p.coords.accuracy };
+}
+
+// Position déjà connue du téléphone, ou obtenue en moins de DELAI_REPONSE_MS.
+function positionRapide() {
+  return new Promise((resoudre) => {
+    navigator.geolocation.getCurrentPosition((p) => resoudre(lirePosition(p)), (erreur) => resoudre({ erreur }),
+      { enableHighAccuracy: false, maximumAge: 30 * 60 * 1000, timeout: DELAI_REPONSE_MS });
   });
+}
+
+function arreterRechercheEnFond() {
+  if (rechercheEnFond !== null) navigator.geolocation.clearWatch(rechercheEnFond);
+  rechercheEnFond = null;
+}
+
+function chercherEnFond() {
+  if (rechercheEnFond !== null) return;
+  rechercheEnFond = navigator.geolocation.watchPosition((p) => {
+    if (p.coords.accuracy > PRECISION_SUFFISANTE_M) return;
+    arreterRechercheEnFond();
+    const position = lirePosition(p);
+    memoriserPosition(position);
+    if (attentePosition) { attentePosition = false; choix.replaceChildren(); annoncerPosition(position, false); }
+  }, (erreur) => { if (erreur.code === 1) arreterRechercheEnFond(); },
+  { enableHighAccuracy: true, maximumAge: 0, timeout: RECHERCHE_FOND_MS });
+  setTimeout(arreterRechercheEnFond, RECHERCHE_FOND_MS);
 }
 
 async function localiser() {
@@ -247,20 +279,27 @@ async function localiser() {
     dire("La localisation n'est pas disponible sur ce téléphone. Choisissez votre zone.", demanderLieu);
     return;
   }
-  dire("Je cherche votre position avec le GPS du téléphone, qui fonctionne sans connexion. "
-    + "Sans réseau, cela peut prendre une ou deux minutes. Restez de préférence à découvert.");
-  let position;
-  try {
-    position = await chercherPosition(true);
-  } catch (erreur) {
-    if (erreur.code === 1) { echecPosition(erreur); return; }
-    try { position = await chercherPosition(false); } catch (seconde) { echecPosition(seconde); return; }
+  const rapide = await positionRapide();
+  if (rapide.erreur && rapide.erreur.code === 1) { echecPosition(rapide.erreur); return; }
+  if (!rapide.erreur && rapide.precision <= PRECISION_SUFFISANTE_M) {
+    memoriserPosition(rapide);
+    annoncerPosition(rapide, false);
+    return;
   }
-  const ici = { lat: position.coords.latitude, lon: position.coords.longitude };
-  const precision = Math.round(position.coords.accuracy);
+  chercherEnFond();
+  const memoire = positionMemorisee();
+  if (memoire) { annoncerPosition(memoire, true); return; }
+  attentePosition = true;
+  dire("Je cherche encore votre position avec le GPS. Sans réseau, cela peut prendre un moment. Choisissez "
+    + "votre zone en attendant, je vous préviens dès que je l'ai trouvée.", demanderLieu);
+}
+
+async function annoncerPosition(position, ancienne) {
+  const ici = { lat: position.lat, lon: position.lon };
   const [id, km] = Object.entries(donnees.lieux)
     .map(([cle, l]) => [cle, distanceKm(ici, l)]).sort((a, b) => a[1] - b[1])[0];
-  const ou = texteLieu(await nommer(ici), precision);
+  let ou = texteLieu(await nommer(ici), position.precision);
+  if (ancienne) ou = `D'après votre dernière position connue, ${ou.charAt(0).toLowerCase()}${ou.slice(1)}`;
   const zones = Object.values(donnees.lieux).map((l) => l.nom).join(" et de ");
   if (km > donnees.rayon_couverture_km) {
     dire(`${ou} Je ne connais pas encore cette zone. Pour l'instant, je conseille seulement les champs `
@@ -755,6 +794,7 @@ async function preparerPhoto(culture) {
     return;
   }
   cultureDiagnostic = culture;
+  session(culture).catch(() => { /* l'erreur sera expliquée à l'analyse */ });  // chargé pendant la prise de vue
   dire(`Prenez en photo une seule feuille de ${nom}, de près, à la lumière du jour. Vous pouvez aussi choisir une `
     + "photo déjà prise.", () => proposer([
     ["Prendre une photo", () => choisirPhoto(true), "photo"],
@@ -861,6 +901,7 @@ async function demarrer() {
   }
   await chargerFiches();
   ecranDemarrage();
+  chargerLocalites().catch(() => { /* chargées plus tard si besoin */ });  // pour nommer le lieu sans attendre
 }
 
 // Premier écran. Le téléphone n'accepte de parler qu'après un premier toucher.
