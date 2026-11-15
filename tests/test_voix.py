@@ -116,9 +116,43 @@ class TestTextesLongs(unittest.TestCase):
         parties = voix.morceaux("mot " * 400, 600)
         self.assertTrue(all(len(p) <= 600 for p in parties))
 
+    def test_synthese_gardee_en_memoire(self):
+        kora = mock.Mock()
+        kora.synthesize_speech.return_value = wav_sinus(0.5)
+        voix.synthetiser.cache_clear()
+        with mock.patch.object(voix, "_kora", return_value=kora), mock.patch.dict("os.environ", {"AETHEX_VOICE_ID": "v"}):
+            voix.voix.cache_clear()
+            premiere = voix.synthetiser("Que voulez-vous faire ?")
+            seconde = voix.synthetiser("Que voulez-vous faire ?")
+        voix.voix.cache_clear()
+        voix.synthetiser.cache_clear()
+        self.assertEqual(premiere, seconde)
+        self.assertEqual(kora.synthesize_speech.call_count, 1)
+
+    def test_morceaux_recolles_dans_l_ordre(self):
+        """Synthétisés en parallèle, les morceaux gardent l'ordre du texte."""
+        durees = {}
+
+        def synthese(morceau, identifiant, language):
+            rang = int(morceau.split()[1])
+            durees[rang] = 0.2 + rang * 0.1
+            return wav_sinus(durees[rang])
+        kora = mock.Mock()
+        kora.synthesize_speech.side_effect = synthese
+        texte = " ".join(f"Morceau {i} " + "x" * 570 + "." for i in range(3))
+        voix.synthetiser.cache_clear()
+        with mock.patch.object(voix, "_kora", return_value=kora), mock.patch.dict("os.environ", {"AETHEX_VOICE_ID": "v"}), \
+                mock.patch.object(voix, "vers_ogg_opus", side_effect=lambda *wavs: wavs) as encoder:
+            voix.voix.cache_clear()
+            wavs = voix.synthetiser(texte)
+        voix.voix.cache_clear()
+        voix.synthetiser.cache_clear()
+        self.assertEqual(wavs, tuple(wav_sinus(durees[i]) for i in range(3)))
+
     def test_une_seule_note_pour_plusieurs_morceaux(self):
         kora = mock.Mock()
         kora.synthesize_speech.return_value = wav_sinus(1.0)
+        voix.synthetiser.cache_clear()
         with mock.patch.object(voix, "_kora", return_value=kora), \
                 mock.patch.dict("os.environ", {"AETHEX_VOICE_ID": "v"}):
             voix.voix.cache_clear()

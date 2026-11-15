@@ -123,12 +123,31 @@ def telecharger_media(media_id: str) -> bytes:
     return contenu.content
 
 
-def envoyer_audio(destinataire: str, audio_ogg_opus: bytes) -> None:
-    """Téléverse la note vocale, puis l'envoie par son identifiant comme message vocal."""
+# Identifiants des notes déjà téléversées, par empreinte. Meta garde un média 30 jours.
+_medias: dict[str, tuple[float, str]] = {}
+DUREE_MEDIA_SECONDES = 29 * 24 * 3600
+
+
+def televerser_audio(audio_ogg_opus: bytes) -> str:
+    """Identifiant WhatsApp de la note vocale, téléversée une seule fois pour un même contenu."""
+    import hashlib
+    import time
+
     if len(audio_ogg_opus) > AUDIO_MAX_OCTETS:
         raise ValueError("note vocale de plus de 16 Mo")
+    empreinte = hashlib.sha256(audio_ogg_opus).hexdigest()
+    moment, identifiant = _medias.get(empreinte, (0.0, ""))
+    if identifiant and time.monotonic() - moment < DUREE_MEDIA_SECONDES:
+        return identifiant
     televersement = httpx.post(f"{URL_GRAPH}/{_numero()}/media", headers=_entetes(), timeout=60,
                                data={"messaging_product": "whatsapp", "type": "audio/ogg"},
                                files={"file": ("reponse.ogg", audio_ogg_opus, "audio/ogg")})
     televersement.raise_for_status()
-    _envoyer(destinataire, "audio", {"id": televersement.json()["id"], "voice": True})
+    identifiant = televersement.json()["id"]
+    _medias[empreinte] = (time.monotonic(), identifiant)
+    return identifiant
+
+
+def envoyer_audio(destinataire: str, audio_ogg_opus: bytes) -> None:
+    """Envoie la note vocale comme message vocal, par l'identifiant de son téléversement."""
+    _envoyer(destinataire, "audio", {"id": televerser_audio(audio_ogg_opus), "voice": True})

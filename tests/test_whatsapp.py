@@ -21,6 +21,7 @@ class TestEnvois(unittest.TestCase):
         self.env.start()
         self.post = mock.patch.object(whatsapp.httpx, "post", return_value=reponse({"id": "media-1"}))
         self.appel = self.post.start()
+        whatsapp._medias.clear()
 
     def tearDown(self):
         self.post.stop()
@@ -68,6 +69,13 @@ class TestEnvois(unittest.TestCase):
         self.assertEqual(televersement.kwargs["data"]["messaging_product"], "whatsapp")
         self.assertEqual(televersement.kwargs["files"]["file"][2], "audio/ogg")
         self.assertEqual(self.corps()["audio"], {"id": "media-1", "voice": True})
+
+    def test_note_identique_televersee_une_seule_fois(self):
+        whatsapp.envoyer_audio("225", b"OggS-meme-note")
+        whatsapp.envoyer_audio("226", b"OggS-meme-note")
+        televersements = [c for c in self.appel.call_args_list if c.args[0].endswith("/media")]
+        self.assertEqual(len(televersements), 1)
+        self.assertEqual(self.corps()["audio"]["id"], "media-1")
 
     def test_sans_jeton(self):
         with mock.patch.dict(os.environ, {"WHATSAPP_ACCESS_TOKEN": ""}), self.assertRaises(RuntimeError):

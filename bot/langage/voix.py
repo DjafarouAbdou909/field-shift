@@ -33,7 +33,7 @@ d'Aethex déformait des phrases. La qualité en français ivoirien reste à mesu
 import io
 import os
 import wave
-from functools import cache
+from functools import cache, lru_cache
 
 import av
 
@@ -151,11 +151,19 @@ def transcrire(audio: bytes, type_mime: str) -> str:
     return (getattr(resultat, "text", "") or "").strip()
 
 
+@lru_cache(maxsize=256)
 def synthetiser(texte: str) -> bytes:
-    """Retourne une note vocale en OGG Opus."""
+    """Retourne une note vocale en OGG Opus, gardée en mémoire pour un texte déjà dit.
+
+    Les morceaux d'un texte long sont synthétisés en parallèle, puis recollés dans l'ordre.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
     identifiant = voix()
     if identifiant is None:
         raise RuntimeError("aucune voix française proposée par Aethex")
-    wavs = [_kora().synthesize_speech(morceau, identifiant, language=LANGUE)
-            for morceau in morceaux(texte, SYNTHESE_MAX_CARACTERES)]
+    parties = morceaux(texte, SYNTHESE_MAX_CARACTERES)
+    with ThreadPoolExecutor(max_workers=min(4, len(parties)) or 1) as executeur:
+        wavs = list(executeur.map(lambda morceau: _kora().synthesize_speech(morceau, identifiant, language=LANGUE),
+                                  parties))
     return vers_ogg_opus(*wavs)
