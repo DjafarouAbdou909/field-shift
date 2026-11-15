@@ -19,7 +19,7 @@ AgriBot closes that gap. A transparent engine turns 25 years of NASA precipitati
 | | |
 |---|---|
 | **Problem** | Shifting rains, plant diseases recognised too late, and advice that does not reach farmers who cannot read |
-| **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery, a first opinion on plant photos, all by voice on WhatsApp |
+| **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery and a first opinion on plant photos, by voice on WhatsApp, plus an offline web app for areas without a network |
 | **Users** | Smallholder farmers, and the extension advisors who support them |
 | **Demo deck** | [presentation/AgriBot_Presentation_EN.pdf](presentation/AgriBot_Presentation_EN.pdf), 7 slides, French version alongside |
 
@@ -107,9 +107,10 @@ Many farms have no reliable network. The [offline/](offline/) folder holds a sec
 |---|---|
 | **Data** | Same NASA POWER and GPM IMERG series and FAO-56 rules as the main engine; every recommendation is precomputed into `app/donnees/recommandations.json` |
 | **Runtime** | Installable web app with a service worker; no server, no network and no language model once loaded |
-| **Accessibility** | Pictogram on every button, voice reading of every message, GPS location without network, voice notes kept on the phone for the advisor |
-| **Leaf diagnosis** | ONNX model run in the browser with ONNX Runtime Web; training notebooks in `offline/entrainement/` |
-| **Tests** | `cd offline && python -m unittest discover -s tests -t .`, including FAO-56 example 18 |
+| **Accessibility** | Pictogram on every button, every message read aloud by the phone’s built-in speech synthesis, GPS location without network, voice notes kept on the phone for the advisor |
+| **Leaf diagnosis** | MobileNetV3 maize leaf model trained by the team in Google Colab on openly licensed field photos from Uganda, Tanzania and Namibia, run in the browser with ONNX Runtime Web; it answers “not sure” below its confidence threshold and refuses photos without vegetation |
+| **Measured reliability** | Tested in Ghana, a country never seen in training: maize streak recognised 78 times in 100 (75 to 81), and a streak answer is right 95 times in 100; healthy leaves recognised only 26 times in 100, the model saying “not sure” 67 times in 100. These figures are shown under every answer |
+| **Tests** | 20 unit tests, including FAO-56 example 18 |
 
 Its full commit history is preserved in this repository. See [offline/README.md](offline/README.md) for details, in French.
 
@@ -123,13 +124,16 @@ Its full commit history is preserved in this repository. See [offline/README.md]
 | **Groq**, `openai/gpt-oss-120b` | Understands free answers and writes short replies to farming questions | Strict JSON schema; system prompt forbids products and speaking for ANADER; output filtered again |
 | **Google Gemini**, `gemini-4-hydrogen` | First opinion on plant photos | Called for photos only; never names a product; every answer ends with a fixed advisory notice |
 | **Aethex** | **AI-generated voice** of every spoken reply | Streaming synthesis; fixed phrases cached; daily character cap |
+| **MobileNetV3 leaf model**, trained by the team (offline app) | Recognises maize streak and northern leaf blight on the phone, without network | Trained in Google Colab on openly licensed datasets; answers “not sure” below threshold; reliability shown with every answer |
+| **Phone speech synthesis** (offline app) | Reads messages aloud | Uses the voices already installed on the phone, through the browser’s Web Speech API |
 
-AI never produces the rotation ranking, the scores or the vegetation alert. Texts built from engine outputs pass a guardrail that rejects any figure, crop, disease or cause the engine did not produce.
+AI never produces the rotation ranking, the scores or the vegetation alert, in either channel. Texts built from engine outputs pass a guardrail that rejects any figure, crop, disease or cause the engine did not produce.
 
 ### In development
 
 - **AI coding assistant.** The team used Claude Code (Anthropic) throughout the hackathon to write and refactor code, tests and documentation, and to draft the presentation. The team specified each task, reviewed the changes, ran the tests and notebooks, and took every design decision, logged in [docs/decisions.md](docs/decisions.md).
-- **Figures.** Every figure in this repository comes from code executed on the NASA data, not from a language model.
+- **Model training.** The offline leaf model was trained by the team in Google Colab; the notebooks are in [offline/entrainement/](offline/entrainement/).
+- **Figures.** Every figure in this repository comes from code executed on NASA data or on the test images, not from a language model.
 - **Images.** No AI-generated images are used. Photos come from the team and from a Canva template.
 - **Prompt reuse.** The photo-diagnosis prompt was first adapted from the team’s earlier AGRI-BOT project, as declared in [docs/travail_anterieur.md](docs/travail_anterieur.md).
 
@@ -188,6 +192,7 @@ venv/bin/python -m moteur.evaluation                 # evaluation of the publish
 venv/bin/python -m moteur.evolution                  # 2001-2012 versus 2013-2025, checked with MERRA-2
 venv/bin/python -m moteur.alerte                     # HLS vegetation alert per town
 venv/bin/python notebooks/executer.py                # re-run the five CRISP-DM notebooks
+(cd offline && ../venv/bin/python -m unittest discover -s tests -t .)   # offline platform tests
 ```
 
 AppEEARS extractions require a NASA Earthdata account in `~/.netrc`, then `venv/bin/python -m moteur.appeears suivre`.
@@ -217,6 +222,7 @@ field-shift/
 | IMERG and MERRA-2 disagree on the rain onset trend at Korhogo | Arbitrate with Ivorian ground stations (SODEXAM) |
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
 | MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
+| The offline leaf model recognises healthy leaves only 26 times in 100 and covers maize only | Retrain on field photos from Côte d’Ivoire; add the cocoa model in preparation |
 | The bot currently runs on a team laptop | Deploy on a cloud virtual machine with a fixed HTTPS domain |
 
 ## Prior work and decisions
