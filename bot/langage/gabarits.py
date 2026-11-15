@@ -39,9 +39,9 @@ def accueil() -> str:
             "votre conseiller ANADER.\n"
             "Ce service est réservé aux personnes de 18 ans ou plus.\n"
             "Pour vous répondre, je garde votre zone, votre rotation et votre priorité, sans votre numéro en clair. "
-            "Vos messages vocaux sont transcrits par le service Aethex, et vos questions écrites peuvent être "
-            "analysées par le service Gemini de Google. Field Shift ne garde ni vos messages vocaux ni vos "
-            "questions. Écrivez STOP à tout moment pour tout effacer. Acceptez-vous ?")
+            "Vos messages vocaux et vos réponses sont compris par le service Gemini de Google, et mes réponses "
+            "vocales sont lues par le service Aethex. Field Shift ne garde ni vos messages vocaux ni vos questions. Dites "
+            "ou écrivez STOP à tout moment pour tout effacer. Acceptez-vous ?")
 
 
 BOUTONS_CONSENTEMENT = {"accepte": "J'accepte", "refuse": "Non merci"}
@@ -138,7 +138,7 @@ def pourquoi(reco: Recommandation) -> str:
 
 
 def suite() -> str:
-    return "Voulez-vous en savoir plus ? Vous pouvez aussi m'écrire votre question."
+    return "Voulez-vous en savoir plus ? Vous pouvez aussi me poser votre question."
 
 
 def calcul_en_cours() -> str:
@@ -191,6 +191,36 @@ def diagnostic(d: Diagnostic) -> str:
     return f"[TEST, données fictives]\n{d.texte}" if d.donnees_fictives else d.texte
 
 
+# Réponses dites à voix haute
+
+MOTS_CLES = {
+    "accepte": ["oui", "j'accepte", "accepte", "d'accord", "daccord", "ok", "okay", "vas y", "c'est bon"],
+    "refuse": ["non", "refuse", "pas d'accord"],
+    "photo_accepte": ["oui", "j'accepte", "accepte", "d'accord", "daccord", "ok", "okay", "vas y", "c'est bon"],
+    "photo_refuse": ["non", "refuse", "pas d'accord"],
+    "rotation": ["rotation", "conseil", "rotations", "cultiver", "cultures", "semer", "planter", "quoi semer"],
+    "photo": ["photo", "maladie", "malade", "feuille", "feuilles", "diagnostic", "image", "plante malade"],
+    "korhogo": ["korhogo", "poro", "nord"],
+    "bouake": ["bouake", "gbeke", "centre"],
+    "coton_mais": ["coton+mais", "coton puis mais", "coton et mais", "coton mais", "coton avec mais", "coton et le mais"],
+    "coton_niebe_mais": ["coton+niebe", "niebe", "coton niebe", "coton et niebe", "coton niebe mais"],
+    "sorgho_niebe": ["sorgho+niebe", "sorgho", "sorgho niebe", "sorgho et niebe", "sorgho puis niebe"],
+    "eau": ["eau", "pluie", "secheresse", "sec", "arrosage"],
+    "revenu": ["debouche", "revenu", "argent", "vendre", "vente", "filiere"],
+    "sol": ["sol", "terre", "azote", "fertilite", "enrichir"],
+    "pourquoi": ["pourquoi", "explique", "expliquer", "raison", "raisons"],
+    "ecouter": ["ecouter", "ecoute", "voix", "audio", "lis", "lire", "parle"],
+    "detail": ["detail", "details", "chiffres", "page", "lien", "plus"],
+}
+
+
+def choix_a_dire(options: dict[str, str]) -> str:
+    """Phrase qui lit les choix à voix haute, pour qui ne lit pas les boutons."""
+    titres = [t.rstrip(" ?") for t in options.values()]
+    enumeres = ", ".join(titres[:-1]) + f", ou {titres[-1]}" if len(titres) > 1 else titres[0]
+    return f"Vous pouvez répondre en disant, {enumeres}."
+
+
 # Messages communs
 
 def vocal_indisponible() -> str:
@@ -198,7 +228,7 @@ def vocal_indisponible() -> str:
 
 
 def incompris() -> str:
-    return "Je n'ai pas compris. Répondez avec les boutons, ou écrivez Bonjour pour recommencer."
+    return "Je n'ai pas compris. Répondez avec les boutons ou par un message vocal, ou dites Bonjour pour recommencer."
 
 
 def erreur_technique() -> str:
