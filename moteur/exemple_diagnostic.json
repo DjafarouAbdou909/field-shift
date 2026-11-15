@@ -1,12 +1,8 @@
 {
   "version": "2",
   "donnees_fictives": true,
-  "culture": "coton",
-  "statut": "maladie_possible",
-  "maladie": "maladie fictive A",
-  "confiance": 0.72,
-  "liste": ["maladie fictive A", "maladie fictive B"],
-  "source_maladie": {"nom": "Source fictive", "reference": "exemple de développement, aucune donnée réelle"},
-  "origine_images": "Exemple fictif, aucune image réelle.",
-  "avertissement": "DONNÉES FICTIVES pour le développement, à ne jamais présenter. Maladie possible, à faire confirmer par votre conseiller ANADER."
+  "culture_declaree": "coton",
+  "statut": "analyse",
+  "texte": "DONNÉES FICTIVES pour le développement, à ne jamais présenter.\n*Plante identifiée* : feuille fictive.\n*Diagnostic probable* : problème fictif A.\n*Explication simple* : cause fictive.\n*Recommandation concrète* : action fictive.\n\n⚠️ Diagnostic indicatif basé sur l'image, ne remplace pas l'avis de votre conseiller ANADER pour les cas graves ou incertains.",
+  "origine_images": "Exemple fictif, aucune image réelle."
 }

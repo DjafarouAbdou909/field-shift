@@ -1,41 +1,39 @@
-"""Diagnostic par photo d'une feuille avec l'API Gemini de Google, décision du 14 novembre 2026.
+"""Diagnostic d'une photo de plante avec l'API Gemini de Google, à la manière du projet agri-bot.
+
+Décision du responsable du 15 novembre 2026. Le modèle répond librement, pour toute
+culture, en identifiant la plante, en donnant le diagnostic probable, en l'expliquant et
+en recommandant une action concrète. La consigne reprend celle de agri-bot,
+backend/nlp/prompts.py, DIAGNOSIS_PROMPT_TEMPLATE, et ses messages d'échec ceux de
+backend/vision/disease_client.py, le vouvoiement et le conseiller ANADER remplaçant le
+tutoiement et l'agent agricole. Le texte du modèle n'est ni filtré ni réécrit, sauf
+l'avertissement final, toujours rétabli.
 
 Modèle, adresse et réglages vérifiés le 14 novembre 2026 dans la documentation officielle,
 https://aistudio.google.com/docs, vers laquelle renvoie https://ai.google.dev/gemini-api/docs.
 
-- Modèle gemini-4-hydrogen, version stable, entrées texte et image, sorties structurées,
-  page docs/models/gemini-4-hydrogen. La page docs/models définit une version stable
-  comme un modèle précis qui ne change habituellement pas, contrairement aux alias latest.
-- API Interactions en version v1, la version stable, page api-reference/api-versions.
-- store à faux. Sinon l'API conserve chaque interaction 55 jours au niveau payant, page
-  docs/interactions-overview, section Data storage and retention.
-- Niveau payant obligatoire, avec un projet Cloud lié à un compte de facturation actif. Au
-  niveau gratuit, Google utilise les images envoyées pour améliorer ses produits et des
-  personnes peuvent les relire. Au niveau payant, il ne les utilise pas à cette fin et les
-  journalise pour une durée limitée, pour la seule détection des abus. Conditions
-  additionnelles de l'API Gemini, en vigueur depuis le 23 mars 2026, page docs/terms.
-- Image envoyée en ligne, encodée en base64, jamais écrite sur disque par ce module. La
-  requête est limitée à 20 Mo, page docs/image-understanding. En v1, texte et image vont
-  dans une étape user_input, l'image seule dans input étant refusée par l'API le 15 novembre
-  2026 avec le message que ce type n'existe qu'en v1beta.
-- Résolution high, environ 1 120 jetons par image, réglage recommandé pour les images par
-  la page docs/media-resolution.
-
-La réponse est imposée par un schéma JSON à deux champs, reponse, prise dans une
-énumération de la liste fermée de la culture, de aucune_maladie_reconnue et de inconnu, et
-confiance, de 0 à 1. Tout ce qui sort de la liste, et toute réponse illisible, devient
-inconnu. Le modèle ne rend aucun texte libre, si bien qu'aucun traitement ni produit ne
-peut apparaître. La confiance est celle que déclare le modèle, sans calibration.
+- Modèle gemini-4-hydrogen, version stable, entrées texte et image, page
+  docs/models/gemini-4-hydrogen.
+- API Interactions en version v1, la version stable. Texte et image vont dans une étape
+  user_input, l'image seule dans input étant refusée par l'API le 15 novembre 2026.
+- store à faux. Sinon l'API conserve chaque interaction 55 jours au niveau payant.
+- Niveau payant obligatoire. Au niveau gratuit, Google utilise les images envoyées pour
+  améliorer ses produits et des personnes peuvent les relire. Conditions additionnelles
+  de l'API Gemini en vigueur depuis le 23 mars 2026, page docs/terms.
+- Formats JPEG, PNG, WebP, HEIC et HEIF, ceux de agri-bot, tous listés par la page
+  docs/image-understanding. Image envoyée en ligne, encodée en base64, jamais écrite sur
+  disque. Requête limitée à 20 Mo.
+- Résolution high, environ 1 120 jetons par image, page docs/media-resolution.
 """
 
 import base64
-import json
+import logging
 import os
 
 import requests
 
-from .contrat import MESSAGES_DIAGNOSTIC, Diagnostic
-from .maladies import MALADIES, liste, source_maladie
+from .contrat import AVERTISSEMENT_DIAGNOSTIC, Diagnostic
+
+journal = logging.getLogger("moteur")
 
 MODELE = "gemini-4-hydrogen"
 MODELE_VERIFIE_LE = "2026-11-14"
@@ -43,52 +41,49 @@ ADRESSE = "https://generativelanguage.googleapis.com/v1/interactions"
 RESOLUTION = "high"
 NIVEAU_DE_REFLEXION = "low"
 GRAINE = 2026
+TAILLE_MIN_OCTETS = 100
 TAILLE_MAX_OCTETS = 14 * 1024 * 1024  # base64 grossit de 4 tiers, la requête reste sous 20 Mo
-TYPES_IMAGE = {"image/jpeg", "image/png"}
-CULTURES = sorted({maladie["culture"] for maladie in MALADIES.values()})
-AUCUNE, INCONNU = "aucune_maladie_reconnue", "inconnu"
+TYPES_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
 ORIGINE = (f"Photo envoyée par l'utilisateur, analysée par Google Gemini, modèle {MODELE}, sans conservation "
            "par Field Shift.")
 
+CONSIGNE = """Tu es un assistant agricole qui aide à orienter un agriculteur, pas un laboratoire phytosanitaire certifié.
 
-def reponses_permises(culture: str) -> list[str]:
-    return liste(culture) + [AUCUNE, INCONNU]
+IMPORTANT : la conversation est déjà en cours avec cet agriculteur. Ne commence JAMAIS ta réponse par une salutation ("Salut", "Bonjour", "Salut l'ami agriculteur", etc.). Va directement au diagnostic.
+
+Analyse cette image de plante et réponds en français simple, format WhatsApp (court) :
+
+1. *Plante identifiée* : identifie ce que montre réellement l'image (fruit, feuille, tige de quelle culture ?). Base-toi UNIQUEMENT sur ce que tu vois, pas sur la culture déclarée par l'agriculteur ci-dessous.
+2. *Diagnostic probable* : la maladie ou le problème le plus probable visible. En cas de doute entre 2 possibilités proches, mentionne les deux brièvement.
+3. *Explication simple* : 1-2 phrases sur la cause probable.
+4. *Recommandation concrète* : action immédiate à prendre.
+
+Si la plante identifiée à l'étape 1 NE correspond PAS à la culture déclarée par l'agriculteur ci-dessous, dis-le clairement dès le début de ta réponse (ex : "Cette image montre du cacao, pas de la tomate comme vous l'aviez mentionné.").
+
+Si l'image n'est pas une plante, dis-le clairement et n'invente pas de diagnostic.
+
+Termine TOUJOURS par : "{avertissement}"
+
+Culture déclarée par l'agriculteur : {culture}
+"""
+
+ILLISIBLE = "Je n'ai pas pu lire cette image. Réessayez de l'envoyer 📸"
+FORMAT_REFUSE = "Ce format d'image n'est pas pris en charge. Envoyez une photo, en JPEG ou en PNG 📸"
+A_REESSAYER = "Je n'ai pas pu analyser cette image. Essayez une photo plus nette, de près, sous bonne lumière 📸"
 
 
-def schema(culture: str) -> dict:
-    """Schéma JSON imposé à la réponse du modèle."""
-    return {"type": "object",
-            "properties": {"reponse": {"type": "string", "enum": reponses_permises(culture)},
-                           "confiance": {"type": "number", "minimum": 0, "maximum": 1}},
-            "required": ["reponse", "confiance"]}
+def consigne(culture: str | None) -> str:
+    return CONSIGNE.format(avertissement=AVERTISSEMENT_DIAGNOSTIC, culture=culture or "non précisée")
 
 
-def consigne(culture: str) -> str:
-    """Consigne envoyée avec la photo, sans description de symptôme non sourcée."""
-    maladies = "; ".join(f"{nom}, agent {MALADIES[nom]['agent']}" for nom in liste(culture))
-    return (f"Tu examines la photo d'une feuille de {culture} prise au champ en Côte d'Ivoire. Réponds par une seule "
-            f"valeur de la liste permise. Les maladies que tu peux nommer sont {maladies}. Si la feuille montre "
-            f"clairement l'une d'elles, réponds son nom. Si la feuille ne montre aucun signe de maladie, réponds "
-            f"{AUCUNE}. Si la photo n'est pas une feuille de {culture}, si elle est floue, trop sombre ou montre "
-            f"plusieurs plantes sans détail, si la feuille montre une autre maladie, un ravageur ou un dégât, ou si "
-            f"tu hésites, réponds {INCONNU}. Donne ta confiance de 0 à 1 dans cette réponse.")
-
-
-def requete(image: bytes, type_image: str, culture: str) -> dict:
+def requete(image: bytes, type_image: str, culture: str | None) -> dict:
     """Corps de la requête à l'API Interactions."""
-    if culture not in CULTURES:
-        raise ValueError(f"culture hors de la liste, {culture}")
-    if type_image not in TYPES_IMAGE:
-        raise ValueError(f"type d'image non pris en charge, {type_image}")
-    if len(image) > TAILLE_MAX_OCTETS:
-        raise ValueError("image trop lourde pour une requête en ligne")
     return {"model": MODELE, "store": False,
             "input": [{"type": "user_input", "content": [
                 {"type": "text", "text": consigne(culture)},
                 {"type": "image", "data": base64.b64encode(image).decode("ascii"), "mime_type": type_image,
                  "resolution": RESOLUTION}]}],
-            "generation_config": {"seed": GRAINE, "thinking_level": NIVEAU_DE_REFLEXION},
-            "response_format": {"type": "text", "mime_type": "application/json", "schema": schema(culture)}}
+            "generation_config": {"seed": GRAINE, "thinking_level": NIVEAU_DE_REFLEXION}}
 
 
 def texte_de_sortie(interaction: dict) -> str | None:
@@ -100,23 +95,24 @@ def texte_de_sortie(interaction: dict) -> str | None:
     return "".join(textes) or None
 
 
-def interpreter(texte: str | None, culture: str) -> Diagnostic:
-    """Diagnostic du contrat à partir du texte JSON rendu par le modèle. Tout écart devient inconnu."""
-    try:
-        sortie = json.loads(texte)
-        reponse, confiance = sortie["reponse"], float(sortie["confiance"])
-        if not 0 <= confiance <= 1:
-            raise ValueError
-    except (TypeError, ValueError, KeyError):
-        reponse, confiance = INCONNU, 0.0
-    if reponse not in reponses_permises(culture):
-        reponse, confiance = INCONNU, 0.0
-    malade = reponse not in (AUCUNE, INCONNU)
-    statut = "maladie_possible" if malade else reponse
-    return Diagnostic(donnees_fictives=False, culture=culture, statut=statut, maladie=reponse if malade else None,
-                      confiance=confiance, liste=liste(culture),
-                      source_maladie=source_maladie(reponse) if malade else None, origine_images=ORIGINE,
-                      avertissement=MESSAGES_DIAGNOSTIC[statut])
+def avec_avertissement(texte: str) -> str:
+    """Rétablit l'avertissement final, en remplaçant une dernière ligne d'avertissement reformulée."""
+    lignes = texte.rstrip().split("\n")
+    if lignes and lignes[-1].strip().startswith("⚠️"):
+        lignes = lignes[:-1]
+    return "\n".join(lignes).rstrip() + "\n\n" + AVERTISSEMENT_DIAGNOSTIC
+
+
+def echec(message: str, culture: str | None) -> Diagnostic:
+    return Diagnostic(donnees_fictives=False, culture_declaree=culture, statut="echec", texte=message,
+                      origine_images=ORIGINE)
+
+
+def interpreter(texte: str | None, culture: str | None) -> Diagnostic:
+    if not texte or not texte.strip():
+        return echec(A_REESSAYER, culture)
+    return Diagnostic(donnees_fictives=False, culture_declaree=culture, statut="analyse",
+                      texte=avec_avertissement(texte.strip()), origine_images=ORIGINE)
 
 
 def appeler(corps: dict, session: requests.Session | None = None, cle: str | None = None) -> dict:
@@ -130,7 +126,22 @@ def appeler(corps: dict, session: requests.Session | None = None, cle: str | Non
     return reponse.json()
 
 
-def diagnostiquer(image: bytes, type_image: str, culture: str, session: requests.Session | None = None,
-                  cle: str | None = None) -> Diagnostic:
-    """Diagnostic d'une photo de feuille. L'image reste en mémoire et n'est jamais écrite."""
-    return interpreter(texte_de_sortie(appeler(requete(image, type_image, culture), session, cle)), culture)
+def type_de_base(type_image: str | None) -> str:
+    return (type_image or "image/jpeg").split(";")[0].strip().lower()
+
+
+def diagnostiquer(image: bytes, type_image: str | None, culture: str | None = None,
+                  session: requests.Session | None = None, cle: str | None = None) -> Diagnostic:
+    """Diagnostic d'une photo de plante. L'image reste en mémoire et n'est jamais écrite."""
+    if not image or len(image) < TAILLE_MIN_OCTETS or len(image) > TAILLE_MAX_OCTETS or image.lstrip()[:1] == b"{":
+        journal.warning("contenu d'image suspect, %s octets", len(image or b""))
+        return echec(ILLISIBLE, culture)
+    type_image = type_de_base(type_image)
+    if type_image not in TYPES_IMAGE:
+        return echec(FORMAT_REFUSE, culture)
+    try:
+        interaction = appeler(requete(image, type_image, culture), session, cle)
+    except Exception as erreur:
+        journal.error("échec du diagnostic, %s", type(erreur).__name__)
+        return echec(A_REESSAYER, culture)
+    return interpreter(texte_de_sortie(interaction), culture)

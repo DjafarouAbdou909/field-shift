@@ -1,6 +1,5 @@
 import unittest
 
-from moteur.contrat import MESSAGES_DIAGNOSTIC, Diagnostic
 from moteur.maladies import HORS_MODELE, MALADIES, liste, source_maladie
 
 
@@ -16,11 +15,6 @@ class TestMaladies(unittest.TestCase):
         self.assertEqual(len(liste("coton")), 1)
         self.assertFalse(set(HORS_MODELE) & set(MALADIES))
 
-    def test_un_diagnostic_peut_citer_chaque_maladie(self):
-        for nom, maladie in MALADIES.items():
-            Diagnostic(donnees_fictives=False, culture=maladie["culture"], statut="maladie_possible", maladie=nom,
-                       confiance=0.9, liste=liste(maladie["culture"]), source_maladie=source_maladie(nom),
-                       origine_images="essai", avertissement=MESSAGES_DIAGNOSTIC["maladie_possible"])
 
 
 if __name__ == "__main__":

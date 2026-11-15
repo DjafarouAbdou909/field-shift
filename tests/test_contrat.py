@@ -4,7 +4,7 @@ import unittest
 from pydantic import ValidationError
 
 from moteur import charger_exemple, charger_exemple_alerte, charger_exemple_diagnostic
-from moteur.contrat import MESSAGES_DIAGNOSTIC, AlerteVegetation, Diagnostic, Element, Indicateur, Poids, Recommandation
+from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC, AlerteVegetation, Diagnostic, Element, Indicateur, Poids, Recommandation
 from moteur.recommander import EXEMPLE, EXEMPLE_ALERTE, EXEMPLE_DIAGNOSTIC
 
 
@@ -73,29 +73,16 @@ class TestContratVersion2(unittest.TestCase):
         with self.assertRaises(ValidationError):
             AlerteVegetation.model_validate(dict(self.alerte, statut="indisponible"))
 
-    def test_diagnostic_dans_la_liste_fermee(self):
+    def test_analyse_finit_par_l_avertissement(self):
+        Diagnostic.model_validate(self.diagnostic)
         with self.assertRaises(ValidationError):
-            Diagnostic.model_validate(dict(self.diagnostic, maladie="maladie hors liste"))
-        Diagnostic.model_validate(dict(self.diagnostic, statut="inconnu", maladie=None, source_maladie=None))
-        with self.assertRaises(ValidationError):
-            Diagnostic.model_validate(dict(self.diagnostic, statut="inconnu"))
+            Diagnostic.model_validate(dict(self.diagnostic, texte="Diagnostic sans avertissement."))
+        self.assertIn("conseiller ANADER", AVERTISSEMENT_DIAGNOSTIC)
 
-    def test_aucune_maladie_reconnue_ne_nomme_aucune_maladie(self):
-        sans_maladie = dict(self.diagnostic, statut="aucune_maladie_reconnue", maladie=None, source_maladie=None,
-                            avertissement=MESSAGES_DIAGNOSTIC["aucune_maladie_reconnue"])
-        Diagnostic.model_validate(sans_maladie)
+    def test_echec_sans_avertissement_exige(self):
+        Diagnostic.model_validate(dict(self.diagnostic, statut="echec", texte="Je n'ai pas pu lire cette image."))
         with self.assertRaises(ValidationError):
-            Diagnostic.model_validate(dict(sans_maladie, maladie="maladie fictive A"))
-        with self.assertRaises(ValidationError):
-            Diagnostic.model_validate(dict(sans_maladie, statut="saine"))
-
-    def test_chaque_message_renvoie_au_conseiller(self):
-        for message in MESSAGES_DIAGNOSTIC.values():
-            self.assertIn("conseiller ANADER", message)
-
-    def test_diagnostic_renvoie_au_conseiller(self):
-        with self.assertRaises(ValidationError):
-            Diagnostic.model_validate(dict(self.diagnostic, avertissement="Maladie possible."))
+            Diagnostic.model_validate(dict(self.diagnostic, statut="maladie_possible"))
 
 
 if __name__ == "__main__":

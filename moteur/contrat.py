@@ -1,7 +1,7 @@
 """Contrat entre le moteur et ses interfaces.
 
 Le moteur renvoie trois objets, la Recommandation de rotations, l'AlerteVegetation et le
-Diagnostic d'une photo de feuille. Ce sont les seules choses que l'application Streamlit
+Diagnostic d'une photo de plante. Ce sont les seules choses que l'application Streamlit
 et le bot WhatsApp lisent. Toute modification de ce fichier incrémente VERSION, met à
 jour les exemples fictifs et est notée dans docs/decisions.md.
 
@@ -166,45 +166,30 @@ class AlerteVegetation(_Strict):
         return self
 
 
-MESSAGES_DIAGNOSTIC = {
-    "maladie_possible": "Maladie possible, à faire confirmer par votre conseiller ANADER.",
-    "aucune_maladie_reconnue": ("Je ne reconnais aucune des maladies que je connais. Si la plante va mal, "
-                                "montrez-la à votre conseiller ANADER."),
-    "inconnu": ("Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille, à la lumière "
-                "du jour, ou montrez la plante à votre conseiller ANADER."),
-}
+AVERTISSEMENT_DIAGNOSTIC = ("⚠️ Diagnostic indicatif basé sur l'image, ne remplace pas l'avis de votre conseiller "
+                            "ANADER pour les cas graves ou incertains.")
 
 
 class Diagnostic(_Strict):
-    """Maladie possible d'après une photo de feuille, choisie dans une liste fermée.
+    """Diagnostic d'une photo de plante rédigé librement par le modèle, à la manière du projet agri-bot.
 
-    Trois statuts. maladie_possible nomme une maladie de la liste avec sa source.
-    aucune_maladie_reconnue dit que la feuille ne ressemble à aucune maladie de la liste,
-    sans jamais garantir que la plante est saine. inconnu dit que le modèle ne sait pas
-    répondre, photo illisible ou confiance sous le seuil, ce qui couvre aussi les maladies
-    hors de la liste. Le diagnostic ne recommande jamais de traitement ni de produit, et
-    renvoie toujours au conseiller ANADER, dans les messages de MESSAGES_DIAGNOSTIC.
+    Décision du responsable du 15 novembre 2026. Le modèle identifie la plante, donne le
+    diagnostic probable, l'explique et recommande une action concrète, pour toute culture,
+    sans liste fermée. statut analyse quand le modèle a rendu un texte, qui se termine
+    toujours par AVERTISSEMENT_DIAGNOSTIC. statut echec quand la photo n'a pas pu être
+    analysée, le texte étant alors un message du bot.
     """
 
     version: Literal["2"] = VERSION
     donnees_fictives: bool
-    culture: str = Field(min_length=1)
-    statut: Literal["maladie_possible", "aucune_maladie_reconnue", "inconnu"]
-    maladie: str | None = None
-    confiance: float = Field(ge=0, le=1)
-    liste: list[str] = Field(min_length=1)
-    source_maladie: Source | None = None
+    culture_declaree: str | None = None
+    statut: Literal["analyse", "echec"]
+    texte: str = Field(min_length=1)
     origine_images: str = Field(min_length=1)
-    avertissement: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def _diagnostic_coherent(self):
-        if self.statut == "maladie_possible":
-            if self.maladie not in self.liste or self.source_maladie is None:
-                raise ValueError("une maladie possible appartient à la liste fermée et cite sa source")
-        elif self.maladie is not None or self.source_maladie is not None:
-            raise ValueError("seul un diagnostic de maladie possible nomme une maladie")
-        if "conseiller ANADER" not in self.avertissement:
-            raise ValueError("l'avertissement renvoie au conseiller ANADER")
+    def _avertissement_final(self):
+        if self.statut == "analyse" and not self.texte.rstrip().endswith(AVERTISSEMENT_DIAGNOSTIC):
+            raise ValueError("une analyse se termine par l'avertissement du diagnostic")
         return self
 

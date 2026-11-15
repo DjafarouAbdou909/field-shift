@@ -1,4 +1,8 @@
-"""Liste fermée des maladies du diagnostic par photo, décision du 14 novembre 2026.
+"""Liste des maladies sourcées, établie le 14 novembre 2026 pour le diagnostic par photo.
+
+Depuis le 15 novembre 2026, le diagnostic répond librement, à la manière du projet
+agri-bot, et cette liste ne lui est plus imposée. Elle sert au garde-fou, qui refuse un
+nom de maladie dans un message de recommandation ou d'alerte où le moteur n'en cite pas.
 
 Quatre maladies des feuilles du coton et du maïs, chacune citée avec une source lue sur sa
 présence en Côte d'Ivoire ou en Afrique de l'Ouest, et avec des images de terrain sous
