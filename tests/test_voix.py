@@ -163,3 +163,24 @@ class TestTextesLongs(unittest.TestCase):
         with av.open(io.BytesIO(note)) as c:
             duree = float(c.duration) / 1e6
         self.assertAlmostEqual(duree, kora.synthesize_speech.call_count * 1.0, delta=0.3)
+
+
+class TestCreditsEpuises(unittest.TestCase):
+    def tearDown(self):
+        voix._en_pause_jusqua = 0.0
+        voix.voix.cache_clear()
+        voix.synthetiser.cache_clear()
+
+    def test_pause_apres_refus_de_paiement(self):
+        erreur = RuntimeError("You're out of credits. Add credits to keep making calls.")
+        erreur.status_code = 402
+        kora = mock.Mock()
+        kora.synthesize_speech.side_effect = erreur
+        voix.synthetiser.cache_clear()
+        with mock.patch.object(voix, "_kora", return_value=kora), \
+                mock.patch.dict("os.environ", {"AETHEX_VOICE_ID": "v", "AETHEX_API_KEY": "k"}):
+            voix.voix.cache_clear()
+            self.assertTrue(voix.configuree())
+            with self.assertRaises(RuntimeError):
+                voix.synthetiser("Bonjour")
+            self.assertFalse(voix.configuree(), "Aethex est mis en pause, le bot répond par écrit sans attendre")

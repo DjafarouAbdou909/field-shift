@@ -35,8 +35,11 @@ import os
 import wave
 from functools import cache, lru_cache
 
+import logging
+
 import av
 
+journal = logging.getLogger("bot")
 URL_API = "https://api.aethexai.com"
 LANGUE = "french"
 PAYS = "CI"
@@ -49,8 +52,25 @@ DEBIT_OPUS = 24000
 SYNTHESE_MAX_CARACTERES = 600  # Aethex refuse plus de 650 caractères par requête, message lu le 15 novembre 2026
 
 
+PAUSE_CREDITS_SECONDES = 15 * 60
+_en_pause_jusqua = 0.0
+
+
 def configuree() -> bool:
-    return bool(os.environ.get("AETHEX_API_KEY"))
+    """Vrai si Aethex a une clé et n'est pas en pause après un refus pour crédits épuisés."""
+    import time
+
+    return bool(os.environ.get("AETHEX_API_KEY")) and time.monotonic() >= _en_pause_jusqua
+
+
+def _signaler_refus(erreur: Exception) -> None:
+    """Met Aethex en pause quinze minutes après un refus de paiement, code 402."""
+    import time
+
+    global _en_pause_jusqua
+    if getattr(erreur, "status_code", None) == 402 or "credits" in str(erreur).lower():
+        _en_pause_jusqua = time.monotonic() + PAUSE_CREDITS_SECONDES
+        journal.warning("crédits Aethex épuisés, voix mise en pause %s minutes", PAUSE_CREDITS_SECONDES // 60)
 
 
 @cache
@@ -98,8 +118,9 @@ def pcm_vers_ogg_opus(pcm: bytes) -> bytes:
         flux = conteneur.add_stream("libopus", rate=TAUX_OPUS, layout="mono")
         flux.bit_rate = DEBIT_OPUS
         echantillons = np.frombuffer(pcm, dtype=np.int16)
-        for debut in range(0, len(echantillons), TAUX_OPUS // 50):
-            morceau = echantillons[debut:debut + TAUX_OPUS // 50].reshape(1, -1)
+        # Tranches d'une seconde, PyAV redécoupant pour Opus, au lieu de milliers de tranches de 20 ms.
+        for debut in range(0, len(echantillons), TAUX_OPUS):
+            morceau = echantillons[debut:debut + TAUX_OPUS].reshape(1, -1)
             trame = av.AudioFrame.from_ndarray(morceau, format="s16", layout="mono")
             trame.sample_rate = TAUX_OPUS
             conteneur.mux(flux.encode(trame))
@@ -163,7 +184,11 @@ def synthetiser(texte: str) -> bytes:
     if identifiant is None:
         raise RuntimeError("aucune voix française proposée par Aethex")
     parties = morceaux(texte, SYNTHESE_MAX_CARACTERES)
-    with ThreadPoolExecutor(max_workers=min(4, len(parties)) or 1) as executeur:
-        wavs = list(executeur.map(lambda morceau: _kora().synthesize_speech(morceau, identifiant, language=LANGUE),
-                                  parties))
+    try:
+        with ThreadPoolExecutor(max_workers=min(4, len(parties)) or 1) as executeur:
+            wavs = list(executeur.map(lambda morceau: _kora().synthesize_speech(morceau, identifiant, language=LANGUE),
+                                      parties))
+    except Exception as erreur:
+        _signaler_refus(erreur)
+        raise
     return vers_ogg_opus(*wavs)
