@@ -102,7 +102,7 @@ venv/bin/python -m bot.simulateur                   # bot dans le terminal, sans
 venv/bin/uvicorn bot.main:app --port 8000           # bot, webhook sur /webhook
 ```
 
-Au premier secours vocal sans Gemini, le modèle Whisper small se télécharge une fois dans `data/modeles`, environ 480 Mo. `WHISPER_MODELE=base` choisit un modèle plus léger.
+Au premier secours vocal sans Gemini, le modèle Whisper base se télécharge une fois dans `data/modeles`, environ 145 Mo. `WHISPER_MODELE=small` choisit un modèle plus fidèle mais trois fois plus lent.
 
 Le simulateur fait tourner le vrai dialogue, avec Gemini et Aethex si leurs clés sont présentes. On y répond par le numéro ou le titre d'un bouton, et `/photo chemin.jpg`, `/position 9.45 -5.63` ou `/vocal chemin.ogg` imitent les envois WhatsApp.
 

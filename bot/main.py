@@ -17,6 +17,7 @@ from .config import parametres
 from .securite import RegistreMessages, signature_valide
 from .whatsapp import messages_entrants
 
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 journal = logging.getLogger("bot")
 app = FastAPI(title="Field Shift CI, bot WhatsApp")
 
@@ -24,6 +25,33 @@ app = FastAPI(title="Field Shift CI, bot WhatsApp")
 @functools.cache
 def registre(chemin: str) -> RegistreMessages:
     return RegistreMessages(chemin)
+
+
+def prechauffer() -> None:
+    """Charge au démarrage ce qui ralentirait le premier message, les données NASA, Whisper et la voix."""
+    import time
+
+    from moteur.lieux import LIEUX
+    from moteur.recommander import donnees_du_lieu
+
+    from .langage import transcription_locale, voix
+
+    debut = time.monotonic()
+    for etape, action in [("données NASA", lambda: [donnees_du_lieu(lieu) for lieu in LIEUX]),
+                          ("Whisper", transcription_locale._modele),
+                          ("voix Aethex", lambda: voix.configuree() and voix.voix())]:
+        try:
+            action()
+        except Exception as erreur:
+            journal.warning("préchauffage de %s impossible, %s", etape, type(erreur).__name__)
+    journal.info("préchauffage terminé en %.0f s", time.monotonic() - debut)
+
+
+@app.on_event("startup")
+def demarrer() -> None:
+    import threading
+
+    threading.Thread(target=prechauffer, daemon=True).start()
 
 
 @app.get("/sante")
@@ -55,5 +83,6 @@ async def recevoir(requete: Request, taches: BackgroundTasks):
         if registre(reglages.base_de_donnees).deja_vu(message["id"]):
             journal.info("message déjà traité ignoré")
             continue
+        journal.info("message %s reçu", message.get("type"))
         taches.add_task(dialogue.traiter, message)
     return {"statut": "recu"}

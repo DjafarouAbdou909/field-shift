@@ -4,7 +4,12 @@ Demande du responsable du 15 novembre 2026, pour que le bot comprenne encore les
 vocales quand le quota de Gemini est épuisé, la clé au niveau gratuit étant limitée à
 20 requêtes par jour. Le calcul se fait sur la machine du bot, sans réseau ni quota, avec
 faster-whisper 1.2.1, licence MIT, https://github.com/SYSTRAN/faster-whisper, et le
-modèle Whisper small, téléchargé une fois dans data/modeles.
+modèle Whisper base, téléchargé une fois dans data/modeles.
+
+Vitesse. Mesuré le 15 novembre 2026 sur quatre notes d'essai, base avec une recherche
+simple transcrit une note en 1,5 seconde, contre 5,4 pour small avec cinq hypothèses,
+et reconnaît aussi bien les mots du parcours, Korhogo, rotation, coton et maïs.
+WHISPER_MODELE=small reste possible pour un texte plus fidèle.
 
 Le modèle reçoit en amorce les noms du projet, ce qui lui fait reconnaître Korhogo là où
 Aethex entendait robot, lors d'un essai du 15 novembre 2026 sur une note de synthèse.
@@ -27,14 +32,15 @@ AMORCE = ("Korhogo, Bouaké, Poro, Gbêkê, coton, maïs, sorgho, niébé, mil, 
 
 
 def taille() -> str:
-    return os.environ.get("WHISPER_MODELE", "small")
+    return os.environ.get("WHISPER_MODELE", "base")
 
 
 @cache
 def _modele():
     from faster_whisper import WhisperModel
 
-    return WhisperModel(taille(), device="cpu", compute_type="int8", download_root=DOSSIER_MODELES)
+    return WhisperModel(taille(), device="cpu", compute_type="int8", download_root=DOSSIER_MODELES,
+                        cpu_threads=os.cpu_count() or 4)
 
 
 def transcrire(audio: bytes) -> str:
@@ -43,5 +49,6 @@ def transcrire(audio: bytes) -> str:
     if duree > DUREE_MAX_SECONDES:
         raise ValueError(f"note vocale de plus de {DUREE_MAX_SECONDES} secondes")
     signal = np.frombuffer(pcm, dtype=np.int16).astype(np.float32) / 32768
-    segments, _ = _modele().transcribe(signal, language="fr", initial_prompt=AMORCE, beam_size=5)
+    segments, _ = _modele().transcribe(signal, language="fr", initial_prompt=AMORCE, beam_size=1,
+                                       without_timestamps=True)
     return " ".join(segment.text.strip() for segment in segments).strip()
