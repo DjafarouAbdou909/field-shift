@@ -71,7 +71,9 @@ class Base(unittest.TestCase):
         # Aucun appel réseau dans les tests, Gemini et Aethex sont simulés au besoin.
         self.sans_reseau = [mock.patch.object(dialogue.comprehension, "appeler", side_effect=RuntimeError("hors ligne")),
                             mock.patch.object(dialogue.conversation, "appeler", side_effect=RuntimeError("hors ligne")),
-                            mock.patch.object(dialogue.voix, "synthetiser", return_value=b"OggS-voix")]
+                            mock.patch.object(dialogue.voix, "synthetiser", return_value=b"OggS-voix"),
+                            mock.patch.object(dialogue.transcription_locale, "transcrire",
+                                              side_effect=RuntimeError("modèle non chargé"))]
         for patch in self.sans_reseau:
             patch.start()
 
@@ -319,6 +321,30 @@ class TestVocal(Base):
             envois = self.vocal()
         self.assertEqual(envois, [("texte", NUMERO, "Réponse.")])
 
+    def test_secours_local_en_discussion(self):
+        """Gemini à court de quota, Whisper transcrit la note et la demande de rotation est comprise."""
+        self.consentir()
+        with mock.patch.object(dialogue.transcription_locale, "transcrire",
+                               return_value="Je voudrais savoir quelle rotation faire") as locale:
+            envois = self.vocal()
+        locale.assert_called_once()
+        self.assertEqual(self.types(envois), ["audio", "liste"])
+        self.assertEqual(self.session().etat, "lieu")
+
+    def test_secours_local_question_libre(self):
+        self.consentir()
+        with mock.patch.object(dialogue.transcription_locale, "transcrire", return_value="Quand semer le maïs ?"):
+            envois = self.vocal()
+        self.assertEqual(self.types(envois), ["audio"])
+        self.assertEqual(self.session().etat, "menu")
+
+    def test_secours_local_pour_un_choix(self):
+        self.consentir()
+        self.envoyer(bouton("rotation"))
+        with mock.patch.object(dialogue.transcription_locale, "transcrire", return_value="Mon champ est à Korhogo"):
+            self.vocal(None)
+        self.assertEqual(self.session().lieu, "korhogo")
+
     def test_vocal_sans_service_hors_discussion(self):
         self.consentir()
         self.envoyer(bouton("rotation"))
@@ -349,9 +375,12 @@ class TestDiscussion(Base):
         self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
 
     def test_service_indisponible(self):
+        """Sans Gemini, une question libre reçoit un message honnête, une demande de rotation est comprise."""
         self.consentir()
         envois = self.envoyer(texte("Quand semer le maïs ?"))
-        self.assertEqual(envois, [("texte", NUMERO, dialogue.conversation.SECOURS)])
+        self.assertEqual(envois, [("texte", NUMERO, gabarits.discussion_indisponible())])
+        envois = self.envoyer(texte("Je veux un conseil de rotation"))
+        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
 
     def test_diagnostic_sans_produit(self):
         self.consentir()

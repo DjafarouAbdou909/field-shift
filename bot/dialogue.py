@@ -22,8 +22,11 @@ vocale, lue par Aethex, les boutons restant affichés sous un simple signe pour 
 toucher son choix. S'il écrit, le bot répond seulement par écrit. Seul le lien de la page
 de détail part toujours par écrit, un lien ne se disant pas.
 
-Une note vocale est écoutée par Gemini, avec les choix de l'étape quand il y en a, la
-transcription d'Aethex servant de secours. Elle n'est traitée qu'après le consentement ou
+Une note vocale est écoutée par Gemini, avec les choix de l'étape quand il y en a. Si
+Gemini ne répond pas, quota épuisé ou panne, Whisper la transcrit sur la machine du bot,
+puis Aethex en dernier recours. Sans Gemini, les choix et la demande d'une rotation se
+comprennent encore par leurs mots-clés, et une question libre reçoit un message qui dit
+que la discussion est momentanément indisponible. Elle n'est traitée qu'après le consentement ou
 en réponse à sa question, qui annonce cette écoute.
 
 Diagnostic par photo, à la manière du projet agri-bot. Une photo est acceptée à toute
@@ -56,7 +59,7 @@ from moteur.lieux import LIEUX
 
 from . import whatsapp
 from .config import parametres
-from .langage import comprehension, conversation, gabarits, reformulation, voix
+from .langage import comprehension, conversation, gabarits, reformulation, transcription_locale, voix
 from .langage.comprehension import normaliser
 from .securite import empreinte_numero
 from .sessions import Session, Sessions
@@ -124,6 +127,20 @@ def sans_produit(texte: str) -> str:
         return texte
     corps = texte.rstrip()[:-len(AVERTISSEMENT_DIAGNOSTIC)]
     return f"{conversation.filtrer(corps)}\n\n{AVERTISSEMENT_DIAGNOSTIC}"
+
+
+def transcrire_secours(audio: bytes, type_audio: str) -> str | None:
+    """Transcription sans Gemini, par Whisper sur la machine, puis par Aethex. None si les deux échouent."""
+    try:
+        return transcription_locale.transcrire(audio)
+    except Exception as erreur:
+        journal.warning("transcription locale indisponible, %s", type(erreur).__name__)
+    if voix.configuree():
+        try:
+            return voix.transcrire(audio, type_audio)
+        except Exception as erreur:
+            journal.warning("transcription Aethex indisponible, %s", type(erreur).__name__)
+    return None
 
 
 def lieu_proche(latitude: float, longitude: float) -> str | None:
@@ -270,7 +287,9 @@ class Conversation:
         """Répond à une question écrite ou vocale, ou lance le parcours de rotation s'il est demandé."""
         intention, reponse, dit = conversation.repondre(self.session.empreinte, question=entree.get("texte"),
                                                         audio=entree.get("audio_brut"))
-        if entree.get("audio_brut") and normaliser(dit) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
+        if intention == "indisponible":
+            self.discuter_sans_gemini(entree)
+        elif entree.get("audio_brut") and normaliser(dit) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
             self.avancer({"texte": dit})
         elif intention == "rotation":
             self.demander_lieu()
@@ -279,6 +298,27 @@ class Conversation:
             self.etape(Etat.MENU)
 
     # Aiguillage
+
+    def discuter_sans_gemini(self, entree: dict) -> None:
+        """Secours quand Gemini ne répond pas. Les demandes se comprennent par mots-clés, les questions attendent."""
+        texte = entree.get("texte")
+        if entree.get("audio_brut"):
+            texte = transcrire_secours(*entree["audio_brut"])
+            journal.info("note vocale transcrite en secours, %s caractères", len(texte or ""))
+        if texte is None:
+            self.texte(gabarits.vocal_indisponible())
+            return
+        if normaliser(texte) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
+            self.avancer({"texte": texte})
+            return
+        demande = comprehension.par_les_mots(texte, gabarits.BOUTONS_MENU, gabarits.MOTS_DEMANDE)
+        if demande == "rotation":
+            self.demander_lieu()
+        elif demande == "photo":
+            self.demander_photo()
+        else:
+            self.texte(gabarits.discussion_indisponible())
+            self.etape(Etat.MENU)
 
     def avancer(self, entree: dict) -> None:
         s, etat = self.session, Etat(self.session.etat)
@@ -400,8 +440,8 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
             entendu = comprehension.ecouter(audio, type_audio, options_de_l_etape(echange.session.etat))
             if entendu is not None:
                 entree = {"texte": entendu[0], "choix": entendu[1]}
-            elif voix.configuree():
-                entree = {"texte": voix.transcrire(audio, type_audio)}
+            elif (secours := transcrire_secours(audio, type_audio)) is not None:
+                entree = {"texte": secours}
             else:
                 echange.texte(gabarits.vocal_indisponible())
                 return

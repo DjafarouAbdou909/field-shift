@@ -126,12 +126,16 @@ def requete(question: str | None, audio: tuple[bytes, str] | None, passe: list[t
 
 def repondre(cle: str, question: str | None = None, audio: tuple[bytes, str] | None = None,
              appel=None) -> tuple[str, str, str]:
-    """Intention, rotation ou question, réponse filtrée et transcription d'un message écrit ou vocal."""
+    """Intention, rotation, question ou indisponible, réponse filtrée et transcription d'un message.
+
+    indisponible signale que Gemini n'a pas répondu, quota épuisé ou panne, pour que le
+    dialogue passe au secours local.
+    """
     try:
         sortie = json.loads(texte_de_sortie((appel or appeler)(requete(question, audio, historique(cle)))) or "{}")
     except Exception as erreur:
         journal.warning("conversation indisponible, %s", type(erreur).__name__)
-        return "question", SECOURS, question or ""
+        return "indisponible", SECOURS, question or ""
     transcription = (question or sortie.get("transcription") or "").strip()
     if sortie.get("intention") == "rotation":
         return "rotation", "", transcription

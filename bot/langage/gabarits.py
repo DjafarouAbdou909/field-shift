@@ -219,6 +219,11 @@ MOTS_CLES = {
 }
 
 
+# Sans Gemini, seules ces demandes lancent un parcours depuis la discussion, une question
+# qui parle de semer ou de cultures restant une question.
+MOTS_DEMANDE = {"rotation": ["rotation", "rotations"], "photo": ["photo", "maladie", "malade"]}
+
+
 def choix_a_dire(options: dict[str, str]) -> str:
     """Phrase qui lit les choix à voix haute, pour qui ne lit pas les boutons."""
     titres = [t.rstrip(" ?") for t in options.values()]
@@ -227,6 +232,11 @@ def choix_a_dire(options: dict[str, str]) -> str:
 
 
 # Messages communs
+
+def discussion_indisponible() -> str:
+    return ("Je ne peux pas répondre aux questions libres pour le moment. Je peux comparer des rotations pour votre "
+            "champ, dites ou écrivez rotation, ou regarder la photo d'une plante malade, envoyez-la-moi.")
+
 
 def vocal_indisponible() -> str:
     return "Je ne peux pas écouter les messages vocaux pour l'instant. Répondez avec les boutons ou par écrit."

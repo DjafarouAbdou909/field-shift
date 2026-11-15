@@ -41,8 +41,9 @@ def _contient(texte: str, expression: str) -> bool:
                for partie in expression.split("+"))
 
 
-def par_les_mots(texte: str, options: dict[str, str]) -> str | None:
-    """Option reconnue sans modèle de langage, ou None."""
+def par_les_mots(texte: str, options: dict[str, str], mots_cles: dict[str, list[str]] | None = None) -> str | None:
+    """Option reconnue sans modèle de langage, ou None. mots_cles remplace gabarits.MOTS_CLES."""
+    mots_cles = MOTS_CLES if mots_cles is None else mots_cles
     texte = normaliser(texte)
     if not texte:
         return None
@@ -52,7 +53,7 @@ def par_les_mots(texte: str, options: dict[str, str]) -> str | None:
     rangs = {NOMBRES[mot] for mot in texte.split() if mot in NOMBRES} | {int(m) for m in re.findall(r"\b\d\b", texte)}
     if len(rangs) == 1 and 1 <= (rang := rangs.pop()) <= len(options) and len(texte.split()) <= 4:
         return list(options)[rang - 1]
-    scores = {identifiant: sum(_contient(texte, mot) for mot in [titre, identifiant, *MOTS_CLES.get(identifiant, [])])
+    scores = {identifiant: sum(_contient(texte, mot) for mot in [titre, identifiant, *mots_cles.get(identifiant, [])])
               for identifiant, titre in options.items()}
     meilleur = max(scores.values())
     gagnants = [i for i, s in scores.items() if s == meilleur]

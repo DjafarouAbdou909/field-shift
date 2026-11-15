@@ -75,7 +75,7 @@ class TestRepondre(unittest.TestCase):
 
     def test_panne(self):
         self.assertEqual(conversation.repondre("cle", "Q", appel=mock.Mock(side_effect=RuntimeError()))[:2],
-                         ("question", conversation.SECOURS))
+                         ("indisponible", conversation.SECOURS))
 
 
 if __name__ == "__main__":
