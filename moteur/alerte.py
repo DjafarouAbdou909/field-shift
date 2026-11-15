@@ -7,6 +7,18 @@ centile, la demi-fenêtre de 8 jours et les minimums de 20 observations de réf�
 5 années sont des choix de conception déclarés, décision du 14 novembre 2026. Sous ces
 minimums, l'alerte est indisponible. Aucune cause n'est jamais déduite.
 
+Végétation de la zone. Décision du responsable du 15 novembre 2026. Les 50 points HLS de
+chaque ville sont tirés dans la végétation de toute la zone, MCD12Q1 n'y voyant presque
+aucun champ. Pour chaque date, le NDVI de la zone est la médiane des observations sans
+nuages des 50 points, Landsat et Sentinel-2 réunis, quand au moins 10 observations sans
+nuages existent ce jour-là, seuil déclaré comme les autres. L'alerte porte sur la dernière
+date ainsi disponible. Premier calcul du 15 novembre 2026, sur les données AppEEARS
+reçues le même jour, d'avril 2013 au 4 novembre 2026. Korhogo, 322 dates retenues,
+végétation normale le 2 novembre 2026, NDVI 0,654 pour un seuil de 0,601 tiré de 30
+observations de 13 années. Bouaké, plus nuageuse, 202 dates retenues, alerte
+indisponible le 4 novembre 2026, 14 observations de référence seulement pour un minimum
+de 20.
+
 Masque des nuages. La couche Fmask des produits HLSL30.020 et HLSS30.020 code le nuage
 au bit 1, le voisinage d'un nuage ou d'une ombre au bit 2, l'ombre au bit 3, la neige au
 bit 4, l'eau au bit 5 et le niveau d'aérosols aux bits 6 et 7, selon le décodage de
@@ -14,6 +26,8 @@ l'API AppEEARS, https://appeears.earthdatacloud.nasa.gov/api/quality/HLSL30.020/
 lu le 14 novembre 2026. Une observation est gardée si les bits 1 à 5 sont nuls et si
 les aérosols ne sont pas au niveau élevé, 3.
 """
+
+import functools
 
 import numpy as np
 import pandas as pd
@@ -120,3 +134,61 @@ def requete_hls(nom: str, points: list[dict], fin: str) -> dict:
     from .appeears import requete_points
     return requete_points(nom, COUCHES_HLS, points, "04-11-2013", fin)
 
+
+
+DOSSIER_HLS = "data/raw/appeears"
+CAPTEURS_HLS = ("HLSL30", "HLSS30")
+OBSERVATIONS_CLAIRES_PAR_DATE = 10
+SANS_VALEUR = -19999
+
+
+def lire_hls(identifiant: str, dossier: str = DOSSIER_HLS) -> pd.DataFrame:
+    """NDVI et Fmask des points HLS d'une ville, colonnes ID, date, ndvi et fmask, Landsat et Sentinel-2 réunis."""
+    from pathlib import Path
+
+    tables = []
+    for capteur in CAPTEURS_HLS:
+        base = Path(dossier) / f"hls_{identifiant}" / f"hls-{identifiant}-{capteur}"
+        indice = pd.read_csv(f"{base}-VI-020-results.csv")
+        masque = pd.read_csv(f"{base}-020-results.csv",
+                             usecols=lambda c: c in ("ID", "Date", "HLS_Tile") or c.endswith("_Fmask"))
+        indice = indice.rename(columns={indice.columns[-1]: "ndvi"})
+        masque = masque.rename(columns={[c for c in masque.columns if c.endswith("_Fmask")][0]: "fmask"})
+        tables.append(indice.merge(masque, on=["ID", "Date", "HLS_Tile"], how="inner"))
+    table = pd.concat(tables, ignore_index=True).rename(columns={"Date": "date"})
+    table["ndvi"] = table["ndvi"].where(table["ndvi"] != SANS_VALEUR)
+    return table[["ID", "date", "ndvi", "fmask"]]
+
+
+def ndvi_de_la_zone(table: pd.DataFrame, minimum: int = OBSERVATIONS_CLAIRES_PAR_DATE) -> pd.Series:
+    """Médiane par date des NDVI sans nuages des points de la zone, pour les dates assez observées."""
+    claires = observations_claires(table)
+    par_date = claires.groupby(level=0).agg(["size", "median"])
+    return par_date.loc[par_date["size"] >= minimum, "median"].rename("ndvi")
+
+
+@functools.cache
+def alerte_du_lieu(identifiant: str) -> AlerteVegetation:
+    """Alerte de végétation de la zone d'une ville, à la dernière date d'images HLS disponible."""
+    serie = ndvi_de_la_zone(lire_hls(identifiant))
+    if serie.empty:
+        raise ValueError(f"aucune date HLS assez observée pour {identifiant}")
+    date = str(serie.index.max().date())
+    return construire_alerte(identifiant, date, etat_vegetation(serie, date))
+
+
+def executer() -> None:
+    from .lieux import LIEUX
+
+    for identifiant in LIEUX:
+        serie = ndvi_de_la_zone(lire_hls(identifiant))
+        alerte = alerte_du_lieu(identifiant)
+        dates = [str(d.date()) for d in serie.index if d.year < serie.index.max().year]
+        print(f"{identifiant}, {len(serie)} dates retenues, {alerte.date}, {alerte.statut}, valeur {alerte.valeur}, "
+              f"seuil {alerte.seuil}, {alerte.observations_reference} observations de référence sur "
+              f"{alerte.annees_reference} années")
+        print("  taux d'alertes sur les dates passées", taux_d_alertes(serie, dates).round(3).to_dict())
+
+
+if __name__ == "__main__":
+    executer()

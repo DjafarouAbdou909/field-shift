@@ -54,7 +54,10 @@ def prechauffer() -> None:
     from .langage import transcription_locale, voix
 
     debut = time.monotonic()
+    from moteur.alerte import alerte_du_lieu
+
     for etape, action in [("données NASA", lambda: [donnees_du_lieu(lieu) for lieu in LIEUX]),
+                          ("alertes de végétation HLS", lambda: [alerte_du_lieu(lieu) for lieu in LIEUX]),
                           ("Whisper", transcription_locale._modele),
                           ("voix Aethex", lambda: voix.configuree() and voix.voix()),
                           ("notes vocales fixes", preparer_notes_fixes)]:

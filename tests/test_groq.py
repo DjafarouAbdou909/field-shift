@@ -67,7 +67,7 @@ class TestGroq(unittest.TestCase):
         generation = mock.Mock(return_value={"option": "photo"})
         self.assertEqual(groq.choisir("mes plants ont des taches", gabarits.BOUTONS_MENU, generation), "photo")
         enum = generation.call_args.args[2]["json_schema"]["schema"]["properties"]["option"]["enum"]
-        self.assertEqual(enum, ["rotation", "photo", "aucun"])
+        self.assertEqual(enum, ["rotation", "photo", "vegetation", "aucun"])
         self.assertIsNone(groq.choisir("rien", gabarits.BOUTONS_MENU, mock.Mock(return_value={"option": "aucun"})))
 
     def test_sans_cle(self):

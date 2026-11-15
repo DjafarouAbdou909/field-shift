@@ -67,13 +67,14 @@ def efface() -> str:
 # Menu
 
 def menu() -> str:
-    return ("Que voulez-vous ? Posez votre question, demandez quoi semer, ou envoyez la photo d'une plante malade.")
+    return ("Que voulez-vous ? Posez votre question, demandez quoi semer, envoyez la photo d'une plante malade, "
+            "ou demandez comment va la végétation de votre zone.")
 
 
 INVITE_CHOIX = "👇"
 
 
-BOUTONS_MENU = {"rotation": "Quoi semer ?", "photo": "Plante malade"}
+BOUTONS_MENU = {"rotation": "Quoi semer ?", "photo": "Plante malade", "vegetation": "Végétation"}
 LIBELLE_LISTE = "Choisir"
 
 
@@ -187,13 +188,32 @@ def detail(reco: Recommandation) -> str:
 
 # Alerte de végétation
 
+MOIS = ("janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+        "novembre", "décembre")
+
+
+def date_en_mots(date: str) -> str:
+    """2026-11-02 devient 2 novembre 2026, les nombres restant ceux de la date du moteur."""
+    annee, mois, jour = (int(x) for x in date.split("-"))
+    return f"{jour} {MOIS[mois - 1]} {annee}"
+
+
 def alerte(a: AlerteVegetation) -> str:
-    """Texte de l'alerte et son avertissement, sans aucune cause déduite."""
-    lignes = []
-    if a.donnees_fictives:
-        lignes.append("[TEST, données fictives]")
-    lignes += [a.texte, a.avertissement]
+    """L'alerte en mots simples, avec la date des images, sans aucune cause déduite.
+
+    Décision du responsable du 15 novembre 2026. La date des images vient d'abord, puis le
+    constat du moteur, puis le rappel que les images ne disent pas la cause et le renvoi au
+    conseiller ANADER. Le détail technique reste dans l'avertissement de l'objet.
+    """
+    lignes = ["[TEST, données fictives]"] if a.donnees_fictives else []
+    conseil = "Regardez vos plants et parlez-en avec votre conseiller ANADER."
+    lignes += [f"D'après les images satellite du {date_en_mots(a.date)} :", a.texte,
+               conseil if a.statut == "indisponible" else f"Ces images ne disent pas pourquoi. {conseil}"]
     return "\n".join(lignes)
+
+
+def alerte_indisponible() -> str:
+    return "Je ne peux pas regarder la végétation de votre zone pour l'instant. Réessayez plus tard."
 
 
 # Diagnostic par photo
@@ -216,6 +236,7 @@ MOTS_CLES = {
     "photo_refuse": ["non", "refuse", "pas d'accord"],
     "rotation": ["quoi semer", "rotation", "conseil", "rotations", "cultiver", "cultures", "semer", "planter", "quoi semer"],
     "photo": ["photo", "maladie", "malade", "feuille", "feuilles", "diagnostic", "image", "plante malade"],
+    "vegetation": ["vegetation", "satellite", "verdure", "etat de ma zone", "ma zone"],
     "korhogo": ["korhogo", "poro", "nord"],
     "bouake": ["bouake", "gbeke", "centre"],
     "coton_mais": ["coton+mais", "coton puis mais", "coton et mais", "coton mais", "coton avec mais", "coton et le mais"],
@@ -232,7 +253,8 @@ MOTS_CLES = {
 
 # Sans Gemini, seules ces demandes lancent un parcours depuis la discussion, une question
 # qui parle de semer ou de cultures restant une question.
-MOTS_DEMANDE = {"rotation": ["rotation", "rotations", "quoi semer"], "photo": ["photo", "maladie", "malade"]}
+MOTS_DEMANDE = {"rotation": ["rotation", "rotations", "quoi semer"], "photo": ["photo", "maladie", "malade"],
+                "vegetation": ["vegetation", "satellite"]}
 
 
 def choix_a_dire(options: dict[str, str]) -> str:

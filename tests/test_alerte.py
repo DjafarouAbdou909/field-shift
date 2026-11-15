@@ -112,3 +112,40 @@ class TestPointsDeVegetation(unittest.TestCase):
     def test_moins_de_candidats_que_demandes(self):
         from moteur.alerte import points_de_vegetation
         self.assertEqual(len(points_de_vegetation(self.table(), nombre=500)), 109)
+
+
+class TestVegetationDeLaZone(unittest.TestCase):
+    """Fichiers AppEEARS miniatures, deux points, Landsat et Sentinel-2, au format des résultats reçus."""
+
+    def setUp(self):
+        import tempfile
+        from pathlib import Path
+        self.dossier = tempfile.TemporaryDirectory()
+        base = Path(self.dossier.name) / "hls_korhogo"
+        base.mkdir()
+        lignes = [("korhogo_0001", "2025-08-10", 0.50, 0), ("korhogo_0002", "2025-08-10", 0.60, 64),
+                  ("korhogo_0001", "2025-08-11", 0.90, 2), ("korhogo_0002", "2025-08-11", -19999.0, 0)]
+        for capteur, garder in (("HLSL30", lignes[:2]), ("HLSS30", lignes[2:])):
+            pd.DataFrame([{"Category": "korhogo", "ID": i, "Latitude": 9.4, "Longitude": -5.6, "Date": d,
+                           "HLS_Tile": "29PRL", f"{capteur}_VI_020_NDVI": n} for i, d, n, _ in garder]).to_csv(
+                base / f"hls-korhogo-{capteur}-VI-020-results.csv", index=False)
+            pd.DataFrame([{"Category": "korhogo", "ID": i, "Latitude": 9.4, "Longitude": -5.6, "Date": d,
+                           "HLS_Tile": "29PRL", f"{capteur}_020_Fmask": f, f"{capteur}_020_Fmask_bitmask": "0b0"}
+                          for i, d, _, f in garder]).to_csv(base / f"hls-korhogo-{capteur}-020-results.csv", index=False)
+
+    def tearDown(self):
+        self.dossier.cleanup()
+
+    def test_lecture_des_deux_capteurs(self):
+        from moteur.alerte import lire_hls
+        table = lire_hls("korhogo", self.dossier.name)
+        self.assertEqual(len(table), 4)
+        self.assertEqual(list(table.columns), ["ID", "date", "ndvi", "fmask"])
+        self.assertEqual(int(table["ndvi"].isna().sum()), 1, "-19999 est une absence de valeur")
+
+    def test_mediane_des_dates_assez_observees(self):
+        """Le 10 août a deux observations claires, médiane 0,55. Le 11 août n'a ni NDVI clair ni valeur."""
+        from moteur.alerte import lire_hls, ndvi_de_la_zone
+        serie = ndvi_de_la_zone(lire_hls("korhogo", self.dossier.name), minimum=2)
+        self.assertEqual(serie.to_dict(), {pd.Timestamp("2025-08-10"): 0.55})
+        self.assertTrue(ndvi_de_la_zone(lire_hls("korhogo", self.dossier.name), minimum=3).empty)

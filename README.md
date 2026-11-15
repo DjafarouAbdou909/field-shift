@@ -13,6 +13,7 @@ The pilot covers two towns with contrasting climates, **Korhogo** in the Poro re
 | **Rotation advice** | Compares three rotations, including the farmer’s current one, for the farmer’s town and priority, either enough water, a good market or a richer soil |
 | **Voice first** | Voice notes in and out, in simple French, for farmers who cannot read |
 | **Photo diagnosis** | A short, plain explanation of what the photo shows, the likely problem, what favours it and what to do in the field, with no product named |
+| **Vegetation alert** | Compares the latest NASA HLS satellite images of the farmer's area with the same dates of past years, without ever guessing a cause |
 | **Farming conversation** | Free questions about farming, answered in two or three sentences |
 | **Advisor app** | A Streamlit app that shows every score, its source and its uncertainty range |
 | **Offline platform** | The same advice on a web platform for areas without a network, https://conseil-rotation-ci.netlify.app |
@@ -25,7 +26,7 @@ The pilot covers two towns with contrasting climates, **Korhogo** in the Poro re
 | MERRA-2 | NASA POWER API | Temperature, dew point, wind speed, corrected precipitation | Crop water need, second rain source to confirm any change |
 | CERES | NASA POWER API | Solar radiation | Crop water need |
 | MODIS MCD12Q1 | NASA AppEEARS | Land cover type 1 | Choice of 50 vegetation points per town |
-| HLS L30 and S30 | NASA AppEEARS | Vegetation indices and quality mask | Vegetation alert, data received, alert in progress |
+| HLS L30 and S30 | NASA AppEEARS | Vegetation indices and quality mask | Vegetation alert on 50 points per town, April 2013 to November 2026 |
 
 NOAA GHCN-Daily rain gauges are used only as an independent check. Every source is listed in [docs/sources.md](docs/sources.md), and every downloaded series is recorded with its SHA-256 checksum.
 
@@ -51,6 +52,7 @@ Water score from 0 to 5, higher is better, reference scenario.
 - Bouaké is more exposed to water shortage than Korhogo, with a lower water score for every rotation. Median annual rain is 1,222 mm at Korhogo, range 1,033 to 1,318 mm, and 1,120 mm at Bouaké, range 901 to 1,279 mm.
 - At Bouaké, cotton then maize ranks last for water in every scenario tested. At Korhogo, the ranking changes with the cotton sowing date and cycle length, and AgriBot tells the farmer so.
 - Rain onset at Korhogo ranged from 24 March in 2013 to 28 May in 2017.
+- Vegetation alert from NASA HLS: at Korhogo, vegetation on 2 November 2026 was within its usual range for the season. Bouaké is too cloudy for a reliable comparison, so AgriBot says so instead of guessing. Over past dates, the alert fires about 10 % of the time at Korhogo, as designed.
 - Between 2001-2012 and 2013-2025, IMERG finds a 22-day later onset at Korhogo while MERRA-2 finds a 22-day earlier one. The two NASA sources disagree, so AgriBot announces no change.
 
 Full evaluation and limits in [docs/evaluation.md](docs/evaluation.md).
@@ -67,6 +69,7 @@ FastAPI server (bot/main.py)
       ▼
 Dialogue state machine (bot/dialogue.py)
   ├── rotation advice ──► engine (moteur/) ──► NASA POWER, IMERG, MERRA-2, CERES
+  ├── vegetation alert ► engine (moteur/alerte.py) ──► NASA HLS through AppEEARS
   ├── voice notes ─────► Groq Whisper, then local faster-whisper, then Aethex
   ├── conversation ────► Groq gpt-oss-120b, strict JSON, product filter
   ├── photos ──────────► Google Gemini, photos only
@@ -119,6 +122,7 @@ venv/bin/python -m moteur.indicateurs    # agroclimatic indicators for Korhogo a
 venv/bin/python -m moteur.criteres       # scores and sensitivity of the rotations
 venv/bin/python -m moteur.evaluation     # evaluation of the published recommendations
 venv/bin/python -m moteur.evolution      # 2001-2012 versus 2013-2025, checked with MERRA-2
+venv/bin/python -m moteur.alerte         # HLS vegetation alert of each town
 venv/bin/python notebooks/executer.py    # re-runs the CRISP-DM notebooks
 ```
 

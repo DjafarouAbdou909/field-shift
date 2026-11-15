@@ -10,6 +10,7 @@ Parcours
     RESULTAT            résumé, boutons Pourquoi, Écouter, Détail, questions sur le conseil
     CONSENTEMENT_PHOTO  ancienne étape, une session qui y était passe à la photo
     PHOTO               la photo est analysée puis oubliée
+    ALERTE_LIEU         ville dont on veut l'état de la végétation, vu par les satellites HLS
 
 Discussion, décision du responsable du 15 novembre 2026. Après le consentement,
 l'agriculteur échange librement avec le bot sur l'agriculture. Groq rédige la réponse avec
@@ -54,6 +55,7 @@ from enum import Enum
 
 from moteur import recommander
 from moteur.criteres import POIDS_PAR_PRIORITE
+from moteur.alerte import alerte_du_lieu
 from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC
 from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
 from moteur.lieux import LIEUX
@@ -81,6 +83,7 @@ class Etat(str, Enum):
     RESULTAT = "resultat"
     CONSENTEMENT_PHOTO = "consentement_photo"
     PHOTO = "photo"
+    ALERTE_LIEU = "alerte_lieu"
 
 
 @functools.cache
@@ -117,7 +120,7 @@ def phrases_fixes() -> list[str]:
                   (gabarits.demande_priorite(), gabarits.BOUTONS_PRIORITE),
                   (gabarits.suite(), gabarits.BOUTONS_RESULTAT)]
     seuls = [gabarits.accueil(), gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
-             gabarits.incompris(), gabarits.efface(), gabarits.zone_non_couverte(),
+             gabarits.alerte_indisponible(), gabarits.incompris(), gabarits.efface(), gabarits.zone_non_couverte(),
              gabarits.erreur_technique()]
     return [pour_la_voix(f"{texte}\n{gabarits.choix_a_dire(choix)}") for texte, choix in avec_choix] + \
         [pour_la_voix(texte) for texte in seuls]
@@ -291,6 +294,25 @@ class Conversation:
             self.texte(gabarits.incompris())
         self.boutons(gabarits.suite(), gabarits.BOUTONS_RESULTAT)
 
+    # Alerte de végétation
+
+    def demander_alerte(self) -> None:
+        """État de la végétation de la ville déjà choisie, sinon la ville est demandée d'abord."""
+        if self.session.lieu:
+            self.donner_alerte(self.session.lieu)
+        else:
+            self.liste(gabarits.demande_lieu(), gabarits.LIGNES_LIEUX)
+            self.etape(Etat.ALERTE_LIEU)
+
+    def donner_alerte(self, lieu: str) -> None:
+        try:
+            texte = gabarits.alerte(alerte_du_lieu(lieu))
+        except Exception as erreur:
+            journal.warning("alerte de végétation indisponible, %s", type(erreur).__name__)
+            texte = gabarits.alerte_indisponible()
+        self.texte(texte)
+        self.etape(Etat.MENU, lieu=lieu)
+
     # Diagnostic par photo
 
     def recevoir_photo(self, image: tuple[str, str], legende: str | None) -> None:
@@ -323,6 +345,9 @@ class Conversation:
         if normaliser(texte) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
             self.avancer({"texte": texte})
             return
+        if any(re.search(rf"\b{mot}\b", normaliser(texte)) for mot in gabarits.MOTS_DEMANDE["vegetation"]):
+            self.demander_alerte()
+            return
         intention, reponse = groq.repondre(self.session.empreinte, texte) if groq.configure() else ("indisponible", "")
         if intention == "rotation":
             self.demander_lieu()
@@ -336,6 +361,8 @@ class Conversation:
             self.demander_lieu()
         elif demande == "photo":
             self.demander_photo()
+        elif demande == "vegetation":
+            self.demander_alerte()
         else:
             self.texte(gabarits.discussion_indisponible())
             self.etape(Etat.MENU)
@@ -383,6 +410,8 @@ class Conversation:
                 self.demander_lieu()
             elif choix == "photo":
                 self.demander_photo()
+            elif choix == "vegetation":
+                self.demander_alerte()
             elif entree.get("texte"):
                 self.discuter(entree["texte"])
             else:
@@ -399,6 +428,17 @@ class Conversation:
                 self.etape(Etat.ROTATION, lieu=lieu)
             else:
                 self.demander_lieu()
+
+        elif etat == Etat.ALERTE_LIEU:
+            lieu = choisir(entree, gabarits.LIGNES_LIEUX)
+            if lieu is None and entree.get("position"):
+                lieu = lieu_proche(*entree["position"])
+                if lieu is None:
+                    self.texte(gabarits.zone_non_couverte())
+            if lieu:
+                self.donner_alerte(lieu)
+            else:
+                self.liste(gabarits.demande_lieu(), gabarits.LIGNES_LIEUX)
 
         elif etat == Etat.ROTATION:
             rotation = choisir(entree, gabarits.LIGNES_ROTATIONS)

@@ -84,6 +84,15 @@ class TestGabarits(unittest.TestCase):
         a = charger_exemple_alerte()
         self.assertEqual(ecarts(gabarits.alerte(a), a), [])
 
+    def test_alerte_en_mots_simples(self):
+        """La date des images en toutes lettres, le constat, puis le renvoi au conseiller, sans aucune cause."""
+        a = charger_exemple_alerte()
+        texte = gabarits.alerte(a)
+        self.assertIn("15 août 2025", texte)
+        self.assertIn(a.texte, texte)
+        self.assertIn("conseiller ANADER", texte)
+        self.assertEqual(gabarits.date_en_mots("2026-11-02"), "2 novembre 2026")
+
 
 class TestGardeFouEtendu(unittest.TestCase):
     def test_diagnostic_libre_non_filtre(self):

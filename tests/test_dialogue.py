@@ -201,6 +201,50 @@ class TestConseilDeRotation(Base):
         self.assertEqual(envois[0], ("audio", NUMERO, b"OggS-note"))
 
 
+class TestAlerteDeVegetation(Base):
+    """Bouton Végétation, alerte HLS de la zone en mots simples, la ville étant demandée si elle manque."""
+
+    def alerte(self, statut="normale"):
+        from moteur.alerte import construire_alerte
+        return construire_alerte("korhogo", "2026-11-02", {
+            "statut": statut, "valeur": 0.654 if statut == "normale" else 0.55, "seuil": 0.601, "observations_reference": 30, "annees_reference": 13,
+            "observations_courantes": 3})
+
+    def test_ville_demandee_puis_alerte(self):
+        self.consentir()
+        with mock.patch.object(dialogue, "alerte_du_lieu", return_value=self.alerte()) as calcul:
+            envois = self.envoyer(bouton("vegetation"))
+            self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+            self.assertEqual(self.session().etat, "alerte_lieu")
+            envois = self.envoyer(ligne("korhogo"))
+        calcul.assert_called_once_with("korhogo")
+        self.assertIn("2 novembre 2026", envois[0][2])
+        self.assertIn("valeurs habituelles", envois[0][2])
+        self.assertEqual((self.session().etat, self.session().lieu), ("menu", "korhogo"))
+
+    def test_ville_deja_connue(self):
+        self.consentir()
+        self.envoyer(bouton("rotation"), ligne("korhogo"))
+        self.envoyer(texte("bonjour"))
+        with mock.patch.object(dialogue, "alerte_du_lieu", return_value=self.alerte("faible")):
+            envois = self.envoyer(bouton("vegetation"))
+        self.assertIn("plus faible que d'habitude", envois[0][2])
+
+    def test_demande_dite_avec_le_mot_vegetation(self):
+        self.consentir()
+        with mock.patch.object(dialogue.groq, "configure", return_value=True), \
+                mock.patch.object(dialogue.groq, "repondre") as groq:
+            envois = self.envoyer(texte("Comment va la végétation chez moi ?"))
+        groq.assert_not_called()
+        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+
+    def test_alerte_en_panne(self):
+        self.consentir()
+        with mock.patch.object(dialogue, "alerte_du_lieu", side_effect=FileNotFoundError("hls")):
+            envois = self.envoyer(bouton("vegetation"), ligne("bouake"))
+        self.assertEqual(envois[-1][2], gabarits.alerte_indisponible())
+
+
 class TestPhoto(Base):
     TEXTE = "*Plante identifiée* : feuille de coton.\n*Recommandation concrète* : action.\n\n" + AVERTISSEMENT_DIAGNOSTIC
 
