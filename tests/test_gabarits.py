@@ -36,7 +36,7 @@ class TestGabaritsSurDonneesReelles(unittest.TestCase):
         for reco in instables:
             texte = gabarits.resume(reco)
             self.assertNotIn("plus sèche", texte)
-            self.assertIn("Ce classement change si", texte)
+            self.assertIn("Ce conseil peut changer si", texte)
 
 
 class TestGabarits(unittest.TestCase):
@@ -64,7 +64,7 @@ class TestGabarits(unittest.TestCase):
     def test_consentement_photo_explicite(self):
         texte = gabarits.consentement_photo()
         self.assertIn("Google", texte)
-        self.assertIn("ne garde pas", texte)
+        self.assertIn("oubliée", texte)
 
     def test_zone_non_couverte_nomme_les_zones(self):
         texte = gabarits.zone_non_couverte()
@@ -110,13 +110,13 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class TestResumeVocal(unittest.TestCase):
+class TestResumeSimple(unittest.TestCase):
     def test_court_fidele_et_sans_chiffre(self):
         import re
         for lieu in LIEUX:
             for rotation in STRATEGIES:
                 reco = recommander(lieu, rotation.id, POIDS_PAR_PRIORITE["eau"])
-                texte = gabarits.resume_vocal(reco)
+                texte = gabarits.resume(reco)
                 self.assertLess(len(texte), 400, texte)
                 self.assertFalse(re.search(r"\d", texte), texte)
                 self.assertEqual(ecarts(texte, reco), [])

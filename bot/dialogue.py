@@ -254,7 +254,7 @@ class Conversation:
     def donner_resultat(self) -> None:
         self.texte(gabarits.calcul_en_cours())
         reco = self.recommandation()
-        self.texte(gabarits.resume_vocal(reco) if self.vocal else gabarits.resume(reco))
+        self.texte(gabarits.resume(reco))
         self.boutons(gabarits.suite(), gabarits.BOUTONS_RESULTAT)
         self.etape(Etat.RESULTAT)
 

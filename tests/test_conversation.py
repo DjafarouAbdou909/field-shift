@@ -35,7 +35,7 @@ class TestMemoire(unittest.TestCase):
             conversation.retenir("cle", f"Q{i}", f"R{i}")
         historique = conversation.historique("cle")
         self.assertEqual(len(historique), 12)
-        self.assertEqual(historique[-1], ("Field Shift", "R9"))
+        self.assertEqual(historique[-1], ("AgriBot", "R9"))
 
     def test_oubli_sur_stop(self):
         conversation.retenir("cle", "Q", "R")

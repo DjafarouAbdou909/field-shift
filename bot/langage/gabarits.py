@@ -34,116 +34,107 @@ def zones_couvertes() -> str:
 # Accueil et consentement à la conversation
 
 def accueil() -> str:
-    return ("Bonjour, je suis Field Shift. Je compare des rotations de cultures pour votre zone, avec les données "
-            "de pluie des satellites de la NASA depuis 2001. Mes conseils sont indicatifs et ne remplacent pas "
-            "votre conseiller ANADER.\n"
-            "Ce service est réservé aux personnes de 18 ans ou plus.\n"
-            "Pour vous répondre, je garde votre zone, votre rotation et votre priorité, sans votre numéro en clair. "
-            "Vos messages et vos questions sont traités par le service Groq, vos photos par le service Gemini de "
-            "Google, et mes réponses vocales sont lues par le service Aethex. Pour suivre la conversation, je garde vos derniers échanges en "
-            "mémoire trente minutes, sans les enregistrer. Dites ou écrivez STOP à tout moment pour tout effacer. "
-            "Acceptez-vous ?")
+    return ("Bonjour, je suis AgriBot. Je vous aide pour vos cultures, à l'écrit ou par message vocal. "
+            "Je garde seulement vos choix, et vos messages passent par des services d'intelligence artificielle. "
+            "Ce service est pour les adultes. Dites stop pour tout effacer. Êtes-vous d'accord ?")
 
 
-BOUTONS_CONSENTEMENT = {"accepte": "J'accepte", "refuse": "Non merci"}
+BOUTONS_CONSENTEMENT = {"accepte": "Oui, d'accord", "refuse": "Non merci"}
 
 
 def refus() -> str:
-    return "D'accord, je ne garde rien. Écrivez Bonjour si vous changez d'avis."
+    return "D'accord, je ne garde rien. Dites bonjour si vous changez d'avis."
 
 
 def efface() -> str:
-    return "C'est fait, je ne garde plus rien de notre conversation. Écrivez Bonjour pour recommencer."
+    return "C'est fait, j'ai tout effacé. Dites bonjour pour recommencer."
 
 
 # Menu
 
 def menu() -> str:
-    return ("Posez-moi vos questions sur vos cultures, par écrit ou par message vocal. Je peux aussi comparer des "
-            "rotations pour votre champ, ou regarder la photo d'une plante malade.")
+    return ("Que voulez-vous ? Posez votre question, demandez quoi semer, ou envoyez la photo d'une plante malade.")
 
 
 INVITE_CHOIX = "👇"
 
 
-BOUTONS_MENU = {"rotation": "Conseil rotation", "photo": "Photo de plante"}
+BOUTONS_MENU = {"rotation": "Quoi semer ?", "photo": "Plante malade"}
 LIBELLE_LISTE = "Choisir"
 
 
 # Lieu
 
 def demande_lieu() -> str:
-    return "Où se trouve votre champ ? Partagez votre position, ou choisissez votre zone dans la liste."
+    return "Où est votre champ ? Choisissez votre ville, ou envoyez votre position."
 
 
 LIGNES_LIEUX = {identifiant: lieu["nom"] for identifiant, lieu in LIEUX.items()}
 
 
 def zone_non_couverte() -> str:
-    return (f"Désolé, votre champ est hors de la zone que je couvre pour l'instant, {zones_couvertes()}. "
-            "Je ne peux pas vous conseiller sans les données de votre zone. Votre conseiller ANADER peut vous aider.")
+    villes = " et ".join(lieu["nom"] for lieu in LIEUX.values())
+    return f"Désolé, je connais seulement {villes} pour le moment. Votre conseiller ANADER peut vous aider."
 
 
 # Rotation actuelle et priorité
 
 def demande_rotation() -> str:
-    return "Quelle rotation faites-vous aujourd'hui dans ce champ ?"
+    return "Qu'est-ce que vous cultivez dans ce champ, d'une année à l'autre ?"
 
 
 LIGNES_ROTATIONS = {strategie.id: strategie.nom for strategie in STRATEGIES}
 
 
 def demande_priorite() -> str:
-    return ("Qu'est-ce qui compte le plus pour vous ?\n"
-            "Eau, une rotation qui manque moins d'eau.\n"
-            "Débouché, garder une culture vendue par une filière organisée.\n"
-            "Sol, enrichir le sol en azote avec une légumineuse.")
+    return ("Qu'est-ce qui compte le plus pour vous ? Avoir assez d'eau, bien vendre votre récolte, "
+            "ou enrichir votre terre ?")
 
 
-BOUTONS_PRIORITE = {"eau": "Eau", "revenu": "Débouché", "sol": "Sol"}
+BOUTONS_PRIORITE = {"eau": "Assez d'eau", "revenu": "Bien vendre", "sol": "Enrichir la terre"}
+BUTS = {"eau": "pour avoir assez d'eau", "revenu": "pour bien vendre votre récolte",
+        "sol": "pour enrichir votre terre"}
 
 
 # Résultat
 
+RANGS = {1: "en premier", 2: "en deuxième", 3: "en troisième", 4: "en quatrième", 5: "en cinquième"}
+
+
+def _en_phrase(nom: str) -> str:
+    return nom[0].lower() + nom[1:]
+
+
+def scenario(reco: Recommandation) -> str | None:
+    """La phrase de l'avertissement du moteur qui dit ce qui changerait le conseil, en mots simples."""
+    for phrase in reco.avertissement.split(". "):
+        if phrase.startswith("Ce classement change si"):
+            return "Ce conseil peut changer si" + phrase.removeprefix("Ce classement change si").rstrip(".") + "."
+    return None
+
+
 def resume(reco: Recommandation) -> str:
-    """Résumé des stratégies dans l'ordre du classement, avec l'indicateur principal et l'avertissement."""
-    strategies = {s.id: s for s in reco.strategies}
-    lignes = []
-    if reco.donnees_fictives:
-        lignes.append("[TEST, données fictives]")
-    lignes.append(f"Pour {reco.lieu.nom}, voici {len(reco.strategies)} rotations comparées.")
-    indicateur = reco.indicateurs[0]
-    lignes.append(
-        f"Données NASA. {indicateur.texte}, {nombre(indicateur.valeur)} {indicateur.unite}, "
-        f"entre {nombre(indicateur.bas)} et {nombre(indicateur.haut)} selon les années."
-    )
-    for rang, identifiant in enumerate(reco.classement, start=1):
-        strategie = strategies[identifiant]
-        actuelle = ", votre rotation actuelle" if strategie.actuelle else ""
-        lignes.append(f"{rang}. {strategie.nom}{actuelle}. {strategie.pourquoi[0].texte}")
-    if not reco.classement_stable:
-        lignes.append("Attention, ce classement est incertain. La raison est donnée ci-dessous.")
-    lignes.append(reco.avertissement)
-    return "\n".join(lignes)
+    """Le conseil en deux ou trois phrases, compréhensible à la première écoute.
 
-
-RANGS = {1: "première", 2: "deuxième", 3: "troisième", 4: "quatrième", 5: "cinquième"}
-
-
-def resume_vocal(reco: Recommandation) -> str:
-    """Résumé court du classement, pour une note vocale rapide à produire et à écouter, sans chiffre."""
+    La réponse vient d'abord, sans chiffre ni source, le détail restant sur les boutons
+    Pourquoi et Détail. Décision du responsable du 15 novembre 2026.
+    """
     strategies = {s.id: s for s in reco.strategies}
     premiere = strategies[reco.classement[0]]
     actuelle = next(s for s in reco.strategies if s.actuelle)
-    rang = RANGS.get(reco.classement.index(actuelle.id) + 1, "")
-    lignes = [f"Pour {reco.lieu.nom}, la rotation la mieux classée pour votre priorité est {premiere.nom}."]
+    but = BUTS.get(reco.priorite or "", "")
+    lignes = ["[TEST, données fictives]"] if reco.donnees_fictives else []
+    debut = f"À {reco.lieu.nom}{', ' + but if but else ''}, "
     if premiere.id == actuelle.id:
-        lignes.append("C'est déjà votre rotation actuelle.")
+        lignes.append(f"{debut}continuez avec {_en_phrase(premiere.nom)}, c'est le mieux.")
     else:
-        lignes.append(f"Votre rotation actuelle, {actuelle.nom}, est classée {rang}.")
-    if not reco.classement_stable:
-        lignes.append("Ce classement est incertain.")
-    lignes.append("C'est un conseil indicatif, à discuter avec votre conseiller ANADER.")
+        dernier = reco.classement.index(actuelle.id) == len(reco.classement) - 1
+        place = "en dernier" if dernier else RANGS.get(reco.classement.index(actuelle.id) + 1, "")
+        lignes.append(f"{debut}le mieux est de faire {_en_phrase(premiere.nom)}.")
+        lignes.append(f"Ce que vous faites aujourd'hui, {_en_phrase(actuelle.nom)}, vient {place}.")
+    if not reco.classement_stable and (changement := scenario(reco)):
+        lignes.append(changement)
+    lignes.append("Parlez-en avec votre conseiller ANADER.")
     return " ".join(lignes)
 
 
@@ -163,11 +154,11 @@ def pourquoi(reco: Recommandation) -> str:
 
 
 def suite() -> str:
-    return "Voulez-vous en savoir plus ? Vous pouvez aussi me poser votre question."
+    return "Voulez-vous savoir pourquoi ? Vous pouvez aussi me poser une question."
 
 
 def calcul_en_cours() -> str:
-    return "Je compare les rotations avec les données de la NASA, cela prend quelques secondes."
+    return "Un instant, je regarde pour votre champ."
 
 
 def voix_indisponible() -> str:
@@ -194,17 +185,15 @@ def alerte(a: AlerteVegetation) -> str:
 # Diagnostic par photo
 
 def consentement_photo() -> str:
-    return ("Pour analyser votre plante, votre photo est envoyée à Google, qui l'analyse. Field Shift ne garde pas "
-            "la photo. Le résultat est un diagnostic indicatif, qui ne remplace pas votre conseiller ANADER. "
-            "Acceptez-vous d'envoyer votre photo ?")
+    return ("Votre photo sera regardée par un service d'intelligence artificielle de Google, puis oubliée. "
+            "Êtes-vous d'accord ?")
 
 
-BOUTONS_CONSENTEMENT_PHOTO = {"photo_accepte": "J'accepte", "photo_refuse": "Non merci"}
+BOUTONS_CONSENTEMENT_PHOTO = {"photo_accepte": "Oui, d'accord", "photo_refuse": "Non merci"}
 
 
 def demande_photo() -> str:
-    return ("Envoyez une photo nette de la partie malade de la plante, feuille, tige ou fruit, prise de près et à "
-            "la lumière du jour. Vous pouvez écrire le nom de la culture en légende de la photo.")
+    return "Envoyez une photo nette de la partie malade de la plante, prise de près, à la lumière du jour."
 
 
 def refus_photo() -> str:
@@ -223,7 +212,7 @@ MOTS_CLES = {
     "refuse": ["non", "refuse", "pas d'accord"],
     "photo_accepte": ["oui", "j'accepte", "accepte", "d'accord", "daccord", "ok", "okay", "vas y", "c'est bon"],
     "photo_refuse": ["non", "refuse", "pas d'accord"],
-    "rotation": ["rotation", "conseil", "rotations", "cultiver", "cultures", "semer", "planter", "quoi semer"],
+    "rotation": ["quoi semer", "rotation", "conseil", "rotations", "cultiver", "cultures", "semer", "planter", "quoi semer"],
     "photo": ["photo", "maladie", "malade", "feuille", "feuilles", "diagnostic", "image", "plante malade"],
     "korhogo": ["korhogo", "poro", "nord"],
     "bouake": ["bouake", "gbeke", "centre"],
@@ -231,7 +220,7 @@ MOTS_CLES = {
     "coton_niebe_mais": ["coton+niebe", "niebe", "coton niebe", "coton et niebe", "coton niebe mais"],
     "sorgho_niebe": ["sorgho+niebe", "sorgho", "sorgho niebe", "sorgho et niebe", "sorgho puis niebe"],
     "eau": ["eau", "pluie", "secheresse", "sec", "arrosage"],
-    "revenu": ["debouche", "revenu", "argent", "vendre", "vente", "filiere"],
+    "revenu": ["bien vendre", "debouche", "revenu", "argent", "vendre", "vente", "filiere"],
     "sol": ["sol", "terre", "azote", "fertilite", "enrichir"],
     "pourquoi": ["pourquoi", "explique", "expliquer", "raison", "raisons"],
     "ecouter": ["ecouter", "ecoute", "voix", "audio", "lis", "lire", "parle"],
@@ -241,14 +230,13 @@ MOTS_CLES = {
 
 # Sans Gemini, seules ces demandes lancent un parcours depuis la discussion, une question
 # qui parle de semer ou de cultures restant une question.
-MOTS_DEMANDE = {"rotation": ["rotation", "rotations"], "photo": ["photo", "maladie", "malade"]}
+MOTS_DEMANDE = {"rotation": ["rotation", "rotations", "quoi semer"], "photo": ["photo", "maladie", "malade"]}
 
 
 def choix_a_dire(options: dict[str, str]) -> str:
     """Phrase qui lit les choix à voix haute, pour qui ne lit pas les boutons."""
     titres = [t.rstrip(" ?") for t in options.values()]
-    enumeres = ", ".join(titres[:-1]) + f", ou {titres[-1]}" if len(titres) > 1 else titres[0]
-    return f"Vous pouvez répondre en disant, {enumeres}."
+    return f"Dites {', '.join(titres[:-1])} ou {titres[-1]}." if len(titres) > 1 else f"Dites {titres[0]}."
 
 
 # Messages communs

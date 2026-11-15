@@ -17,7 +17,7 @@ from moteur.contrat import Recommandation
 journal = logging.getLogger("bot")
 QUESTION_MAX = 500
 CONSIGNE = (
-    "Tu es Field Shift, un assistant pour des agriculteurs du nord et du centre de la Côte d'Ivoire. Réponds en "
+    "Tu es AgriBot, un assistant pour des agriculteurs du nord et du centre de la Côte d'Ivoire. Réponds en "
     "français simple, en trois phrases au plus, à la question de l'agriculteur, en t'appuyant uniquement sur la "
     "recommandation JSON fournie. N'ajoute aucun chiffre, aucune culture, aucune maladie, aucun traitement, "
     "aucun produit ni aucun prix qui n'y figure pas. Vouvoie l'agriculteur. Ne prédis aucun rendement. Si la recommandation ne permet "

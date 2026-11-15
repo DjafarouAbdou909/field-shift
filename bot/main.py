@@ -19,7 +19,7 @@ from .whatsapp import messages_entrants
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
 journal = logging.getLogger("bot")
-app = FastAPI(title="Field Shift CI, bot WhatsApp")
+app = FastAPI(title="AgriBot, bot WhatsApp de Field Shift CI")
 
 
 @functools.cache

@@ -50,7 +50,7 @@ class TestGroq(unittest.TestCase):
                                              "reponse": "Semez après les pluies. Mettez de l'engrais NPK."})
         self.assertEqual(groq.repondre("cle", "Quand semer ?", generation),
                          ("question", f"Semez après les pluies. {conversation.RENVOI}"))
-        self.assertEqual(conversation.historique("cle")[-1][0], "Field Shift")
+        self.assertEqual(conversation.historique("cle")[-1][0], "AgriBot")
         self.assertEqual(generation.call_args.args[0], conversation.CONSIGNE)
 
     def test_demande_de_rotation(self):

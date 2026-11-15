@@ -149,7 +149,7 @@ class TestConseilDeRotation(Base):
         self.assertEqual(envois[-1][3], gabarits.BOUTONS_PRIORITE)
         envois = self.envoyer(bouton("eau"))
         resume = envois[1][2]
-        self.assertIn("Pour Korhogo", resume)
+        self.assertIn("À Korhogo", resume)
         self.assertIn("conseiller ANADER", resume)
         self.assertEqual(envois[-1][3], gabarits.BOUTONS_RESULTAT)
         self.assertEqual(self.session().etat, "resultat")
@@ -180,7 +180,7 @@ class TestConseilDeRotation(Base):
         self.consentir()
         self.envoyer(bouton("rotation"), ligne("korhogo"), ligne("coton_mais"), bouton("eau"))
         envois = self.envoyer(texte("Et si je plante du manioc ?"))
-        self.assertIn("Pour Korhogo", envois[0][2])
+        self.assertIn("À Korhogo", envois[0][2])
 
     def test_ecouter_sans_voix(self):
         self.consentir()

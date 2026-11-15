@@ -31,10 +31,10 @@ class CanalTerminal:
         self.medias: dict[str, bytes] = {}
 
     def envoyer_texte(self, destinataire, texte):
-        print(f"\nField Shift\n{texte}")
+        print(f"\nAgriBot\n{texte}")
 
     def envoyer_boutons(self, destinataire, texte, boutons):
-        print(f"\nField Shift\n{texte}")
+        print(f"\nAgriBot\n{texte}")
         for rang, titre in enumerate(boutons.values(), start=1):
             print(f"  [{rang}] {titre}")
 
@@ -45,7 +45,7 @@ class CanalTerminal:
         chemin = Path("data/simulateur_reponse.ogg")
         chemin.parent.mkdir(parents=True, exist_ok=True)
         chemin.write_bytes(audio)
-        print(f"\nField Shift\n[note vocale enregistrée dans {chemin}, à écouter puis à effacer]")
+        print(f"\nAgriBot\n[note vocale enregistrée dans {chemin}, à écouter puis à effacer]")
 
     def telecharger_media(self, media_id):
         return self.medias.pop(media_id)
@@ -79,7 +79,7 @@ def main() -> None:
     if not os.environ.get("SEL_NUMEROS"):
         os.environ["SEL_NUMEROS"] = "sel-du-simulateur"
     canal, magasin = CanalTerminal(), Sessions(":memory:")
-    print("Simulateur Field Shift. Écrivez Bonjour pour commencer, /quitter pour finir.")
+    print("Simulateur AgriBot. Écrivez Bonjour pour commencer, /quitter pour finir.")
     for ligne in sys.stdin if not sys.stdin.isatty() else iter(lambda: input("\nVous > "), None):
         ligne = ligne.strip()
         if ligne == "/quitter":
