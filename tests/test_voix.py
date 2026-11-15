@@ -101,3 +101,31 @@ class TestSansCle(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTextesLongs(unittest.TestCase):
+    def test_decoupage_aux_fins_de_phrase(self):
+        texte = " ".join(f"Phrase numéro {i} du résumé agricole." for i in range(60))
+        parties = voix.morceaux(texte, 600)
+        self.assertGreater(len(parties), 1)
+        self.assertTrue(all(len(p) <= 600 for p in parties))
+        self.assertTrue(all(p.endswith(".") for p in parties))
+        self.assertEqual(" ".join(parties), texte)
+
+    def test_phrase_sans_fin_coupee_aux_espaces(self):
+        parties = voix.morceaux("mot " * 400, 600)
+        self.assertTrue(all(len(p) <= 600 for p in parties))
+
+    def test_une_seule_note_pour_plusieurs_morceaux(self):
+        kora = mock.Mock()
+        kora.synthesize_speech.return_value = wav_sinus(1.0)
+        with mock.patch.object(voix, "_kora", return_value=kora), \
+                mock.patch.dict("os.environ", {"AETHEX_VOICE_ID": "v"}):
+            voix.voix.cache_clear()
+            note = voix.synthetiser("Une phrase assez longue. " * 60)
+        voix.voix.cache_clear()
+        self.assertGreater(kora.synthesize_speech.call_count, 1)
+        self.assertTrue(all(len(c.args[0]) <= 600 for c in kora.synthesize_speech.call_args_list))
+        with av.open(io.BytesIO(note)) as c:
+            duree = float(c.duration) / 1e6
+        self.assertAlmostEqual(duree, kora.synthesize_speech.call_count * 1.0, delta=0.3)

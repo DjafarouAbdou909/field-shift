@@ -7,7 +7,9 @@ aethexai 1.0.2, licence MIT, https://github.com/aethexai/aethexai-python, fichie
 
 - Transcription, POST /api/v1/transcribe, fichier envoyé en multipart avec la langue. Le
   SDK découpe un WAV de plus de 35 secondes en morceaux et recolle les textes.
-- Synthèse, POST /api/v1/tts, texte, voix et langue, réponse en WAV.
+- Synthèse, POST /api/v1/tts, texte, voix et langue, réponse en WAV. L'API refuse plus de
+  650 caractères par requête, d'où un découpage aux fins de phrase et un recollage en une
+  seule note vocale.
 - Voix, GET /api/v1/voices, filtrée par langue et par pays.
 - Clé AETHEX_API_KEY, lue dans l'environnement et jamais écrite dans le dépôt, envoyée
   dans l'en-tête X-API-Key par le SDK.
@@ -41,6 +43,10 @@ PAYS = "CI"
 DUREE_MAX_SECONDES = 120
 TAUX_TRANSCRIPTION = 16000
 TAUX_OPUS = 48000
+# 24 kbit/s suffisent pour la voix et gardent une note de 2 minutes sous 512 Ko, taille au-delà de
+# laquelle WhatsApp n'affiche plus l'icône de lecture, selon la documentation de Meta lue le 15 novembre 2026.
+DEBIT_OPUS = 24000
+SYNTHESE_MAX_CARACTERES = 600  # Aethex refuse plus de 650 caractères par requête, message lu le 15 novembre 2026
 
 
 def configuree() -> bool:
@@ -83,19 +89,49 @@ def vers_wav(audio: bytes) -> bytes:
     return sortie.getvalue()
 
 
-def vers_ogg_opus(audio: bytes) -> bytes:
-    """Convertit un audio, le WAV de la synthèse par exemple, en note vocale OGG Opus mono."""
+def pcm_vers_ogg_opus(pcm: bytes) -> bytes:
+    """Encode du PCM 16 bits mono à 48 kHz en note vocale OGG Opus."""
+    import numpy as np
+
     sortie = io.BytesIO()
-    with av.open(io.BytesIO(audio)) as entree, av.open(sortie, "w", format="ogg") as conteneur:
+    with av.open(sortie, "w", format="ogg") as conteneur:
         flux = conteneur.add_stream("libopus", rate=TAUX_OPUS, layout="mono")
-        reechantillonneur = av.AudioResampler(format="s16", layout="mono", rate=TAUX_OPUS)
-        for trame in entree.decode(audio=0):
-            for t in reechantillonneur.resample(trame):
-                conteneur.mux(flux.encode(t))
-        for t in reechantillonneur.resample(None):
-            conteneur.mux(flux.encode(t))
+        flux.bit_rate = DEBIT_OPUS
+        echantillons = np.frombuffer(pcm, dtype=np.int16)
+        for debut in range(0, len(echantillons), TAUX_OPUS // 50):
+            morceau = echantillons[debut:debut + TAUX_OPUS // 50].reshape(1, -1)
+            trame = av.AudioFrame.from_ndarray(morceau, format="s16", layout="mono")
+            trame.sample_rate = TAUX_OPUS
+            conteneur.mux(flux.encode(trame))
         conteneur.mux(flux.encode(None))
     return sortie.getvalue()
+
+
+def vers_ogg_opus(*audios: bytes) -> bytes:
+    """Convertit un ou plusieurs audios, les WAV de la synthèse par exemple, en une note vocale OGG Opus mono."""
+    return pcm_vers_ogg_opus(b"".join(_pcm_mono(audio, TAUX_OPUS)[0] for audio in audios))
+
+
+def morceaux(texte: str, taille: int) -> list[str]:
+    """Découpe un texte en morceaux de taille limitée, aux fins de phrase, sinon aux espaces."""
+    import re
+
+    resultat, courant = [], ""
+    for phrase in re.split(r"(?<=[.!?:])\s+", texte.strip()):
+        while len(phrase) > taille:
+            coupe = phrase.rfind(" ", 0, taille)
+            coupe = coupe if coupe > 0 else taille
+            if courant:
+                resultat.append(courant)
+                courant = ""
+            resultat.append(phrase[:coupe].strip())
+            phrase = phrase[coupe:].strip()
+        if courant and len(courant) + 1 + len(phrase) > taille:
+            resultat.append(courant)
+            courant = phrase
+        else:
+            courant = f"{courant} {phrase}".strip()
+    return [m for m in resultat + [courant] if m]
 
 
 @cache
@@ -120,5 +156,6 @@ def synthetiser(texte: str) -> bytes:
     identifiant = voix()
     if identifiant is None:
         raise RuntimeError("aucune voix française proposée par Aethex")
-    wav = _kora().synthesize_speech(texte, identifiant, language=LANGUE)
-    return vers_ogg_opus(wav)
+    wavs = [_kora().synthesize_speech(morceau, identifiant, language=LANGUE)
+            for morceau in morceaux(texte, SYNTHESE_MAX_CARACTERES)]
+    return vers_ogg_opus(*wavs)
