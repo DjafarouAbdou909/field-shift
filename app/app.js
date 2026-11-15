@@ -664,8 +664,9 @@ function messageSansFeuille(nom) {
 }
 
 function messageInconnu(nom) {
-  return `Je ne reconnais pas bien cette photo. Prenez une photo nette d'une seule feuille de ${nom}, à la `
-    + "lumière du jour, ou montrez la plante à votre conseiller ANADER.";
+  return "Je ne suis pas assez sûr pour répondre. Cela m'arrive souvent, surtout avec une feuille en bonne santé. "
+    + `Essayez une autre photo d'une seule feuille de ${nom} qui remplit l'écran, ou montrez la plante à votre `
+    + "conseiller ANADER.";
 }
 
 async function chargerFiche(culture) {
@@ -769,6 +770,11 @@ function detailFiabilite(fiche, classe) {
   if (classe === "helminthosporiose_nord") {
     lignes.push("Cette maladie n'a été testée que sur des photos de la même source que mon apprentissage, en Ouganda. "
       + "Ma fiabilité réelle est inconnue.");
+  }
+  if (classe === "inconnu" && f.test_independant_saine && f.test_independant_striure) {
+    lignes.push(`Au Ghana, je ne suis pas assez sûr pour ${sur100(f.test_independant_saine.part_inconnu)} feuilles `
+      + `saines sur 100 et ${sur100(f.test_independant_striure.part_inconnu)} feuilles striées sur 100. `
+      + "Je préfère ne rien dire que me tromper.");
   }
   const necrose = f.hors_liste_necrose_letale;
   if (necrose && classe !== "inconnu" && classe !== "saine") {
