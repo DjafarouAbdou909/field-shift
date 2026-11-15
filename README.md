@@ -21,7 +21,7 @@ AgriBot closes that gap. A transparent engine turns 25 years of NASA precipitati
 | **Problem** | Shifting rains, plant diseases recognised too late, and advice that does not reach farmers who cannot read |
 | **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery, a first opinion on plant photos, all by voice on WhatsApp |
 | **Users** | Smallholder farmers, and the extension advisors who support them |
-| **Demo deck** | [presentation/AgriBot_Presentation_FR.pdf](presentation/AgriBot_Presentation_FR.pdf), 7 slides, in French |
+| **Demo deck** | [presentation/AgriBot_Presentation_EN.pdf](presentation/AgriBot_Presentation_EN.pdf), 7 slides, French version alongside |
 
 ## Features
 
@@ -189,7 +189,7 @@ field-shift/
 ├── notebooks/       one notebook per CRISP-DM phase
 ├── tests/           unit tests
 ├── docs/            scoping, data, evaluation, sources, prior work, decision log (in French)
-└── presentation/    final deck, PDF and PowerPoint
+└── presentation/    final deck in English and French, PDF and PowerPoint
 ```
 
 ## Limitations and roadmap
