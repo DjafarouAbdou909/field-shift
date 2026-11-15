@@ -94,6 +94,19 @@ class TestDiagnostic(unittest.TestCase):
         self.assertEqual(session.post.call_count, 2)
         pause.assert_called_once()
 
+    def test_quota_epuise_met_gemini_en_pause(self):
+        """Après un 429, les appels suivants échouent aussitôt, sans requête ni pause."""
+        session = mock.Mock()
+        session.post.return_value = mock.Mock(status_code=429)
+        try:
+            with self.assertRaises(diagnostic.QuotaEpuise):
+                diagnostic.appeler({}, session=session, cle="c")
+            with self.assertRaises(diagnostic.QuotaEpuise):
+                diagnostic.appeler({}, session=session, cle="c")
+            self.assertEqual(session.post.call_count, 1)
+        finally:
+            diagnostic._quota_epuise_jusqua = 0.0
+
     def test_sans_cle(self):
         with mock.patch.dict("os.environ", {}, clear=True), self.assertRaises(RuntimeError):
             diagnostic.appeler({}, session=mock.Mock())

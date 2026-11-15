@@ -44,7 +44,13 @@ ADRESSE = "https://generativelanguage.googleapis.com/v1/interactions"
 RESOLUTION = "high"
 NIVEAU_DE_REFLEXION = "low"
 GRAINE = 2026
-TENTATIVES, PAUSE_SECONDES, ERREURS_PASSAGERES = 2, 2, {429, 500, 502, 503, 504}
+TENTATIVES, PAUSE_SECONDES, ERREURS_PASSAGERES = 2, 1, {500, 502, 503, 504}
+QUOTA_PAUSE_SECONDES = 15 * 60
+_quota_epuise_jusqua = 0.0
+
+
+class QuotaEpuise(RuntimeError):
+    """Gemini a répondu 429. Les appels suivants échouent aussitôt pendant QUOTA_PAUSE_SECONDES."""
 TAILLE_MIN_OCTETS = 100
 TAILLE_MAX_OCTETS = 14 * 1024 * 1024  # base64 grossit de 4 tiers, la requête reste sous 20 Mo
 TYPES_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
@@ -123,9 +129,12 @@ def interpreter(texte: str | None, culture: str | None) -> Diagnostic:
 
 def appeler(corps: dict, session: requests.Session | None = None, cle: str | None = None) -> dict:
     """Envoie la requête et rend l'interaction. La clé vient de GEMINI_API_KEY, jamais du dépôt."""
+    global _quota_epuise_jusqua
     cle = cle or os.environ.get("GEMINI_API_KEY")
     if not cle:
         raise RuntimeError("clé GEMINI_API_KEY absente de l'environnement")
+    if time.monotonic() < _quota_epuise_jusqua:
+        raise QuotaEpuise("quota Gemini épuisé, appel sauté")
     for tentative in range(TENTATIVES):
         reponse = (session or requests).post(ADRESSE, json=corps, timeout=120,
                                              headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
@@ -133,6 +142,10 @@ def appeler(corps: dict, session: requests.Session | None = None, cle: str | Non
             break
         journal.warning("Gemini indisponible, code %s, nouvel essai", reponse.status_code)
         time.sleep(PAUSE_SECONDES)
+    if reponse.status_code == 429:
+        _quota_epuise_jusqua = time.monotonic() + QUOTA_PAUSE_SECONDES
+        journal.warning("quota Gemini épuisé, Gemini mis en pause %s minutes", QUOTA_PAUSE_SECONDES // 60)
+        raise QuotaEpuise("quota Gemini épuisé")
     if reponse.status_code >= 400:
         journal.warning("Gemini a refusé la requête, code %s", reponse.status_code)
     reponse.raise_for_status()
