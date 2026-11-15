@@ -39,7 +39,8 @@ field-shift/
 │   └── langage/                                                membre B
 │       ├── gabarits.py       messages déterministes
 │       ├── garde_fou.py      rien qui ne vienne du moteur, ni traitement ni produit
-│       ├── reformulation.py  réponses libres avec Gemini, sous garde-fou
+│       ├── groq.py           transcription, compréhension et réponses avec Groq
+│       ├── reformulation.py  questions sur le conseil, avec Groq, sous garde-fou
 │       └── voix.py           notes vocales avec Aethex, transcription et synthèse
 ├── app/app.py                application Streamlit
 ├── tests/                    unittest, avec des webhooks Meta enregistrés

@@ -120,3 +120,15 @@ Aethex AI, choisi par le responsable le 14 novembre 2026. La documentation déve
 | Langues | Kora 2.0 ajoute notamment le wolof, le bambara, le haoussa et le yoruba, sans langue de Côte d'Ivoire citée, et reste réservé aux entreprises avant l'accès par API | Annonce du 29 octobre 2026 sur https://aethexai.com/blog |
 | Données | Usage des données pour fournir et améliorer les services, conservation d'au plus un an, service réservé aux 18 ans ou plus | Politique de confidentialité du 10 avril 2026, https://aethexai.com/privacy |
 | Enregistrements d'appels | Désactivés par défaut, conservés 90 jours avec leurs transcriptions, supprimables plus tôt. Ne concerne que les agents vocaux, que le bot n'utilise pas | Page Enregistrement et transcription de la documentation, transmise par le responsable |
+
+### Service de langage
+
+Groq, choisi par le responsable le 15 novembre 2026. Documentation lue le même jour sur https://console.groq.com/docs. Réglages dans `bot/langage/groq.py`.
+
+| Point vérifié | Constat | Page |
+|---|---|---|
+| Modèles | `openai/gpt-oss-120b` pour le texte, `whisper-large-v3-turbo` pour la transcription, listés par l'API avec la clé du responsable | model/openai/gpt-oss-120b et model/whisper-large-v3-turbo |
+| Réponse imposée | Schéma JSON en mode strict, champs tous requis, objets fermés | structured-outputs |
+| Transcription | OGG accepté, 25 Mo au plus au niveau gratuit, langue et amorce de 224 jetons | speech-to-text |
+| Données | Pas de conservation par défaut, journaux possibles jusqu'à 30 jours en cas de panne ou d'abus, rétention zéro activable, entraînement non documenté | your-data |
+| Limites | 30 requêtes par minute et 1 000 par jour pour gpt-oss-120b, 20 par minute et 2 000 par jour pour la transcription, valeurs données pour la formule Developer, celles de la formule gratuite n'étant pas lisibles | rate-limits |
