@@ -182,13 +182,13 @@ function distanceKm(a, b) {
 
 function accueil() {
   etat.lieu = etat.priorite = null;
-  dire("Bonjour. Je compare des rotations de cultures pour votre zone, à partir de données satellites "
-    + "de la NASA sur le climat de " + donnees.periode + ".\n"
-    + "Je fonctionne sans connexion, et aucune donnée ne quitte votre téléphone.\n"
+  dire("Bonjour ! Je vous aide à choisir quoi semer dans votre champ.\n"
+    + "Je peux aussi regarder une photo de feuille de maïs malade.\n"
+    + "Pas besoin d'internet, et tout reste dans votre téléphone.\n"
     + "Où se trouve votre champ ?", (b) => {
     const credit = document.createElement("div");
     credit.className = "discret";
-    credit.textContent = "Sources, NASA POWER et GPM IMERG, FAO 56. Noms de lieux, GeoNames, licence CC BY 4.0.";
+    credit.textContent = "Climat mesuré par les satellites de la NASA. Noms de lieux GeoNames, CC BY 4.0.";
     b.appendChild(credit);
     demanderLieu();
   });
