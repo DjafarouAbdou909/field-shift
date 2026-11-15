@@ -188,6 +188,9 @@ def surveiller(intervalle: int = 900, passages: int = 16) -> None:
         except requests.HTTPError as erreur:
             print(time.strftime("%H:%M"), f"refus persistant après reconnexion, {erreur}, nouvel essai au passage suivant",
                   flush=True)
+        except (requests.ConnectionError, requests.Timeout) as erreur:
+            print(time.strftime("%H:%M"), f"réseau indisponible, {type(erreur).__name__}, nouvel essai au passage suivant",
+                  flush=True)
         if passage < passages - 1:
             time.sleep(intervalle)
     print(f"connexions ouvertes pendant la surveillance {session.connexions}", flush=True)

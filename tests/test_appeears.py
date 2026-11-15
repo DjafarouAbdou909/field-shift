@@ -133,6 +133,20 @@ class TestAppeears(unittest.TestCase):
         self.assertEqual(self.appels.call_count, 1)
         self.assertTrue(all(appel.args[0] == "GET" for appel in self.appels.call_args_list))
 
+    def test_coupure_reseau_toleree(self):
+        """Une coupure réseau n'arrête pas la surveillance, qui réessaie au passage suivant."""
+        journal = self.chemin / "taches.json"
+        journal.write_text(json.dumps({"essai": {"task_id": "t1"}}), encoding="utf-8")
+        self.session()
+        sortie = io.StringIO()
+        with mock.patch.object(appeears, "JOURNAL_TACHES", journal), mock.patch("moteur.appeears.time.sleep"), \
+                mock.patch("moteur.appeears.SessionAppeears", return_value=self.session_creee), \
+                mock.patch.object(appeears, "suivre", side_effect=[requests.ConnectionError("dns"), {"essai": "done"}]), \
+                contextlib.redirect_stdout(sortie):
+            appeears.surveiller(intervalle=0, passages=3)
+        self.assertIn("réseau indisponible", sortie.getvalue())
+        self.assertIn("toutes les tâches sont terminées", sortie.getvalue())
+
     def test_aucune_deconnexion(self):
         source = Path(appeears.__file__).read_text(encoding="utf-8")
         self.assertNotIn("/logout", source)
