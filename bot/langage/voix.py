@@ -7,9 +7,12 @@ aethexai 1.0.2, licence MIT, https://github.com/aethexai/aethexai-python, fichie
 
 - Transcription, POST /api/v1/transcribe, fichier envoyé en multipart avec la langue. Le
   SDK découpe un WAV de plus de 35 secondes en morceaux et recolle les textes.
-- Synthèse, POST /api/v1/tts, texte, voix et langue, réponse en WAV. L'API refuse plus de
-  650 caractères par requête, d'où un découpage aux fins de phrase et un recollage en une
-  seule note vocale.
+- Synthèse en flux, POST /api/v1/tts/stream, texte, voix et langue, réponse en PCM 16 bits
+  mono à 24 kHz livrée au fil de la génération, selon la docstring de stream_speech du SDK.
+  Mesure du 15 novembre 2026 sur une phrase de 182 caractères, 1,6 seconde en flux contre
+  4,2 secondes par POST /api/v1/tts, qui répond en WAV et reste le secours si le flux
+  échoue. L'API refuse plus de 650 caractères par requête, d'où un découpage aux fins de
+  phrase et un recollage en une seule note vocale.
 - Voix, GET /api/v1/voices, filtrée par langue et par pays.
 - Clé AETHEX_API_KEY, lue dans l'environnement et jamais écrite dans le dépôt, envoyée
   dans l'en-tête X-API-Key par le SDK.
@@ -17,7 +20,9 @@ aethexai 1.0.2, licence MIT, https://github.com/aethexai/aethexai-python, fichie
 Formats. WhatsApp envoie les notes vocales en OGG Opus. Elles sont converties en WAV mono
 à 16 kHz avant l'envoi, les formats acceptés par Aethex n'ayant pas pu être lus. La voix
 de synthèse, en WAV, est convertie en OGG Opus mono à 48 kHz pour WhatsApp. Les
-conversions passent par PyAV, en mémoire. Aucun audio n'est écrit sur disque ni gardé.
+conversions passent par PyAV, en mémoire. Le PCM du flux est encodé tel quel en Opus à
+  24 kHz, taux que Opus accepte, sans rééchantillonnage. Aucun audio d'agriculteur n'est
+  écrit sur disque ni gardé.
 
 Langue french, comme dans l'autre projet. Voix fixée par AETHEX_VOICE_ID si elle est
 définie, sinon la première voix française de Côte d'Ivoire, sinon la première voix
@@ -46,6 +51,7 @@ PAYS = "CI"
 DUREE_MAX_SECONDES = 120
 TAUX_TRANSCRIPTION = 16000
 TAUX_OPUS = 48000
+TAUX_FLUX = 24000  # PCM 16 bits mono du flux de synthèse d'Aethex
 # 24 kbit/s suffisent pour la voix et gardent une note de 2 minutes sous 512 Ko, taille au-delà de
 # laquelle WhatsApp n'affiche plus l'icône de lecture, selon la documentation de Meta lue le 15 novembre 2026.
 DEBIT_OPUS = 24000
@@ -63,12 +69,16 @@ def configuree() -> bool:
     return bool(os.environ.get("AETHEX_API_KEY")) and time.monotonic() >= _en_pause_jusqua
 
 
+def _refus_de_paiement(erreur: Exception) -> bool:
+    return getattr(erreur, "status_code", None) == 402 or "credits" in str(erreur).lower()
+
+
 def _signaler_refus(erreur: Exception) -> None:
     """Met Aethex en pause quinze minutes après un refus de paiement, code 402."""
     import time
 
     global _en_pause_jusqua
-    if getattr(erreur, "status_code", None) == 402 or "credits" in str(erreur).lower():
+    if _refus_de_paiement(erreur):
         _en_pause_jusqua = time.monotonic() + PAUSE_CREDITS_SECONDES
         journal.warning("crédits Aethex épuisés, voix mise en pause %s minutes", PAUSE_CREDITS_SECONDES // 60)
 
@@ -109,20 +119,20 @@ def vers_wav(audio: bytes) -> bytes:
     return sortie.getvalue()
 
 
-def pcm_vers_ogg_opus(pcm: bytes) -> bytes:
-    """Encode du PCM 16 bits mono à 48 kHz en note vocale OGG Opus."""
+def pcm_vers_ogg_opus(pcm: bytes, taux: int = TAUX_OPUS) -> bytes:
+    """Encode du PCM 16 bits mono, à 48 kHz ou à un autre taux accepté par Opus, en note vocale OGG Opus."""
     import numpy as np
 
     sortie = io.BytesIO()
     with av.open(sortie, "w", format="ogg") as conteneur:
-        flux = conteneur.add_stream("libopus", rate=TAUX_OPUS, layout="mono")
+        flux = conteneur.add_stream("libopus", rate=taux, layout="mono")
         flux.bit_rate = DEBIT_OPUS
         echantillons = np.frombuffer(pcm, dtype=np.int16)
         # Tranches d'une seconde, PyAV redécoupant pour Opus, au lieu de milliers de tranches de 20 ms.
-        for debut in range(0, len(echantillons), TAUX_OPUS):
-            morceau = echantillons[debut:debut + TAUX_OPUS].reshape(1, -1)
+        for debut in range(0, len(echantillons), taux):
+            morceau = echantillons[debut:debut + taux].reshape(1, -1)
             trame = av.AudioFrame.from_ndarray(morceau, format="s16", layout="mono")
-            trame.sample_rate = TAUX_OPUS
+            trame.sample_rate = taux
             conteneur.mux(flux.encode(trame))
         conteneur.mux(flux.encode(None))
     return sortie.getvalue()
@@ -196,6 +206,28 @@ def _note_sur_disque(texte: str):
     return Path(DOSSIER_NOTES) / f"{hashlib.sha256(f'{voix()}|{texte}'.encode()).hexdigest()}.ogg"
 
 
+def _pcm_du_flux(morceau: str, identifiant: str) -> bytes:
+    """PCM 16 bits mono à 24 kHz d'un morceau, par le flux de synthèse d'Aethex."""
+    donnees = b"".join(_kora().stream_speech(morceau, identifiant, language=LANGUE))
+    if donnees[:4] == b"RIFF":
+        return _pcm_mono(donnees, TAUX_FLUX)[0]
+    return donnees[:len(donnees) - len(donnees) % 2]
+
+
+def _pcm_synthetise(morceau: str, identifiant: str) -> bytes:
+    """PCM d'un morceau, par le flux, sinon par la synthèse en WAV. Un refus de paiement n'est pas retenté."""
+    try:
+        pcm = _pcm_du_flux(morceau, identifiant)
+        if pcm:
+            return pcm
+        journal.warning("flux Aethex vide, synthèse en WAV")
+    except Exception as erreur:
+        if _refus_de_paiement(erreur):
+            raise
+        journal.warning("flux Aethex indisponible, %s, synthèse en WAV", type(erreur).__name__)
+    return _pcm_mono(_kora().synthesize_speech(morceau, identifiant, language=LANGUE), TAUX_FLUX)[0]
+
+
 @lru_cache(maxsize=256)
 def synthetiser(texte: str) -> bytes:
     """Retourne une note vocale en OGG Opus. Une phrase déjà dite ne coûte plus aucun crédit.
@@ -204,7 +236,8 @@ def synthetiser(texte: str) -> bytes:
     du bot, qui survivent ainsi aux redémarrages. Les caractères envoyés à Aethex sont
     plafonnés chaque jour par AETHEX_CARACTERES_PAR_JOUR, 8 000 par défaut, soit environ
     64 000 crédits au tarif de 4 000 crédits pour 500 caractères, page des prix d'Aethex.
-    Les morceaux d'un texte long sont synthétisés en parallèle, puis recollés dans l'ordre.
+    Les morceaux d'un texte long sont synthétisés en parallèle, par le flux d'Aethex, puis
+    recollés dans l'ordre et encodés en une seule note à 24 kHz.
     """
     from concurrent.futures import ThreadPoolExecutor
 
@@ -215,12 +248,11 @@ def synthetiser(texte: str) -> bytes:
     _reserver(sum(len(partie) for partie in parties))
     try:
         with ThreadPoolExecutor(max_workers=min(4, len(parties)) or 1) as executeur:
-            wavs = list(executeur.map(lambda morceau: _kora().synthesize_speech(morceau, identifiant, language=LANGUE),
-                                      parties))
+            pcms = list(executeur.map(lambda morceau: _pcm_synthetise(morceau, identifiant), parties))
     except Exception as erreur:
         _signaler_refus(erreur)
         raise
-    return vers_ogg_opus(*wavs)
+    return pcm_vers_ogg_opus(b"".join(pcms), TAUX_FLUX)
 
 
 def note_gardee(texte: str) -> bytes | None:

@@ -130,24 +130,23 @@ class TestTextesLongs(unittest.TestCase):
         self.assertEqual(kora.synthesize_speech.call_count, 1)
 
     def test_morceaux_recolles_dans_l_ordre(self):
-        """Synthétisés en parallèle, les morceaux gardent l'ordre du texte."""
-        durees = {}
-
-        def synthese(morceau, identifiant, language):
+        """Synthétisés en parallèle par le flux, les morceaux gardent l'ordre du texte."""
+        def flux(morceau, identifiant, language):
             rang = int(morceau.split()[1])
-            durees[rang] = 0.2 + rang * 0.1
-            return wav_sinus(durees[rang])
+            return iter([bytes([rang]) * 2 * (100 + rang), b""])
         kora = mock.Mock()
-        kora.synthesize_speech.side_effect = synthese
+        kora.stream_speech.side_effect = flux
         texte = " ".join(f"Morceau {i} " + "x" * 570 + "." for i in range(3))
         voix.synthetiser.cache_clear()
         with mock.patch.object(voix, "_kora", return_value=kora), mock.patch.dict("os.environ", {"AETHEX_VOICE_ID": "v"}), \
-                mock.patch.object(voix, "vers_ogg_opus", side_effect=lambda *wavs: wavs) as encoder:
+                mock.patch.object(voix, "pcm_vers_ogg_opus", side_effect=lambda pcm, taux: (pcm, taux)):
             voix.voix.cache_clear()
-            wavs = voix.synthetiser(texte)
+            pcm, taux = voix.synthetiser(texte)
         voix.voix.cache_clear()
         voix.synthetiser.cache_clear()
-        self.assertEqual(wavs, tuple(wav_sinus(durees[i]) for i in range(3)))
+        self.assertEqual(pcm, b"".join(bytes([i]) * 2 * (100 + i) for i in range(3)))
+        self.assertEqual(taux, voix.TAUX_FLUX, "le PCM du flux est encodé à 24 kHz, sans rééchantillonnage")
+        kora.synthesize_speech.assert_not_called()
 
     def test_une_seule_note_pour_plusieurs_morceaux(self):
         kora = mock.Mock()
@@ -219,3 +218,52 @@ class TestEconomieDeCredits(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 voix.synthetiser("Une autre phrase qui dépasse le plafond du jour.")
         self.assertEqual(kora.synthesize_speech.call_count, 1)
+
+
+class TestFluxDeSynthese(unittest.TestCase):
+    """Le flux d'Aethex, mesuré 2,6 fois plus rapide, est essayé d'abord, la synthèse en WAV restant le secours."""
+
+    def setUp(self):
+        voix.synthetiser.cache_clear()
+        voix._depense.update(jour="", caracteres=0)
+        self.kora = mock.Mock()
+        self.patches = [mock.patch.object(voix, "_kora", return_value=self.kora),
+                        mock.patch.object(voix, "voix", return_value="v")]
+        for patch in self.patches:
+            patch.start()
+
+    def tearDown(self):
+        for patch in self.patches:
+            patch.stop()
+        voix.synthetiser.cache_clear()
+        voix._en_pause_jusqua = 0.0
+
+    def duree(self, note):
+        with av.open(io.BytesIO(note)) as c:
+            return float(c.duration) / 1e6
+
+    def test_flux_utilise_d_abord(self):
+        pcm = wav_sinus(1.0)[44:]
+        self.kora.stream_speech.return_value = iter([pcm[:1001], pcm[1001:]])
+        note = voix.synthetiser("Bonjour")
+        self.assertEqual(note[:4], b"OggS")
+        self.assertAlmostEqual(self.duree(note), 1.0, delta=0.1)
+        self.kora.stream_speech.assert_called_once_with("Bonjour", "v", language="french")
+        self.kora.synthesize_speech.assert_not_called()
+
+    def test_secours_en_wav_si_le_flux_echoue(self):
+        self.kora.stream_speech.side_effect = ConnectionError("flux coupé")
+        self.kora.synthesize_speech.return_value = wav_sinus(1.0)
+        note = voix.synthetiser("Bonjour")
+        self.assertAlmostEqual(self.duree(note), 1.0, delta=0.1)
+        self.kora.synthesize_speech.assert_called_once()
+
+    def test_refus_de_paiement_sans_nouvel_essai(self):
+        erreur = RuntimeError("You're out of credits.")
+        erreur.status_code = 402
+        self.kora.stream_speech.side_effect = erreur
+        with mock.patch.dict("os.environ", {"AETHEX_API_KEY": "k"}), self.assertRaises(RuntimeError):
+            voix.synthetiser("Bonjour")
+        self.kora.synthesize_speech.assert_not_called()
+        with mock.patch.dict("os.environ", {"AETHEX_API_KEY": "k"}):
+            self.assertFalse(voix.configuree())
