@@ -107,6 +107,15 @@ class TestDiagnostic(unittest.TestCase):
         finally:
             diagnostic._quota_epuise_jusqua = 0.0
 
+    def test_agent_platform_si_configure(self):
+        with mock.patch.dict("os.environ", {"AGENT_PLATFORM_PROJET": "mon-projet", "AGENT_PLATFORM_API_KEY": "cle-ap",
+                                            "GEMINI_API_KEY": "cle-studio"}):
+            adresse, cle = diagnostic.acces()
+        self.assertEqual(adresse, "https://aiplatform.googleapis.com/v1/projects/mon-projet/locations/global/interactions")
+        self.assertEqual(cle, "cle-ap")
+        with mock.patch.dict("os.environ", {"AGENT_PLATFORM_PROJET": "", "GEMINI_API_KEY": "cle-studio"}):
+            self.assertEqual(diagnostic.acces(), (diagnostic.ADRESSE, "cle-studio"))
+
     def test_sans_cle(self):
         with mock.patch.dict("os.environ", {}, clear=True), self.assertRaises(RuntimeError):
             diagnostic.appeler({}, session=mock.Mock())

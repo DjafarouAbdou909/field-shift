@@ -41,6 +41,23 @@ journal = logging.getLogger("moteur")
 MODELE = "gemini-4-hydrogen"
 MODELE_VERIFIE_LE = "2026-11-14"
 ADRESSE = "https://generativelanguage.googleapis.com/v1/interactions"
+ADRESSE_AGENT_PLATFORM = "https://aiplatform.googleapis.com/v1/projects/{projet}/locations/global/interactions"
+
+
+def acces() -> tuple[str, str | None]:
+    """Adresse et clé de Gemini. Agent Platform si sa clé et son projet sont donnés, AI Studio sinon.
+
+    Agent Platform, anciennement Vertex AI, est payable avec le crédit d'essai de Google Cloud
+    pour un essai ouvert avant le 16 novembre 2026, alors que l'API Gemini d'AI Studio ne
+    l'est pas, page Google Cloud Free Program lue le 15 novembre 2026. Google n'y utilise
+    pas les données pour entraîner ses modèles, page Zero data retention. L'API Interactions
+    y est servie à l'adresse globale ci-dessus, page Interactions de la documentation
+    d'Agent Platform.
+    """
+    projet, cle = os.environ.get("AGENT_PLATFORM_PROJET"), os.environ.get("AGENT_PLATFORM_API_KEY")
+    if projet and cle:
+        return ADRESSE_AGENT_PLATFORM.format(projet=projet), cle
+    return ADRESSE, os.environ.get("GEMINI_API_KEY")
 RESOLUTION = "high"
 NIVEAU_DE_REFLEXION = "low"
 GRAINE = 2026
@@ -130,13 +147,14 @@ def interpreter(texte: str | None, culture: str | None) -> Diagnostic:
 def appeler(corps: dict, session: requests.Session | None = None, cle: str | None = None) -> dict:
     """Envoie la requête et rend l'interaction. La clé vient de GEMINI_API_KEY, jamais du dépôt."""
     global _quota_epuise_jusqua
-    cle = cle or os.environ.get("GEMINI_API_KEY")
+    adresse, cle_env = acces()
+    cle = cle or cle_env
     if not cle:
-        raise RuntimeError("clé GEMINI_API_KEY absente de l'environnement")
+        raise RuntimeError("clé GEMINI_API_KEY ou AGENT_PLATFORM_API_KEY absente de l'environnement")
     if time.monotonic() < _quota_epuise_jusqua:
         raise QuotaEpuise("quota Gemini épuisé, appel sauté")
     for tentative in range(TENTATIVES):
-        reponse = (session or requests).post(ADRESSE, json=corps, timeout=120,
+        reponse = (session or requests).post(adresse, json=corps, timeout=120,
                                              headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
         if reponse.status_code not in ERREURS_PASSAGERES or tentative == TENTATIVES - 1:
             break
