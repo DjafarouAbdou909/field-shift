@@ -56,8 +56,10 @@ class Sessions:
         if ligne is None:
             return Session(empreinte)
         valeurs = dict(zip(COLONNES, ligne))
-        return Session(**{**valeurs, **{c: bool(valeurs[c]) for c in ("consentement", "consentement_photo",
-                                                                     "mode_vocal")}})
+        # Une colonne ajoutée par ALTER TABLE est de type TEXT et rend 0 sous la forme '0'.
+        return Session(**{**valeurs, **{c: str(valeurs[c]) in ("1", "True") for c in ("consentement",
+                                                                                     "consentement_photo",
+                                                                                     "mode_vocal")}})
 
     def ecrire(self, session: Session) -> Session:
         session = session.avec(mise_a_jour=datetime.now(timezone.utc).isoformat(timespec="seconds"))

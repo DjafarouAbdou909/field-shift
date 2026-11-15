@@ -124,6 +124,15 @@ class TestConsentement(Base):
         self.assertEqual(envois[-1][2], gabarits.efface())
         self.assertFalse(self.session().consentement)
 
+    def test_booleens_relus_correctement(self):
+        """Une colonne ajoutée après coup rend 0 sous la forme '0', qui ne doit pas valoir vrai."""
+        self.consentir()
+        self.magasin._connexion.execute("UPDATE sessions SET mode_vocal = '0', consentement_photo = '0'")
+        s = self.session()
+        self.assertFalse(s.mode_vocal)
+        self.assertFalse(s.consentement_photo)
+        self.assertTrue(s.consentement)
+
     def test_numero_jamais_stocke_en_clair(self):
         self.consentir()
         lignes = self.magasin._connexion.execute("SELECT * FROM sessions").fetchall()
