@@ -22,6 +22,7 @@ liste des modèles rendue par l'API avec la clé du responsable.
   gratuite n'étaient pas lisibles, page rate-limits.
 """
 
+import functools
 import json
 import logging
 import os
@@ -50,8 +51,14 @@ def _entetes() -> dict[str, str]:
     return {"Authorization": f"Bearer {cle}"}
 
 
+@functools.cache
+def _session() -> requests.Session:
+    """Connexion gardée ouverte d'une requête à l'autre, pour gagner la négociation TLS."""
+    return requests.Session()
+
+
 def _poster(chemin: str, session=None, **arguments) -> requests.Response:
-    reponse = (session or requests).post(f"{URL}{chemin}", headers=_entetes(), timeout=30, **arguments)
+    reponse = (session or _session()).post(f"{URL}{chemin}", headers=_entetes(), timeout=30, **arguments)
     if reponse.status_code >= 400:
         journal.warning("Groq a refusé la requête, code %s", reponse.status_code)
     reponse.raise_for_status()

@@ -445,6 +445,14 @@ class TestErreurs(Base):
             envois = self.envoyer(bouton("eau"))
         self.assertEqual(envois[-1][2], gabarits.erreur_technique())
 
+    def test_saisie_signalee_des_la_reception(self):
+        saisies = []
+        self.canal.indiquer_saisie = saisies.append
+        with mock.patch("threading.Thread") as fil:
+            fil.side_effect = lambda target, daemon: mock.Mock(start=target)
+            self.envoyer(texte("Bonjour"))
+        self.assertEqual(saisies, ["w"])
+
     def test_message_sans_numero_ignore(self):
         self.envoyer({"id": "w", "type": "text", "text": {"body": "Bonjour"}})
         self.assertEqual(self.canal.envois, [])

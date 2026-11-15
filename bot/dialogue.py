@@ -436,6 +436,22 @@ class Conversation:
             self.accueillir()
 
 
+def signaler_saisie(canal, message_id: str | None) -> None:
+    """Affiche aussitôt « en train d'écrire », sans retarder la préparation de la réponse."""
+    import threading
+
+    indiquer = getattr(canal, "indiquer_saisie", None)
+    if not (indiquer and message_id):
+        return
+
+    def envoyer():
+        try:
+            indiquer(message_id)
+        except Exception as erreur:
+            journal.warning("indicateur de saisie non envoyé, %s", type(erreur).__name__)
+    threading.Thread(target=envoyer, daemon=True).start()
+
+
 def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> None:
     """Fait avancer la conversation de l'expéditeur d'un message entrant."""
     numero = message.get("from")
@@ -445,8 +461,9 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
     reglages = parametres()
     magasin = magasin or sessions(reglages.base_de_donnees)
     session = magasin.lire(empreinte_numero(numero, reglages.sel_numeros))
-    echange = Conversation(numero, session, canal, magasin)
     debut = time.monotonic()
+    signaler_saisie(canal, message.get("id"))
+    echange = Conversation(numero, session, canal, magasin)
     try:
         entree = lire(message)
         if "audio" in entree or "texte" in entree:

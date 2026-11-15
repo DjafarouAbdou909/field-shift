@@ -19,8 +19,11 @@ class TestEnvois(unittest.TestCase):
     def setUp(self):
         self.env = mock.patch.dict(os.environ, ENV)
         self.env.start()
-        self.post = mock.patch.object(whatsapp.httpx, "post", return_value=reponse({"id": "media-1"}))
-        self.appel = self.post.start()
+        self.client = mock.Mock()
+        self.client.post.return_value = reponse({"id": "media-1"})
+        self.post = mock.patch.object(whatsapp, "_http", return_value=self.client)
+        self.post.start()
+        self.appel = self.client.post
         whatsapp._medias.clear()
 
     def tearDown(self):
@@ -77,6 +80,12 @@ class TestEnvois(unittest.TestCase):
         self.assertEqual(len(televersements), 1)
         self.assertEqual(self.corps()["audio"]["id"], "media-1")
 
+    def test_indicateur_de_saisie(self):
+        whatsapp.indiquer_saisie("wamid.1")
+        self.assertEqual(self.appel.call_args.kwargs["json"], {
+            "messaging_product": "whatsapp", "status": "read", "message_id": "wamid.1",
+            "typing_indicator": {"type": "text"}})
+
     def test_sans_jeton(self):
         with mock.patch.dict(os.environ, {"WHATSAPP_ACCESS_TOKEN": ""}), self.assertRaises(RuntimeError):
             whatsapp.envoyer_texte("225", "Bonjour")
@@ -84,8 +93,10 @@ class TestEnvois(unittest.TestCase):
 
 class TestMedia(unittest.TestCase):
     def test_telechargement_en_deux_temps_avec_le_jeton(self):
-        with mock.patch.dict(os.environ, ENV), mock.patch.object(whatsapp.httpx, "get", side_effect=[
-                reponse({"url": "https://lookaside.example/media"}), reponse(octets=b"\xff\xd8image")]) as get:
+        client = mock.Mock()
+        client.get.side_effect = [reponse({"url": "https://lookaside.example/media"}), reponse(octets=b"\xff\xd8image")]
+        get = client.get
+        with mock.patch.dict(os.environ, ENV), mock.patch.object(whatsapp, "_http", return_value=client):
             self.assertEqual(whatsapp.telecharger_media("m1"), b"\xff\xd8image")
         self.assertEqual(get.call_args_list[0].args[0], "https://graph.facebook.com/v27.0/m1")
         self.assertEqual(get.call_args_list[1].args[0], "https://lookaside.example/media")
