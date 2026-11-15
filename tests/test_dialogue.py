@@ -65,7 +65,7 @@ def audio():
 
 class Base(unittest.TestCase):
     def setUp(self):
-        self.env = mock.patch.dict(os.environ, {"SEL_NUMEROS": "sel-de-test"})
+        self.env = mock.patch.dict(os.environ, {"SEL_NUMEROS": "sel-de-test", "XAI_API_KEY": ""})
         self.env.start()
         self.canal, self.magasin = FauxCanal(), Sessions(":memory:")
         # Aucun appel réseau dans les tests, Gemini et Aethex sont simulés au besoin.
@@ -329,6 +329,25 @@ class TestVocal(Base):
             envois = self.vocal()
         locale.assert_called_once()
         self.assertEqual(self.types(envois), ["audio", "liste"])
+        self.assertEqual(self.session().etat, "lieu")
+
+    def test_grok_repond_quand_gemini_est_epuise(self):
+        """Whisper transcrit, Grok répond, et la réponse part seulement en note vocale lue par Aethex."""
+        self.consentir()
+        with mock.patch.object(dialogue.transcription_locale, "transcrire", return_value="Quand semer le maïs ?"), \
+                mock.patch.object(dialogue.grok, "configure", return_value=True), \
+                mock.patch.object(dialogue.grok, "repondre", return_value=("question", "Après les pluies.")) as repondre:
+            envois = self.vocal()
+        repondre.assert_called_once()
+        self.assertEqual(repondre.call_args.args[1], "Quand semer le maïs ?")
+        self.assertEqual(self.types(envois), ["audio"])
+
+    def test_grok_en_panne_secours_par_mots_cles(self):
+        self.consentir()
+        with mock.patch.object(dialogue.transcription_locale, "transcrire", return_value="Je veux une rotation"), \
+                mock.patch.object(dialogue.grok, "configure", return_value=True), \
+                mock.patch.object(dialogue.grok, "repondre", return_value=("indisponible", "x")):
+            self.vocal()
         self.assertEqual(self.session().etat, "lieu")
 
     def test_secours_local_question_libre(self):

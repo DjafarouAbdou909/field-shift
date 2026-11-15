@@ -24,9 +24,10 @@ de détail part toujours par écrit, un lien ne se disant pas.
 
 Une note vocale est écoutée par Gemini, avec les choix de l'étape quand il y en a. Si
 Gemini ne répond pas, quota épuisé ou panne, Whisper la transcrit sur la machine du bot,
-puis Aethex en dernier recours. Sans Gemini, les choix et la demande d'une rotation se
-comprennent encore par leurs mots-clés, et une question libre reçoit un message qui dit
-que la discussion est momentanément indisponible. Elle n'est traitée qu'après le consentement ou
+puis Aethex en dernier recours. Sans Gemini, Grok de xAI répond à la question si sa clé
+XAI_API_KEY est présente, et Aethex lit la réponse. Sans Gemini ni Grok, les choix et la
+demande d'une rotation se comprennent encore par leurs mots-clés, et une question libre
+reçoit un message qui dit que la discussion est momentanément indisponible. Elle n'est traitée qu'après le consentement ou
 en réponse à sa question, qui annonce cette écoute.
 
 Diagnostic par photo, à la manière du projet agri-bot. Une photo est acceptée à toute
@@ -59,7 +60,7 @@ from moteur.lieux import LIEUX
 
 from . import whatsapp
 from .config import parametres
-from .langage import comprehension, conversation, gabarits, reformulation, transcription_locale, voix
+from .langage import comprehension, conversation, gabarits, grok, reformulation, transcription_locale, voix
 from .langage.comprehension import normaliser
 from .securite import empreinte_numero
 from .sessions import Session, Sessions
@@ -311,6 +312,15 @@ class Conversation:
         if normaliser(texte) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
             self.avancer({"texte": texte})
             return
+        if grok.configure():
+            intention, reponse = grok.repondre(self.session.empreinte, texte)
+            if intention == "rotation":
+                self.demander_lieu()
+                return
+            if intention == "question":
+                self.texte(reponse)
+                self.etape(Etat.MENU)
+                return
         demande = comprehension.par_les_mots(texte, gabarits.BOUTONS_MENU, gabarits.MOTS_DEMANDE)
         if demande == "rotation":
             self.demander_lieu()
