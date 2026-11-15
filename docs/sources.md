@@ -56,7 +56,7 @@ Elles ne sont citées nulle part tant qu'elles n'ont pas été lues.
 
 ## Diagnostic par photo
 
-Liste fermée décidée le 14 novembre 2026, dans `moteur/maladies.py`, réduite le même jour à quatre maladies par le retrait de l'alternariose du coton. Le diagnostic passe par l'API Gemini de Google, décrite plus bas, et non plus par un modèle entraîné localement. Chaque source a été lue le 14 novembre 2026 à la page indiquée. Aucun traitement ni produit cité par ces sources n'est repris par l'outil.
+Liste fermée décidée le 14 novembre 2026, dans `moteur/maladies.py`, réduite le même jour à quatre maladies par le retrait de l'alternariose du coton. Le diagnostic passe par l'API Gemini de Google, décrite plus bas, et non plus par un modèle entraîné localement. Depuis le 15 novembre 2026, Gemini répond librement, à la manière du projet agri-bot, si bien que cette liste ne lui est plus imposée et que ses sources documentent seulement les maladies dont la présence est établie dans la zone. Chaque source a été lue le 14 novembre 2026 à la page indiquée. Aucun traitement ni produit cité par ces sources n'est repris par l'outil.
 
 ### Maladies de la liste fermée
 
