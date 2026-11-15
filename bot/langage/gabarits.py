@@ -7,14 +7,14 @@ textes sont ici et jamais dans le dialogue.
 
 Boutons et listes. Chaque dictionnaire associe un identifiant, lu par le dialogue, à un
 titre affiché. Trois boutons au plus par message et dix lignes au plus par liste, selon
-bot/whatsapp.py. Les titres restent sous 20 caractères, limite à confirmer dans la
-documentation de WhatsApp Cloud API par le membre A.
+bot/whatsapp.py. Les titres restent sous 20 caractères, limite des boutons de réponse de
+WhatsApp Cloud API.
 
 Diagnostic par photo. Depuis le 15 novembre 2026, le texte est rédigé librement par le
 modèle, à la manière du projet agri-bot, avec une recommandation concrète, et il se
 termine toujours par l'avertissement du diagnostic. La photo part chez Google pour
-analyse, d'où le consentement demandé avant le premier envoi, et elle n'est jamais
-conservée.
+analyse, ce qu'annonce le consentement du premier message, et le bot ne la conserve
+jamais.
 """
 
 import os

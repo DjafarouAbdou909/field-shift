@@ -4,7 +4,7 @@ Ce document déclare tout ce qui existait avant le début du hackathon, pour que
 
 ## AGRI-BOT
 
-AGRI-BOT est un assistant WhatsApp pour les agriculteurs, développé avant le hackathon par un membre de l'équipe et classé deuxième au Gnambélé BootCamp du PNUD en Côte d'Ivoire en septembre 2026. Il a inspiré la conception du bot de ce dépôt, notamment la vérification des signatures, l'idempotence et le profil de l'agriculteur. Aucun fichier d'AGRI-BOT n'a été copié. Le squelette du bot déclaré plus bas est antérieur au début par prudence, le reste du bot est écrit pendant le hackathon.
+AGRI-BOT est un assistant WhatsApp pour les agriculteurs, développé avant le hackathon par un membre de l'équipe et classé deuxième au Gnambélé BootCamp du PNUD en Côte d'Ivoire en septembre 2026. Il a inspiré la conception du bot de ce dépôt, notamment la vérification des signatures, l'idempotence et le profil de l'agriculteur. Aucun fichier d'AGRI-BOT n'a été copié tel quel. La consigne du diagnostic par photo de `moteur/diagnostic.py` a d'abord repris celle de `backend/nlp/prompts.py` d'AGRI-BOT, adaptée au vouvoiement et au conseiller ANADER et complétée par l'interdiction de nommer un produit, puis elle a été réécrite le 15 novembre 2026. Les trois messages d'échec du même module restent adaptés de `backend/vision/disease_client.py`. Ces deux emprunts sont mentionnés en tête du module. Le squelette du bot déclaré plus bas est antérieur au début par prudence, le reste du bot est écrit pendant le hackathon.
 
 ## African Crop Yield Intelligence
 
@@ -29,4 +29,4 @@ Le squelette a été préparé le 14 novembre 2026, jour du début du hackathon.
 
 ## Construit pendant le hackathon
 
-Tout ce qui suit le commit `f3646cd`. À ce jour, le cadrage, la compréhension des données, le téléchargement et les contrôles des séries NASA de `moteur/donnees.py` et `moteur/controles.py`, leurs tests, et les mises à jour du registre des sources et du journal des décisions. À venir, le moteur de comparaison des rotations, le parcours du bot WhatsApp, la voix, l'application branchée sur le moteur et la présentation.
+Tout ce qui suit le commit `f3646cd`, à savoir le cadrage et les cinq notebooks CRISP-DM, le téléchargement et les contrôles des séries NASA POWER, IMERG et GHCN, les indicateurs agroclimatiques, le moteur de comparaison des rotations avec ses critères, sa sensibilité et son évaluation, la comparaison des périodes 2001-2012 et 2013-2025, les extractions AppEEARS de MODIS et HLS, l'application Streamlit branchée sur le moteur, le bot AgriBot sur WhatsApp avec son dialogue, sa voix, sa discussion agricole et son diagnostic par photo, leurs tests, le registre des sources, le journal des décisions et la présentation.
