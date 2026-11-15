@@ -33,7 +33,7 @@ AgriBot closes that gap. A transparent engine turns 25 years of NASA precipitati
 | **Farming conversation** | Answers free farming questions in two or three sentences |
 | **Voice first** | Voice notes in and out; if the farmer writes, AgriBot writes back |
 | **Advisor app** | Streamlit app showing every score with its source and uncertainty |
-| **Offline platform** | The same advice for areas without a network: https://conseil-rotation-ci.netlify.app |
+| **Offline platform** | Installable web app that works with no network after the first visit, with pictograms, voice reading and an on-device leaf diagnosis: https://conseil-rotation-ci.netlify.app, source in [offline/](offline/) |
 
 ## NASA data
 
@@ -98,6 +98,20 @@ Farmer ── WhatsApp ──► WhatsApp Cloud API ── signed webhook ──
 ```
 
 **Design principle:** every recommendation comes from the deterministic engine. AI models only transcribe, understand, word answers, read them aloud and look at photos.
+
+## Offline platform
+
+Many farms have no reliable network. The [offline/](offline/) folder holds a second, fully offline channel, built during the hackathon and published at https://conseil-rotation-ci.netlify.app.
+
+| Aspect | Design |
+|---|---|
+| **Data** | Same NASA POWER and GPM IMERG series and FAO-56 rules as the main engine; every recommendation is precomputed into `app/donnees/recommandations.json` |
+| **Runtime** | Installable web app with a service worker; no server, no network and no language model once loaded |
+| **Accessibility** | Pictogram on every button, voice reading of every message, GPS location without network, voice notes kept on the phone for the advisor |
+| **Leaf diagnosis** | ONNX model run in the browser with ONNX Runtime Web; training notebooks in `offline/entrainement/` |
+| **Tests** | `cd offline && python -m unittest discover -s tests -t .`, including FAO-56 example 18 |
+
+Its full commit history is preserved in this repository. See [offline/README.md](offline/README.md) for details, in French.
 
 ## Use of AI
 
@@ -189,6 +203,7 @@ field-shift/
 ├── notebooks/       one notebook per CRISP-DM phase
 ├── tests/           unit tests
 ├── docs/            scoping, data, evaluation, sources, prior work, decision log (in French)
+├── offline/         offline web platform: precomputed advice, on-device leaf diagnosis
 └── presentation/    final deck in English and French, PDF and PowerPoint
 ```
 
