@@ -3,47 +3,60 @@
 Parcours
     ACCUEIL             présentation et demande de consentement
     CONSENTEMENT        l'agriculteur accepte ou refuse, un refus efface tout
-    MENU                conseil de rotation ou photo de plante
+    MENU                discussion agricole libre, à l'écrit ou à la voix
     LIEU                position WhatsApp ou liste des zones couvertes
     ROTATION            liste des rotations actuelles possibles
     PRIORITE            trois boutons, eau, débouché, sol
-    RESULTAT            résumé, boutons Pourquoi, Écouter, Détail, questions libres
+    RESULTAT            résumé, boutons Pourquoi, Écouter, Détail, questions sur le conseil
     CONSENTEMENT_PHOTO  accord pour envoyer la photo à Google, demandé une fois
     PHOTO               la photo est analysée puis oubliée
 
-Diagnostic par photo, à la manière du projet agri-bot, décision du 15 novembre 2026. Une
-photo est acceptée à toute étape après le consentement, sa légende servant de culture
-déclarée. Reçue avant le consentement à son envoi chez Google, elle est mise en attente
-par son seul identifiant WhatsApp, puis analysée après l'accord ou oubliée après un refus.
+Discussion, décision du responsable du 15 novembre 2026. Après le consentement,
+l'agriculteur échange librement avec le bot sur l'agriculture, par bot.langage.conversation,
+qui ne nomme aucun produit et ne parle jamais au nom de l'ANADER. Une question reçoit une
+réponse, sans lancer de calcul. Le parcours de rotation, à choix multiples, ne démarre que
+si l'agriculteur le demande, par un bouton ou par ses mots.
 
-Voix d'abord, pour des agriculteurs qui souvent ne lisent pas. Un message vocal est
-écouté par Gemini, qui rend sa transcription et le choix reconnu parmi ceux de l'étape,
-la transcription d'Aethex servant de secours, puis traité comme un texte, seulement après le consentement
-ou en réponse à sa question, qui annonce la transcription. Une phrase dite ou écrite
-remplace un bouton, comprise par bot.langage.comprehension. Dès que l'agriculteur parle,
-le bot lui répond aussi par note vocale et lit les choix possibles, jusqu'à ce qu'il écrive. STOP efface la session, Bonjour ou Menu
-ramène au début. Une position hors des zones couvertes reçoit un message honnête. Les
-textes viennent de bot.langage.gabarits, jamais d'une chaîne écrite ici.
+Une seule forme de réponse. Si l'agriculteur parle, le bot répond seulement en note
+vocale, lue par Aethex, les boutons restant affichés sous un simple signe pour qui veut
+toucher son choix. S'il écrit, le bot répond seulement par écrit. Seul le lien de la page
+de détail part toujours par écrit, un lien ne se disant pas.
+
+Une note vocale est écoutée par Gemini, avec les choix de l'étape quand il y en a, la
+transcription d'Aethex servant de secours. Elle n'est traitée qu'après le consentement ou
+en réponse à sa question, qui annonce cette écoute.
+
+Diagnostic par photo, à la manière du projet agri-bot. Une photo est acceptée à toute
+étape après le consentement, sa légende servant de culture déclarée. Reçue avant le
+consentement à son envoi chez Google, elle attend par son seul identifiant WhatsApp. Toute
+phrase du diagnostic qui nommerait un produit est retirée.
+
+STOP efface la session et la mémoire de la conversation, Bonjour ou Menu ramène à la
+discussion. Une position hors des zones couvertes reçoit un message honnête. Les textes
+fixes viennent de bot.langage.gabarits.
 
 Zone couverte. Une position est rattachée à une ville si elle tombe à 0,15 degré au plus
 de son centre en latitude et en longitude, l'emprise approximative des neuf cases de pluie
 IMERG qui fondent le conseil, décrites dans docs/donnees.md.
 
-Aucune photo ni aucun audio n'est écrit sur disque, et aucune question libre n'est gardée.
+Aucune photo ni aucun audio n'est écrit sur disque, et aucune question libre n'est gardée
+sur disque.
 """
 
 import functools
 import logging
+import re
 from enum import Enum
 
 from moteur import recommander
 from moteur.criteres import POIDS_PAR_PRIORITE
+from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC
 from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
 from moteur.lieux import LIEUX
 
 from . import whatsapp
 from .config import parametres
-from .langage import comprehension, gabarits, reformulation, voix
+from .langage import comprehension, conversation, gabarits, reformulation, voix
 from .langage.comprehension import normaliser
 from .securite import empreinte_numero
 from .sessions import Session, Sessions
@@ -100,6 +113,19 @@ def options_de_l_etape(etat: str) -> dict[str, str]:
             Etat.CONSENTEMENT_PHOTO.value: gabarits.BOUTONS_CONSENTEMENT_PHOTO}.get(etat, {})
 
 
+def pour_la_voix(texte: str) -> str:
+    """Texte à lire à voix haute, sans la mise en forme ni les signes de WhatsApp."""
+    return re.sub(r"[*_~👇📸⚠️]", "", texte).replace("\ufe0f", "").strip()
+
+
+def sans_produit(texte: str) -> str:
+    """Retire du diagnostic toute phrase qui nomme un produit, en gardant l'avertissement final."""
+    if not texte.rstrip().endswith(AVERTISSEMENT_DIAGNOSTIC):
+        return texte
+    corps = texte.rstrip()[:-len(AVERTISSEMENT_DIAGNOSTIC)]
+    return f"{conversation.filtrer(corps)}\n\n{AVERTISSEMENT_DIAGNOSTIC}"
+
+
 def lieu_proche(latitude: float, longitude: float) -> str | None:
     for identifiant, lieu in LIEUX.items():
         if abs(latitude - lieu["lat"]) <= RAYON_DEGRES and abs(longitude - lieu["lon"]) <= RAYON_DEGRES:
@@ -136,26 +162,36 @@ class Conversation:
     def etape(self, etat: Etat, **changements) -> None:
         self.session = self.magasin.ecrire(self.session.avec(etat=etat.value, **changements))
 
-    def dire(self, texte: str) -> None:
-        """Répète un message en note vocale quand l'agriculteur parle au bot."""
-        if not (self.session.mode_vocal and voix.configuree()):
-            return
+    @property
+    def vocal(self) -> bool:
+        return self.session.mode_vocal and voix.configuree()
+
+    def dire(self, texte: str) -> bool:
+        """Envoie le texte en note vocale, et dit s'il a pu partir."""
         try:
-            self.canal.envoyer_audio(self.numero, voix.synthetiser(texte))
+            self.canal.envoyer_audio(self.numero, voix.synthetiser(pour_la_voix(texte)))
+            return True
         except Exception as erreur:
             journal.warning("note vocale non envoyée, %s", type(erreur).__name__)
+            return False
 
     def texte(self, texte: str) -> None:
+        """Un message, en note vocale si l'agriculteur parle, par écrit sinon, jamais les deux."""
+        if not (self.vocal and self.dire(texte)):
+            self.canal.envoyer_texte(self.numero, texte)
+
+    def lien(self, texte: str) -> None:
         self.canal.envoyer_texte(self.numero, texte)
-        self.dire(texte)
 
     def boutons(self, texte: str, boutons: dict[str, str]) -> None:
+        if self.vocal and self.dire(f"{texte}\n{gabarits.choix_a_dire(boutons)}"):
+            texte = gabarits.INVITE_CHOIX
         self.canal.envoyer_boutons(self.numero, texte, boutons)
-        self.dire(f"{texte}\n{gabarits.choix_a_dire(boutons)}")
 
     def liste(self, texte: str, lignes: dict[str, str]) -> None:
+        if self.vocal and self.dire(f"{texte}\n{gabarits.choix_a_dire(lignes)}"):
+            texte = gabarits.INVITE_CHOIX
         self.canal.envoyer_liste(self.numero, texte, lignes, gabarits.LIBELLE_LISTE)
-        self.dire(f"{texte}\n{gabarits.choix_a_dire(lignes)}")
 
     # Débuts et menu
 
@@ -198,12 +234,10 @@ class Conversation:
         if choix == "pourquoi":
             self.texte(gabarits.pourquoi(reco))
         elif choix == "detail":
-            self.texte(gabarits.detail(reco))
+            self.lien(gabarits.detail(reco))
         elif choix == "ecouter":
-            if voix.configuree():
-                self.canal.envoyer_audio(self.numero, voix.synthetiser(gabarits.resume(reco)))
-            else:
-                self.texte(gabarits.voix_indisponible())
+            if not (voix.configuree() and self.dire(gabarits.resume(reco))):
+                self.canal.envoyer_texte(self.numero, gabarits.voix_indisponible())
         elif entree.get("texte"):
             self.texte(reformulation.repondre(entree["texte"], reco, secours=gabarits.resume(reco)))
         else:
@@ -227,9 +261,22 @@ class Conversation:
             del contenu
         else:
             resultat = echec(FORMAT_REFUSE, legende or None)
-        self.texte(gabarits.diagnostic(resultat))
-        self.session = self.session.avec(photo_en_attente=None)
-        self.montrer_menu()
+        self.texte(sans_produit(gabarits.diagnostic(resultat)))
+        self.etape(Etat.MENU, photo_en_attente=None)
+
+    # Discussion
+
+    def discuter(self, entree: dict) -> None:
+        """Répond à une question écrite ou vocale, ou lance le parcours de rotation s'il est demandé."""
+        intention, reponse, dit = conversation.repondre(self.session.empreinte, question=entree.get("texte"),
+                                                        audio=entree.get("audio_brut"))
+        if entree.get("audio_brut") and normaliser(dit) in (COMMANDE_EFFACER, *COMMANDES_DEBUT):
+            self.avancer({"texte": dit})
+        elif intention == "rotation":
+            self.demander_lieu()
+        else:
+            self.texte(reponse)
+            self.etape(Etat.MENU)
 
     # Aiguillage
 
@@ -238,6 +285,7 @@ class Conversation:
         texte = normaliser(entree.get("texte") or "")
         if texte == COMMANDE_EFFACER:
             self.magasin.effacer(s.empreinte)
+            conversation.oublier(s.empreinte)
             self.texte(gabarits.efface())
             return
         if not s.consentement and etat != Etat.CONSENTEMENT:
@@ -262,13 +310,14 @@ class Conversation:
                 self.accueillir()
 
         elif etat == Etat.MENU:
-            choix = choisir(entree, gabarits.BOUTONS_MENU)
+            choix = choisir(entree, gabarits.BOUTONS_MENU, souple=False)
             if choix == "rotation":
                 self.demander_lieu()
             elif choix == "photo":
                 self.demander_photo()
+            elif entree.get("texte") or entree.get("audio_brut"):
+                self.discuter(entree)
             else:
-                self.texte(gabarits.incompris())
                 self.montrer_menu()
 
         elif etat == Etat.LIEU:
@@ -311,9 +360,8 @@ class Conversation:
                 else:
                     self.demander_photo()
             elif choix == "photo_refuse":
-                self.session = s.avec(photo_en_attente=None)
                 self.texte(gabarits.refus_photo())
-                self.montrer_menu()
+                self.etape(Etat.MENU, photo_en_attente=None)
             else:
                 self.boutons(gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)
 
@@ -333,36 +381,40 @@ def traiter(message: dict, canal=whatsapp, magasin: Sessions | None = None) -> N
     reglages = parametres()
     magasin = magasin or sessions(reglages.base_de_donnees)
     session = magasin.lire(empreinte_numero(numero, reglages.sel_numeros))
-    conversation = Conversation(numero, session, canal, magasin)
+    echange = Conversation(numero, session, canal, magasin)
     try:
         entree = lire(message)
         if "audio" in entree or "texte" in entree:
-            conversation.session = session.avec(mode_vocal="audio" in entree)
+            echange.session = session.avec(mode_vocal="audio" in entree)
         if "audio" in entree:
-            # La réponse à la question du consentement, qui annonce la transcription, peut être transcrite.
+            # La réponse à la question du consentement, qui annonce l'écoute, peut être écoutée.
             if not session.consentement and session.etat != Etat.CONSENTEMENT.value:
-                conversation.accueillir()
+                echange.accueillir()
                 return
             media_id, type_audio = entree["audio"]
             audio = canal.telecharger_media(media_id)
-            entendu = comprehension.ecouter(audio, type_audio, options_de_l_etape(conversation.session.etat))
+            if echange.session.consentement and echange.session.etat == Etat.MENU.value:
+                # En discussion, Gemini écoute et répond en un seul appel.
+                echange.avancer({"audio_brut": (audio, type_audio)})
+                return
+            entendu = comprehension.ecouter(audio, type_audio, options_de_l_etape(echange.session.etat))
             if entendu is not None:
                 entree = {"texte": entendu[0], "choix": entendu[1]}
             elif voix.configuree():
                 entree = {"texte": voix.transcrire(audio, type_audio)}
             else:
-                conversation.texte(gabarits.vocal_indisponible())
+                echange.texte(gabarits.vocal_indisponible())
                 return
             del audio
             journal.info("note vocale comprise, %s caractères, option %s", len(entree["texte"]), entree.get("choix"))
             if not entree["texte"]:
-                conversation.texte(gabarits.incompris())
-                conversation.etape(Etat(conversation.session.etat))
+                echange.texte(gabarits.incompris())
+                echange.etape(Etat(echange.session.etat))
                 return
-        conversation.avancer(entree)
+        echange.avancer(entree)
     except Exception as erreur:
         journal.exception("erreur pendant le dialogue, %s", type(erreur).__name__)
         try:
-            conversation.texte(gabarits.erreur_technique())
+            echange.texte(gabarits.erreur_technique())
         except Exception:
             journal.exception("message d'erreur non envoyé")

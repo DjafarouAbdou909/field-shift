@@ -35,10 +35,10 @@ def requete(question: str, reco: Recommandation) -> dict:
             "generation_config": {"seed": GRAINE, "thinking_level": "low"}}
 
 
-def repondre(question: str, reco: Recommandation, secours: str, appel=appeler) -> str:
+def repondre(question: str, reco: Recommandation, secours: str, appel=None) -> str:
     """Réponse du modèle si elle est fidèle à la recommandation, sinon le texte de secours."""
     try:
-        texte = texte_de_sortie(appel(requete(question, reco)))
+        texte = texte_de_sortie((appel or appeler)(requete(question, reco)))
     except Exception as erreur:  # le secours vaut mieux qu'un silence
         journal.warning("reformulation indisponible, %s", type(erreur).__name__)
         texte = None

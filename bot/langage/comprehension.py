@@ -72,10 +72,10 @@ def requete(texte: str, options: dict[str, str]) -> dict:
                 "required": ["option"]}}}
 
 
-def par_le_modele(texte: str, options: dict[str, str], appel=appeler) -> str | None:
+def par_le_modele(texte: str, options: dict[str, str], appel=None) -> str | None:
     import json
     try:
-        sortie = json.loads(texte_de_sortie(appel(requete(texte, options))) or "{}")
+        sortie = json.loads(texte_de_sortie((appel or appeler)(requete(texte, options))) or "{}")
     except Exception as erreur:
         journal.warning("compréhension par le modèle indisponible, %s", type(erreur).__name__)
         return None
@@ -102,7 +102,7 @@ def requete_audio(audio: bytes, type_audio: str, options: dict[str, str]) -> dic
                 "required": ["transcription", "option"]}}}
 
 
-def ecouter(audio: bytes, type_audio: str, options: dict[str, str], appel=appeler) -> tuple[str, str | None] | None:
+def ecouter(audio: bytes, type_audio: str, options: dict[str, str], appel=None) -> tuple[str, str | None] | None:
     """Transcription d'une note vocale et option choisie, par Gemini qui écoute l'audio, ou None en cas d'échec.
 
     Gemini accepte l'OGG des notes vocales WhatsApp, page docs/audio de sa documentation,
@@ -111,7 +111,7 @@ def ecouter(audio: bytes, type_audio: str, options: dict[str, str], appel=appele
     """
     import json
     try:
-        sortie = json.loads(texte_de_sortie(appel(requete_audio(audio, type_audio.split(";")[0].strip(), options)))
+        sortie = json.loads(texte_de_sortie((appel or appeler)(requete_audio(audio, type_audio.split(";")[0].strip(), options)))
                             or "{}")
     except Exception as erreur:
         journal.warning("écoute par le modèle indisponible, %s", type(erreur).__name__)
@@ -121,6 +121,6 @@ def ecouter(audio: bytes, type_audio: str, options: dict[str, str], appel=appele
     return transcription, option if option in options else None
 
 
-def comprendre(texte: str, options: dict[str, str], appel=appeler) -> str | None:
+def comprendre(texte: str, options: dict[str, str], appel=None) -> str | None:
     """Identifiant de l'option choisie par une phrase libre, ou None."""
     return par_les_mots(texte, options) or par_le_modele(texte, options, appel)

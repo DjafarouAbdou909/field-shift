@@ -39,9 +39,10 @@ def accueil() -> str:
             "votre conseiller ANADER.\n"
             "Ce service est réservé aux personnes de 18 ans ou plus.\n"
             "Pour vous répondre, je garde votre zone, votre rotation et votre priorité, sans votre numéro en clair. "
-            "Vos messages vocaux et vos réponses sont compris par le service Gemini de Google, et mes réponses "
-            "vocales sont lues par le service Aethex. Field Shift ne garde ni vos messages vocaux ni vos questions. Dites "
-            "ou écrivez STOP à tout moment pour tout effacer. Acceptez-vous ?")
+            "Vos messages et vos questions sont compris par le service Gemini de Google, et mes réponses vocales "
+            "sont lues par le service Aethex. Pour suivre la conversation, je garde vos derniers échanges en "
+            "mémoire trente minutes, sans les enregistrer. Dites ou écrivez STOP à tout moment pour tout effacer. "
+            "Acceptez-vous ?")
 
 
 BOUTONS_CONSENTEMENT = {"accepte": "J'accepte", "refuse": "Non merci"}
@@ -58,7 +59,11 @@ def efface() -> str:
 # Menu
 
 def menu() -> str:
-    return "Que voulez-vous faire ?"
+    return ("Posez-moi vos questions sur vos cultures, par écrit ou par message vocal. Je peux aussi comparer des "
+            "rotations pour votre champ, ou regarder la photo d'une plante malade.")
+
+
+INVITE_CHOIX = "👇"
 
 
 BOUTONS_MENU = {"rotation": "Conseil rotation", "photo": "Photo de plante"}

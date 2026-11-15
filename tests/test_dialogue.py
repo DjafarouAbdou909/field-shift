@@ -70,6 +70,7 @@ class Base(unittest.TestCase):
         self.canal, self.magasin = FauxCanal(), Sessions(":memory:")
         # Aucun appel réseau dans les tests, Gemini et Aethex sont simulés au besoin.
         self.sans_reseau = [mock.patch.object(dialogue.comprehension, "appeler", side_effect=RuntimeError("hors ligne")),
+                            mock.patch.object(dialogue.conversation, "appeler", side_effect=RuntimeError("hors ligne")),
                             mock.patch.object(dialogue.voix, "synthetiser", return_value=b"OggS-voix")]
         for patch in self.sans_reseau:
             patch.start()
@@ -251,74 +252,118 @@ class TestPhoto(Base):
 
 
 class TestVocal(Base):
-    def vocal(self, transcription, configuree=True):
+    """Si l'agriculteur parle, le bot répond seulement en note vocale, les boutons restant sous un signe."""
+
+    def vocal(self, ecoute=None, configuree=True, transcription=""):
         with mock.patch.object(dialogue.voix, "configuree", return_value=configuree), \
-                mock.patch.object(dialogue.voix, "transcrire", return_value=transcription) as transcrire:
+                mock.patch.object(dialogue.comprehension, "ecouter", return_value=ecoute) as ecouter, \
+                mock.patch.object(dialogue.voix, "transcrire", return_value=transcription):
             envois = self.envoyer(audio())
-        self.transcrire = transcrire
+        self.ecouter = ecouter
         return envois
 
-    def test_vocal_avant_consentement_accueil_parle(self):
-        """Le premier message vocal n'est pas transcrit, l'accueil est envoyé en texte et en voix."""
-        envois = self.vocal("peu importe")
-        self.transcrire.assert_not_called()
-        self.assertEqual(envois[0][2], gabarits.accueil())
-        self.assertEqual(envois[1], ("audio", NUMERO, b"OggS-voix"))
+    def types(self, envois):
+        return [e[0] for e in envois]
+
+    def test_accueil_parle_sans_texte(self):
+        envois = self.vocal()
+        self.ecouter.assert_not_called()
+        self.assertEqual(self.types(envois), ["audio", "boutons"])
+        self.assertEqual(envois[1][2], gabarits.INVITE_CHOIX)
 
     def test_consentement_donne_a_la_voix(self):
         self.envoyer(texte("Bonjour"))
-        envois = self.vocal("Oui, j'accepte.")
+        envois = self.vocal(("Oui je suis d'accord", "accepte"))
         self.assertTrue(self.session().consentement)
-        self.assertEqual(envois[-2][3], gabarits.BOUTONS_MENU)
-        self.assertEqual(envois[-1][0], "audio", "le menu est aussi lu à voix haute")
+        self.assertEqual(self.types(envois), ["audio", "boutons"])
+        self.assertEqual(envois[-1][3], gabarits.BOUTONS_MENU)
 
-    def test_phrase_naturelle_comprise(self):
+    def test_question_vocale_recoit_une_reponse_vocale(self):
+        """Une question dite reçoit une réponse dite, sans lancer de calcul de rotation."""
         self.consentir()
-        self.vocal("Bonjour je voudrais un conseil pour mes cultures")
+        with mock.patch.object(dialogue.conversation, "repondre",
+                               return_value=("question", "Semez le niébé après les premières pluies.", "Quand semer ?")):
+            envois = self.vocal()
+        self.assertEqual(self.types(envois), ["audio"])
+        self.assertEqual(self.session().etat, "menu")
+
+    def test_demande_de_rotation_dite(self):
+        self.consentir()
+        with mock.patch.object(dialogue.conversation, "repondre", return_value=("rotation", "", "je veux une rotation")):
+            envois = self.vocal()
+        self.assertEqual(self.types(envois), ["audio", "liste"])
+        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
         self.assertEqual(self.session().etat, "lieu")
-        self.vocal("Je suis à Korhogo")
-        self.vocal("Je fais le coton et le maïs")
-        self.vocal("C'est l'eau qui compte le plus")
+
+    def test_choix_dits_jusqu_au_resultat(self):
+        self.consentir()
+        with mock.patch.object(dialogue.conversation, "repondre", return_value=("rotation", "", "rotation")):
+            self.vocal()
+        self.vocal(("à côté de Korhogo", "korhogo"))
+        self.vocal(("coton et maïs", "coton_mais"))
+        envois = self.vocal(("l'eau", "eau"))
         s = self.session()
         self.assertEqual((s.lieu, s.rotation, s.priorite, s.etat), ("korhogo", "coton_mais", "eau", "resultat"))
+        self.assertNotIn("texte", self.types(envois), "aucun texte quand l'agriculteur parle")
 
-    def test_modele_en_dernier_recours(self):
+    def test_stop_dit_en_discussion(self):
         self.consentir()
-        with mock.patch.object(dialogue.comprehension, "par_le_modele", return_value="photo") as modele:
-            self.vocal("Mes plants ont des taches bizarres")
-        modele.assert_called_once()
-        self.assertEqual(self.session().etat, "consentement_photo")
+        with mock.patch.object(dialogue.conversation, "repondre", return_value=("question", "x", "Stop.")):
+            self.vocal()
+        self.assertFalse(self.session().consentement)
 
-    def test_ecrire_coupe_la_voix(self):
+    def test_voix_en_panne_repli_sur_le_texte(self):
         self.consentir()
-        self.vocal("rotation")
-        self.assertTrue(self.session().mode_vocal)
-        with mock.patch.object(dialogue.voix, "configuree", return_value=True):
-            envois = self.envoyer(texte("Korhogo"))
-        self.assertFalse(self.session().mode_vocal)
-        self.assertNotIn("audio", [e[0] for e in envois])
+        with mock.patch.object(dialogue.voix, "synthetiser", side_effect=RuntimeError("Aethex")), \
+                mock.patch.object(dialogue.conversation, "repondre", return_value=("question", "Réponse.", "q")):
+            envois = self.vocal()
+        self.assertEqual(envois, [("texte", NUMERO, "Réponse.")])
 
-    def test_gemini_ecoute_et_choisit(self):
-        """Gemini écoute la note avec les choix de l'étape, Aethex n'est pas appelé."""
+    def test_vocal_sans_service_hors_discussion(self):
         self.consentir()
         self.envoyer(bouton("rotation"))
-        with mock.patch.object(dialogue.comprehension, "ecouter", return_value=("à côté de Korhogo", "korhogo")) as ecoute, \
-                mock.patch.object(dialogue.voix, "transcrire") as transcrire:
-            self.envoyer(audio())
-        self.assertEqual(ecoute.call_args.args[2], gabarits.LIGNES_LIEUX)
-        transcrire.assert_not_called()
-        self.assertEqual(self.session().lieu, "korhogo")
-
-    def test_vocal_sans_service(self):
-        self.consentir()
-        envois = self.vocal("rotation", configuree=False)
+        envois = self.vocal(None, configuree=False)
         self.assertEqual(envois[0][2], gabarits.vocal_indisponible())
 
     def test_vocal_vide(self):
         self.consentir()
-        envois = self.vocal("")
-        self.assertEqual(envois[0][2], gabarits.incompris())
-        self.assertEqual(self.session().etat, "menu")
+        self.envoyer(bouton("rotation"))
+        envois = self.vocal(("", None))
+        self.assertEqual(self.types(envois), ["audio"])
+        self.assertEqual(self.session().etat, "lieu")
+
+
+class TestDiscussion(Base):
+    def test_question_ecrite_reponse_ecrite(self):
+        self.consentir()
+        with mock.patch.object(dialogue.conversation, "repondre",
+                               return_value=("question", "Le niébé enrichit le sol en azote.", "q")) as repondre:
+            envois = self.envoyer(texte("À quoi sert le niébé ?"))
+        self.assertEqual(envois, [("texte", NUMERO, "Le niébé enrichit le sol en azote.")])
+        self.assertEqual(repondre.call_args.kwargs["question"], "À quoi sert le niébé ?")
+
+    def test_demande_de_rotation_ecrite(self):
+        self.consentir()
+        with mock.patch.object(dialogue.conversation, "repondre", return_value=("rotation", "", "q")):
+            envois = self.envoyer(texte("Je veux un conseil de rotation pour mon champ"))
+        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+
+    def test_service_indisponible(self):
+        self.consentir()
+        envois = self.envoyer(texte("Quand semer le maïs ?"))
+        self.assertEqual(envois, [("texte", NUMERO, dialogue.conversation.SECOURS)])
+
+    def test_diagnostic_sans_produit(self):
+        self.consentir()
+        self.envoyer(bouton("photo"), bouton("photo_accepte"))
+        texte_modele = ("*Recommandation concrète* : Arrachez les plants atteints. Pulvérisez un fongicide.\n\n"
+                        + AVERTISSEMENT_DIAGNOSTIC)
+        resultat = Diagnostic(donnees_fictives=False, statut="analyse", texte=texte_modele, origine_images=ORIGINE)
+        with mock.patch.object(dialogue, "diagnostiquer", return_value=resultat):
+            envois = self.envoyer(image())
+        self.assertNotIn("fongicide", envois[0][2])
+        self.assertIn("Arrachez les plants atteints.", envois[0][2])
+        self.assertTrue(envois[0][2].endswith(AVERTISSEMENT_DIAGNOSTIC))
 
 
 class TestErreurs(Base):
