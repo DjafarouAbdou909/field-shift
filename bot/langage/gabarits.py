@@ -10,10 +10,11 @@ titre affiché. Trois boutons au plus par message et dix lignes au plus par list
 bot/whatsapp.py. Les titres restent sous 20 caractères, limite à confirmer dans la
 documentation de WhatsApp Cloud API par le membre A.
 
-Diagnostic par photo. Le bot ne recommande jamais de traitement ni de produit. Une maladie
-possible est toujours dite « maladie possible, à faire confirmer par votre conseiller
-ANADER ». La photo part chez Google pour analyse, d'où le consentement demandé avant le
-premier envoi, et elle n'est jamais conservée.
+Diagnostic par photo. Depuis le 15 novembre 2026, le texte est rédigé librement par le
+modèle, à la manière du projet agri-bot, avec une recommandation concrète, et il se
+termine toujours par l'avertissement du diagnostic. La photo part chez Google pour
+analyse, d'où le consentement demandé avant le premier envoi, et elle n'est jamais
+conservée.
 """
 
 from moteur.contrat import AlerteVegetation, Diagnostic, Recommandation
@@ -60,7 +61,7 @@ def menu() -> str:
     return "Que voulez-vous faire ?"
 
 
-BOUTONS_MENU = {"rotation": "Conseil rotation", "photo": "Photo de feuille"}
+BOUTONS_MENU = {"rotation": "Conseil rotation", "photo": "Photo de plante"}
 LIBELLE_LISTE = "Choisir"
 
 
@@ -167,28 +168,18 @@ def alerte(a: AlerteVegetation) -> str:
 
 # Diagnostic par photo
 
-def demande_culture_photo() -> str:
-    return "De quelle culture est la feuille que vous voulez montrer ?"
-
-
-BOUTONS_CULTURE_PHOTO = {"maïs": "Maïs", "coton": "Coton"}
-
-
 def consentement_photo() -> str:
-    return ("Pour reconnaître une maladie, votre photo est envoyée à Google, qui l'analyse. Field Shift ne garde pas "
-            "la photo. Le résultat est un avis à faire confirmer par votre conseiller ANADER. Acceptez-vous d'envoyer "
-            "votre photo ?")
+    return ("Pour analyser votre plante, votre photo est envoyée à Google, qui l'analyse. Field Shift ne garde pas "
+            "la photo. Le résultat est un diagnostic indicatif, qui ne remplace pas votre conseiller ANADER. "
+            "Acceptez-vous d'envoyer votre photo ?")
 
 
 BOUTONS_CONSENTEMENT_PHOTO = {"photo_accepte": "J'accepte", "photo_refuse": "Non merci"}
 
 
 def demande_photo() -> str:
-    return "Envoyez une photo nette d'une seule feuille, prise à la lumière du jour."
-
-
-def photo_illisible() -> str:
-    return "Je n'arrive pas à lire cette image. Envoyez une photo au format habituel de votre téléphone."
+    return ("Envoyez une photo nette de la partie malade de la plante, feuille, tige ou fruit, prise de près et à "
+            "la lumière du jour. Vous pouvez écrire le nom de la culture en légende de la photo.")
 
 
 def refus_photo() -> str:
@@ -196,15 +187,8 @@ def refus_photo() -> str:
 
 
 def diagnostic(d: Diagnostic) -> str:
-    """Message du diagnostic. Une maladie possible est toujours à faire confirmer, jamais suivie d'un traitement."""
-    lignes = []
-    if d.donnees_fictives:
-        lignes.append("[TEST, données fictives]")
-    if d.statut == "maladie_possible":
-        lignes.append(f"Maladie possible, {d.maladie}, à faire confirmer par votre conseiller ANADER.")
-    else:
-        lignes.append(d.avertissement)
-    return "\n".join(lignes)
+    """Texte du diagnostic rédigé par le modèle, ou message d'échec, tel quel."""
+    return f"[TEST, données fictives]\n{d.texte}" if d.donnees_fictives else d.texte
 
 
 # Messages communs

@@ -3,14 +3,18 @@
 Parcours
     ACCUEIL             présentation et demande de consentement
     CONSENTEMENT        l'agriculteur accepte ou refuse, un refus efface tout
-    MENU                conseil de rotation ou photo de feuille
+    MENU                conseil de rotation ou photo de plante
     LIEU                position WhatsApp ou liste des zones couvertes
     ROTATION            liste des rotations actuelles possibles
     PRIORITE            trois boutons, eau, débouché, sol
     RESULTAT            résumé, boutons Pourquoi, Écouter, Détail, questions libres
-    CULTURE_PHOTO       maïs ou coton
     CONSENTEMENT_PHOTO  accord pour envoyer la photo à Google, demandé une fois
     PHOTO               la photo est analysée puis oubliée
+
+Diagnostic par photo, à la manière du projet agri-bot, décision du 15 novembre 2026. Une
+photo est acceptée à toute étape après le consentement, sa légende servant de culture
+déclarée. Reçue avant le consentement à son envoi chez Google, elle est mise en attente
+par son seul identifiant WhatsApp, puis analysée après l'accord ou oubliée après un refus.
 
 Un message vocal est transcrit par bot.langage.voix puis traité comme un texte, et
 seulement après le consentement. Un texte peut remplacer un bouton, par son titre, son
@@ -32,7 +36,7 @@ from enum import Enum
 
 from moteur import recommander
 from moteur.criteres import POIDS_PAR_PRIORITE
-from moteur.diagnostic import TYPES_IMAGE, diagnostiquer
+from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
 from moteur.lieux import LIEUX
 
 from . import whatsapp
@@ -55,7 +59,6 @@ class Etat(str, Enum):
     ROTATION = "rotation"
     PRIORITE = "priorite"
     RESULTAT = "resultat"
-    CULTURE_PHOTO = "culture_photo"
     CONSENTEMENT_PHOTO = "consentement_photo"
     PHOTO = "photo"
 
@@ -104,7 +107,8 @@ def lire(message: dict) -> dict:
         position = message.get("location", {})
         return {"position": (position.get("latitude"), position.get("longitude"))}
     if genre == "image":
-        return {"image": (message["image"]["id"], message["image"].get("mime_type", ""))}
+        image = message["image"]
+        return {"image": (image["id"], image.get("mime_type", "")), "legende": (image.get("caption") or "").strip()}
     if genre == "audio":
         return {"audio": (message["audio"]["id"], message["audio"].get("mime_type", ""))}
     return {}
@@ -142,9 +146,13 @@ class Conversation:
         self.liste(gabarits.demande_lieu(), gabarits.LIGNES_LIEUX)
         self.etape(Etat.LIEU)
 
-    def demander_culture_photo(self) -> None:
-        self.boutons(gabarits.demande_culture_photo(), gabarits.BOUTONS_CULTURE_PHOTO)
-        self.etape(Etat.CULTURE_PHOTO)
+    def demander_photo(self) -> None:
+        if self.session.consentement_photo:
+            self.texte(gabarits.demande_photo())
+            self.etape(Etat.PHOTO)
+        else:
+            self.boutons(gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)
+            self.etape(Etat.CONSENTEMENT_PHOTO)
 
     # Conseil de rotation
 
@@ -179,16 +187,23 @@ class Conversation:
 
     # Diagnostic par photo
 
-    def analyser_photo(self, image: tuple[str, str]) -> None:
+    def recevoir_photo(self, image: tuple[str, str], legende: str | None) -> None:
+        if self.session.consentement_photo:
+            self.analyser_photo(image, legende)
+        else:
+            self.session = self.session.avec(photo_en_attente="|".join(image))
+            self.demander_photo()
+
+    def analyser_photo(self, image: tuple[str, str], legende: str | None) -> None:
         media_id, type_image = image
-        type_image = type_image.split(";")[0].strip()
-        if type_image not in TYPES_IMAGE:
-            self.texte(gabarits.photo_illisible())
-            return
-        contenu = self.canal.telecharger_media(media_id)
-        resultat = diagnostiquer(contenu, type_image, self.session.culture_photo)
-        del contenu
+        if type_de_base(type_image) in TYPES_IMAGE:
+            contenu = self.canal.telecharger_media(media_id)
+            resultat = diagnostiquer(contenu, type_image, legende or None)
+            del contenu
+        else:
+            resultat = echec(FORMAT_REFUSE, legende or None)
         self.texte(gabarits.diagnostic(resultat))
+        self.session = self.session.avec(photo_en_attente=None)
         self.montrer_menu()
 
     # Aiguillage
@@ -206,8 +221,8 @@ class Conversation:
         if texte in COMMANDES_DEBUT:
             self.montrer_menu() if s.consentement else self.accueillir()
             return
-        if "image" in entree and etat not in (Etat.PHOTO, Etat.CONSENTEMENT):
-            self.demander_culture_photo()
+        if "image" in entree and etat != Etat.CONSENTEMENT:
+            self.recevoir_photo(entree["image"], entree.get("legende"))
             return
 
         if etat == Etat.CONSENTEMENT:
@@ -225,8 +240,8 @@ class Conversation:
             choix = choisir(entree, gabarits.BOUTONS_MENU)
             if choix == "rotation":
                 self.demander_lieu()
-            elif choix == "photo" or "image" in entree:
-                self.demander_culture_photo()
+            elif choix == "photo":
+                self.demander_photo()
             else:
                 self.texte(gabarits.incompris())
                 self.montrer_menu()
@@ -262,33 +277,23 @@ class Conversation:
         elif etat == Etat.RESULTAT:
             self.suite_du_resultat(entree)
 
-        elif etat == Etat.CULTURE_PHOTO:
-            culture = choisir(entree, gabarits.BOUTONS_CULTURE_PHOTO)
-            if culture is None:
-                self.demander_culture_photo()
-            elif s.consentement_photo:
-                self.texte(gabarits.demande_photo())
-                self.etape(Etat.PHOTO, culture_photo=culture)
-            else:
-                self.boutons(gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)
-                self.etape(Etat.CONSENTEMENT_PHOTO, culture_photo=culture)
-
         elif etat == Etat.CONSENTEMENT_PHOTO:
             choix = choisir(entree, gabarits.BOUTONS_CONSENTEMENT_PHOTO)
             if choix == "photo_accepte":
-                self.texte(gabarits.demande_photo())
-                self.etape(Etat.PHOTO, consentement_photo=True)
+                self.session = s.avec(consentement_photo=True)
+                if s.photo_en_attente:
+                    self.analyser_photo(tuple(s.photo_en_attente.split("|", 1)), None)
+                else:
+                    self.demander_photo()
             elif choix == "photo_refuse":
+                self.session = s.avec(photo_en_attente=None)
                 self.texte(gabarits.refus_photo())
                 self.montrer_menu()
             else:
                 self.boutons(gabarits.consentement_photo(), gabarits.BOUTONS_CONSENTEMENT_PHOTO)
 
         elif etat == Etat.PHOTO:
-            if "image" in entree:
-                self.analyser_photo(entree["image"])
-            else:
-                self.texte(gabarits.demande_photo())
+            self.texte(gabarits.demande_photo())
 
         else:
             self.accueillir()

@@ -5,9 +5,8 @@ from unittest import mock
 from bot import dialogue
 from bot.langage import gabarits
 from bot.sessions import Sessions
-from moteur.contrat import MESSAGES_DIAGNOSTIC, Diagnostic
+from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC, Diagnostic
 from moteur.diagnostic import ORIGINE
-from moteur.maladies import liste, source_maladie
 
 NUMERO = "2250700000000"
 
@@ -52,8 +51,11 @@ def position(lat, lon):
     return {"from": NUMERO, "id": "w", "type": "location", "location": {"latitude": lat, "longitude": lon}}
 
 
-def image(mime="image/jpeg"):
-    return {"from": NUMERO, "id": "w", "type": "image", "image": {"id": "img1", "mime_type": mime}}
+def image(mime="image/jpeg", legende=None):
+    contenu = {"id": "img1", "mime_type": mime}
+    if legende:
+        contenu["caption"] = legende
+    return {"from": NUMERO, "id": "w", "type": "image", "image": contenu}
 
 
 def audio():
@@ -181,48 +183,64 @@ class TestConseilDeRotation(Base):
 
 
 class TestPhoto(Base):
-    def diagnostic(self, contenu, type_image, culture):
-        self.recu = (contenu, type_image, culture)
-        return Diagnostic(donnees_fictives=False, culture=culture, statut="maladie_possible",
-                          maladie="bactériose du coton", confiance=0.7, liste=liste(culture),
-                          source_maladie=source_maladie("bactériose du coton"), origine_images=ORIGINE,
-                          avertissement=MESSAGES_DIAGNOSTIC["maladie_possible"])
+    TEXTE = "*Plante identifiée* : feuille de coton.\n*Recommandation concrète* : action.\n\n" + AVERTISSEMENT_DIAGNOSTIC
 
-    def test_parcours_photo_avec_consentement(self):
+    def diagnostic(self, contenu, type_image, culture=None):
+        self.recu = (contenu, type_image, culture)
+        return Diagnostic(donnees_fictives=False, culture_declaree=culture, statut="analyse", texte=self.TEXTE,
+                          origine_images=ORIGINE)
+
+    def test_parcours_par_le_menu(self):
         self.consentir()
         envois = self.envoyer(bouton("photo"))
-        self.assertEqual(envois[-1][3], gabarits.BOUTONS_CULTURE_PHOTO)
-        envois = self.envoyer(bouton("coton"))
         self.assertEqual(envois[-1][2], gabarits.consentement_photo())
         envois = self.envoyer(bouton("photo_accepte"))
         self.assertEqual(envois[-1][2], gabarits.demande_photo())
         with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic):
-            envois = self.envoyer(image())
+            envois = self.envoyer(image(legende="coton"))
         self.assertEqual(self.recu, (b"contenu-img1", "image/jpeg", "coton"))
-        self.assertEqual(envois[0][2],
-                         "Maladie possible, bactériose du coton, à faire confirmer par votre conseiller ANADER.")
+        self.assertEqual(envois[0][2], self.TEXTE)
         self.assertEqual(self.session().etat, "menu")
-        envois = self.envoyer(bouton("photo"), bouton("maïs"))
+        envois = self.envoyer(bouton("photo"))
         self.assertEqual(envois[-1][2], gabarits.demande_photo(), "le consentement photo est demandé une fois")
 
-    def test_refus_de_la_photo(self):
+    def test_photo_envoyee_directement_puis_consentement(self):
+        """Comme dans agri-bot, une photo peut arriver à toute étape, elle attend l'accord puis est analysée."""
         self.consentir()
-        envois = self.envoyer(bouton("photo"), bouton("coton"), bouton("photo_refuse"))
+        self.envoyer(bouton("rotation"), ligne("korhogo"))
+        with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic) as appel:
+            envois = self.envoyer(image())
+            appel.assert_not_called()
+            self.assertEqual(envois[-1][2], gabarits.consentement_photo())
+            self.assertEqual(self.session().photo_en_attente, "img1|image/jpeg")
+            envois = self.envoyer(bouton("photo_accepte"))
+        self.assertEqual(self.recu, (b"contenu-img1", "image/jpeg", None))
+        self.assertEqual(envois[0][2], self.TEXTE)
+        self.assertIsNone(self.session().photo_en_attente)
+        self.assertTrue(self.session().consentement_photo)
+
+    def test_photo_analysee_sans_redemander(self):
+        self.consentir()
+        self.envoyer(bouton("photo"), bouton("photo_accepte"))
+        with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic):
+            envois = self.envoyer(image())
+        self.assertEqual(envois[0][2], self.TEXTE)
+
+    def test_refus_de_la_photo_oublie_l_attente(self):
+        self.consentir()
+        self.envoyer(image())
+        envois = self.envoyer(bouton("photo_refuse"))
         self.assertIn(("texte", NUMERO, gabarits.refus_photo()), envois)
         self.assertFalse(self.session().consentement_photo)
+        self.assertIsNone(self.session().photo_en_attente)
 
     def test_image_hors_format(self):
         self.consentir()
-        self.envoyer(bouton("photo"), bouton("coton"), bouton("photo_accepte"))
+        self.envoyer(bouton("photo"), bouton("photo_accepte"))
         with mock.patch.object(dialogue, "diagnostiquer") as appel:
-            envois = self.envoyer(image("image/webp"))
+            envois = self.envoyer(image("image/gif"))
         appel.assert_not_called()
-        self.assertEqual(envois[0][2], gabarits.photo_illisible())
-
-    def test_image_au_menu_lance_le_parcours(self):
-        self.consentir()
-        envois = self.envoyer(image())
-        self.assertEqual(envois[-1][3], gabarits.BOUTONS_CULTURE_PHOTO)
+        self.assertEqual(envois[0][2], dialogue.FORMAT_REFUSE)
 
 
 class TestVocal(Base):

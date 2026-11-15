@@ -3,18 +3,18 @@ import unittest
 from bot.langage import gabarits
 from bot.langage.garde_fou import _contient, TRAITEMENTS, ecarts, message_fidele
 from moteur import charger_exemple, charger_exemple_alerte, charger_exemple_diagnostic, recommander
-from moteur.contrat import MESSAGES_DIAGNOSTIC, Diagnostic
+from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC, Diagnostic
 from moteur.criteres import POIDS_PAR_PRIORITE
 from moteur.diagnostic import ORIGINE
 from moteur.lieux import LIEUX
-from moteur.maladies import liste, source_maladie
 from moteur.rotations import STRATEGIES
 
 
-def diagnostic(statut, maladie=None, culture="maïs"):
-    return Diagnostic(donnees_fictives=False, culture=culture, statut=statut, maladie=maladie, confiance=0.8,
-                      liste=liste(culture), source_maladie=source_maladie(maladie) if maladie else None,
-                      origine_images=ORIGINE, avertissement=MESSAGES_DIAGNOSTIC[statut])
+def diagnostic(texte="*Diagnostic probable* : rouille.", statut="analyse"):
+    if statut == "analyse":
+        texte = f"{texte}\n\n{AVERTISSEMENT_DIAGNOSTIC}"
+    return Diagnostic(donnees_fictives=False, culture_declaree="maïs", statut=statut, texte=texte,
+                      origine_images=ORIGINE)
 
 
 class TestGabaritsSurDonneesReelles(unittest.TestCase):
@@ -42,7 +42,7 @@ class TestGabaritsSurDonneesReelles(unittest.TestCase):
 class TestGabarits(unittest.TestCase):
     def test_boutons_et_listes_dans_les_limites(self):
         for boutons in (gabarits.BOUTONS_CONSENTEMENT, gabarits.BOUTONS_PRIORITE, gabarits.BOUTONS_RESULTAT,
-                        gabarits.BOUTONS_CULTURE_PHOTO, gabarits.BOUTONS_CONSENTEMENT_PHOTO):
+                        gabarits.BOUTONS_MENU, gabarits.BOUTONS_CONSENTEMENT_PHOTO):
             self.assertLessEqual(len(boutons), 3)
             self.assertTrue(all(len(titre) <= 20 for titre in boutons.values()), boutons)
         for lignes in (gabarits.LIGNES_LIEUX, gabarits.LIGNES_ROTATIONS):
@@ -53,11 +53,10 @@ class TestGabarits(unittest.TestCase):
         self.assertEqual(set(gabarits.BOUTONS_PRIORITE), set(POIDS_PAR_PRIORITE))
         self.assertEqual(set(gabarits.LIGNES_LIEUX), set(LIEUX))
         self.assertEqual(set(gabarits.LIGNES_ROTATIONS), {s.id for s in STRATEGIES})
-        self.assertEqual(set(gabarits.BOUTONS_CULTURE_PHOTO), {"maïs", "coton"})
 
     def test_messages_fixes_sans_traitement(self):
         for message in (gabarits.accueil(), gabarits.refus(), gabarits.demande_lieu(), gabarits.zone_non_couverte(),
-                        gabarits.demande_rotation(), gabarits.demande_priorite(), gabarits.demande_culture_photo(),
+                        gabarits.demande_rotation(), gabarits.demande_priorite(),
                         gabarits.consentement_photo(), gabarits.demande_photo(), gabarits.refus_photo(),
                         gabarits.incompris(), gabarits.erreur_technique()):
             self.assertFalse([t for t in TRAITEMENTS if _contient(message, t, racine=True)], message)
@@ -71,16 +70,9 @@ class TestGabarits(unittest.TestCase):
         texte = gabarits.zone_non_couverte()
         self.assertTrue(all(lieu["nom"] in texte for lieu in LIEUX.values()))
 
-    def test_diagnostic_maladie_possible(self):
-        d = diagnostic("maladie_possible", "striure du maïs")
-        texte = gabarits.diagnostic(d)
-        self.assertEqual(texte, "Maladie possible, striure du maïs, à faire confirmer par votre conseiller ANADER.")
-        self.assertEqual(ecarts(texte, d), [])
-
-    def test_diagnostic_sans_maladie(self):
-        for statut in ("aucune_maladie_reconnue", "inconnu"):
-            d = diagnostic(statut)
-            self.assertEqual(gabarits.diagnostic(d), MESSAGES_DIAGNOSTIC[statut])
+    def test_diagnostic_rendu_tel_quel(self):
+        for d in (diagnostic(), diagnostic("Je n'ai pas pu lire cette image.", statut="echec")):
+            self.assertEqual(gabarits.diagnostic(d), d.texte)
             self.assertEqual(ecarts(gabarits.diagnostic(d), d), [])
 
     def test_exemples_fictifs_marques(self):
@@ -94,21 +86,10 @@ class TestGabarits(unittest.TestCase):
 
 
 class TestGardeFouEtendu(unittest.TestCase):
-    def test_traitement_refuse(self):
-        d = diagnostic("maladie_possible", "rouille commune du maïs")
-        for texte in ("Pulvérisez un fongicide sur les feuilles.", "Achetez le bon produit.",
-                      "Appliquez une dose de cuivre.", "Un traitement s'impose."):
-            self.assertFalse(message_fidele(texte, d), texte)
-
-    def test_autre_maladie_refusee(self):
-        d = diagnostic("maladie_possible", "striure du maïs")
-        self.assertFalse(message_fidele("Maladie possible, rouille commune du maïs.", d))
-        self.assertFalse(message_fidele("Cela ressemble à du mildiou.", d))
-        self.assertTrue(message_fidele("Maladie possible, striure du maïs.", d))
-
-    def test_aucune_maladie_ne_nomme_rien(self):
-        d = diagnostic("aucune_maladie_reconnue")
-        self.assertFalse(message_fidele("Ce n'est pas de la striure.", d))
+    def test_diagnostic_libre_non_filtre(self):
+        """Décision du 15 novembre 2026, le texte libre du diagnostic fait partie de l'objet et passe."""
+        d = diagnostic("*Plante identifiée* : feuille de cacao, pas du maïs.\n*Recommandation concrète* : traitement.")
+        self.assertEqual(ecarts(gabarits.diagnostic(d), d), [])
 
     def test_alerte_sans_cause(self):
         a = charger_exemple_alerte()

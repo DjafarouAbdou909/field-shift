@@ -3,7 +3,9 @@
 Tout texte produit par un modèle de langage passe par texte_sur avant d'être envoyé, avec
 un gabarit comme secours. Les gabarits passent aussi le contrôle, ce que vérifient les
 tests. Le contrôle vaut pour les trois objets du contrat, la Recommandation,
-l'AlerteVegetation et le Diagnostic.
+l'AlerteVegetation et le Diagnostic. Depuis le 15 novembre 2026, le texte du diagnostic
+est rédigé librement par le modèle et fait partie de l'objet, si bien que le contrôle ne
+le filtre pas, décision du responsable.
 
 Un texte est refusé s'il contient
     un nombre absent de l'objet du moteur, les rangs d'une recommandation étant permis ;
@@ -110,7 +112,8 @@ def ecarts(texte: str, objet: Recommandation | AlerteVegetation | Diagnostic) ->
         autorises |= {float(i) for i in range(1, len(objet.strategies) + 1)}
         cultures = {_sans_accents(c) for s in objet.strategies for c in s.cultures}
     elif isinstance(objet, Diagnostic):
-        cultures = {_sans_accents(objet.culture)}
+        # Le texte libre du diagnostic fait partie de l'objet, il est donc fidèle par construction.
+        cultures = {_sans_accents(c) for c in cultures_citees(moteur)}
     else:
         cultures = set()
     problemes = [f"nombre absent du moteur {n:g}" for n in sorted(nombres(texte) - autorises)]

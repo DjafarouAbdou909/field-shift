@@ -1,9 +1,10 @@
 """Conversations en cours, stockées dans SQLite.
 
 La clé est securite.empreinte_numero, jamais le numéro en clair. Seuls l'étape du
-parcours, les consentements et les choix de l'agriculteur sont gardés. Aucune photo,
-aucun audio ni aucun texte libre n'est stocké. Une session est effacée quand
-l'agriculteur refuse le consentement ou écrit STOP.
+parcours, les consentements et les choix de l'agriculteur sont gardés, avec l'identifiant
+WhatsApp et le type d'une photo reçue avant le consentement à son envoi, effacés dès
+qu'elle est analysée ou refusée. Aucune photo, aucun audio ni aucun texte libre n'est
+stocké. Une session est effacée quand l'agriculteur refuse le consentement ou écrit STOP.
 """
 
 import sqlite3
@@ -13,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 COLONNES = ("empreinte", "etat", "consentement", "lieu", "rotation", "priorite", "consentement_photo",
-            "culture_photo", "mise_a_jour")
+            "photo_en_attente", "mise_a_jour")
 
 
 @dataclass(frozen=True)
@@ -25,7 +26,7 @@ class Session:
     rotation: str | None = None
     priorite: str | None = None
     consentement_photo: bool = False
-    culture_photo: str | None = None
+    photo_en_attente: str | None = None
     mise_a_jour: str = ""
 
     def avec(self, **changements) -> "Session":
@@ -41,8 +42,11 @@ class Sessions:
         with self._verrou, self._connexion:
             self._connexion.execute(
                 "CREATE TABLE IF NOT EXISTS sessions (empreinte TEXT PRIMARY KEY, etat TEXT, consentement INTEGER, "
-                "lieu TEXT, rotation TEXT, priorite TEXT, consentement_photo INTEGER, culture_photo TEXT, "
+                "lieu TEXT, rotation TEXT, priorite TEXT, consentement_photo INTEGER, photo_en_attente TEXT, "
                 "mise_a_jour TEXT)")
+            presentes = {ligne[1] for ligne in self._connexion.execute("PRAGMA table_info(sessions)")}
+            for colonne in set(COLONNES) - presentes:
+                self._connexion.execute(f"ALTER TABLE sessions ADD COLUMN {colonne} TEXT")
 
     def lire(self, empreinte: str) -> Session:
         with self._verrou:
