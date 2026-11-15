@@ -172,10 +172,38 @@ def transcrire(audio: bytes, type_mime: str) -> str:
     return (getattr(resultat, "text", "") or "").strip()
 
 
+DOSSIER_NOTES = "data/voix"
+CARACTERES_PAR_JOUR = int(os.environ.get("AETHEX_CARACTERES_PAR_JOUR") or "8000")
+_depense = {"jour": "", "caracteres": 0}
+
+
+def _reserver(caracteres: int) -> None:
+    """Compte les caractères envoyés à Aethex dans la journée, et refuse au-delà du plafond."""
+    import time
+
+    jour = time.strftime("%Y-%m-%d")
+    if _depense["jour"] != jour:
+        _depense.update(jour=jour, caracteres=0)
+    if _depense["caracteres"] + caracteres > CARACTERES_PAR_JOUR:
+        raise RuntimeError("plafond quotidien de caractères Aethex atteint")
+    _depense["caracteres"] += caracteres
+
+
+def _note_sur_disque(texte: str):
+    import hashlib
+    from pathlib import Path
+
+    return Path(DOSSIER_NOTES) / f"{hashlib.sha256(f'{voix()}|{texte}'.encode()).hexdigest()}.ogg"
+
+
 @lru_cache(maxsize=256)
 def synthetiser(texte: str) -> bytes:
-    """Retourne une note vocale en OGG Opus, gardée en mémoire pour un texte déjà dit.
+    """Retourne une note vocale en OGG Opus. Une phrase déjà dite ne coûte plus aucun crédit.
 
+    Les notes sont gardées en mémoire, et sur disque dans data/voix pour les phrases fixes
+    du bot, qui survivent ainsi aux redémarrages. Les caractères envoyés à Aethex sont
+    plafonnés chaque jour par AETHEX_CARACTERES_PAR_JOUR, 8 000 par défaut, soit environ
+    64 000 crédits au tarif de 4 000 crédits pour 500 caractères, page des prix d'Aethex.
     Les morceaux d'un texte long sont synthétisés en parallèle, puis recollés dans l'ordre.
     """
     from concurrent.futures import ThreadPoolExecutor
@@ -184,6 +212,7 @@ def synthetiser(texte: str) -> bytes:
     if identifiant is None:
         raise RuntimeError("aucune voix française proposée par Aethex")
     parties = morceaux(texte, SYNTHESE_MAX_CARACTERES)
+    _reserver(sum(len(partie) for partie in parties))
     try:
         with ThreadPoolExecutor(max_workers=min(4, len(parties)) or 1) as executeur:
             wavs = list(executeur.map(lambda morceau: _kora().synthesize_speech(morceau, identifiant, language=LANGUE),
@@ -192,3 +221,20 @@ def synthetiser(texte: str) -> bytes:
         _signaler_refus(erreur)
         raise
     return vers_ogg_opus(*wavs)
+
+
+def note_gardee(texte: str) -> bytes | None:
+    """Note d'une phrase fixe déjà synthétisée et gardée sur disque, sans aucun appel à Aethex."""
+    chemin = _note_sur_disque(texte)
+    return chemin.read_bytes() if chemin.exists() else None
+
+
+def synthetiser_phrase_fixe(texte: str) -> bytes:
+    """Note d'une phrase fixe du bot, relue sur disque si elle a déjà été synthétisée. Aucune donnée d'agriculteur."""
+    chemin = _note_sur_disque(texte)
+    if chemin.exists():
+        return chemin.read_bytes()
+    note = synthetiser(texte)
+    chemin.parent.mkdir(parents=True, exist_ok=True)
+    chemin.write_bytes(note)
+    return note

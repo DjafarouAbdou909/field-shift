@@ -28,7 +28,11 @@ def registre(chemin: str) -> RegistreMessages:
 
 
 def preparer_notes_fixes() -> None:
-    """Synthétise et téléverse une fois les notes vocales des questions fixes du parcours."""
+    """Téléverse les notes des questions fixes déjà gardées sur disque, sans aucun appel à Aethex.
+
+    Une phrase fixe est synthétisée à sa première vraie utilisation, puis gardée, si bien
+    qu'un redémarrage ne coûte aucun crédit et qu'une phrase jamais dite n'en coûte pas.
+    """
     from . import whatsapp
     from .dialogue import phrases_fixes
     from .langage import voix
@@ -36,7 +40,8 @@ def preparer_notes_fixes() -> None:
     if not (voix.configuree() and parametres().access_token):
         return
     for phrase in phrases_fixes():
-        whatsapp.televerser_audio(voix.synthetiser(phrase))
+        if (note := voix.note_gardee(phrase)) is not None:
+            whatsapp.televerser_audio(note)
 
 
 def prechauffer() -> None:

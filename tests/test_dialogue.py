@@ -70,6 +70,7 @@ class Base(unittest.TestCase):
         self.canal, self.magasin = FauxCanal(), Sessions(":memory:")
         # Aucun appel réseau dans les tests, Gemini et Aethex sont simulés au besoin.
         self.sans_reseau = [mock.patch.object(dialogue.voix, "synthetiser", return_value=b"OggS-voix"),
+                            mock.patch.object(dialogue.voix, "synthetiser_phrase_fixe", return_value=b"OggS-voix"),
                             mock.patch.object(dialogue.transcription_locale, "transcrire",
                                               side_effect=RuntimeError("modèle non chargé"))]
         for patch in self.sans_reseau:
@@ -330,7 +331,7 @@ class TestVocal(Base):
     def test_notes_fixes_identiques_a_celles_du_parcours(self):
         """Les notes préparées au démarrage sont exactement celles que le parcours dit, donc déjà prêtes."""
         dites = []
-        with mock.patch.object(dialogue.voix, "synthetiser", side_effect=lambda t: dites.append(t) or b"OggS"):
+        with mock.patch.object(dialogue.voix, "synthetiser_phrase_fixe", side_effect=lambda t: dites.append(t) or b"OggS"):
             self.vocal("Bonjour")
             self.vocal("Oui j'accepte")
             self.avec_groq(repondre=("rotation", ""))
@@ -346,7 +347,8 @@ class TestVocal(Base):
     def test_voix_en_panne_repli_sur_le_texte(self):
         self.consentir()
         self.avec_groq(repondre=("question", "Réponse."))
-        with mock.patch.object(dialogue.voix, "synthetiser", side_effect=RuntimeError("Aethex")):
+        with mock.patch.object(dialogue.voix, "synthetiser", side_effect=RuntimeError("Aethex")), \
+                mock.patch.object(dialogue.voix, "synthetiser_phrase_fixe", side_effect=RuntimeError("Aethex")):
             envois = self.vocal("Une question")
         self.assertEqual(envois, [("texte", NUMERO, "Réponse.")])
 

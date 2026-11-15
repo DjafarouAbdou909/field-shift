@@ -124,6 +124,19 @@ def phrases_fixes() -> list[str]:
         [pour_la_voix(texte) for texte in seuls]
 
 
+@functools.cache
+def _phrases_fixes() -> frozenset:
+    return frozenset(phrases_fixes())
+
+
+class _PhrasesFixes:
+    def __contains__(self, texte: str) -> bool:
+        return texte in _phrases_fixes()
+
+
+PHRASES_FIXES = _PhrasesFixes()
+
+
 def pour_la_voix(texte: str) -> str:
     """Texte à lire à voix haute, sans la mise en forme ni les signes de WhatsApp."""
     return re.sub(r"[*_~👇📸⚠️]", "", texte).replace("\ufe0f", "").strip()
@@ -197,9 +210,11 @@ class Conversation:
         return self.session.mode_vocal and voix.configuree()
 
     def dire(self, texte: str) -> bool:
-        """Envoie le texte en note vocale, et dit s'il a pu partir."""
+        """Envoie le texte en note vocale, et dit s'il a pu partir. Une phrase fixe ne coûte aucun crédit."""
+        texte = pour_la_voix(texte)
         try:
-            self.canal.envoyer_audio(self.numero, voix.synthetiser(pour_la_voix(texte)))
+            note = voix.synthetiser_phrase_fixe(texte) if texte in PHRASES_FIXES else voix.synthetiser(texte)
+            self.canal.envoyer_audio(self.numero, note)
             return True
         except Exception as erreur:
             journal.warning("note vocale non envoyée, %s", type(erreur).__name__)
@@ -262,7 +277,8 @@ class Conversation:
         choix = choisir(entree, gabarits.BOUTONS_RESULTAT, souple=False)
         reco = self.recommandation()
         if choix == "pourquoi":
-            self.texte(gabarits.pourquoi(reco))
+            raisons = gabarits.pourquoi(reco)
+            self.texte(" ".join(raisons.split("\n")[:2]) if self.vocal else raisons)
         elif choix == "detail":
             self.lien(gabarits.detail(reco))
         elif choix == "ecouter":

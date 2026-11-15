@@ -184,3 +184,38 @@ class TestCreditsEpuises(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 voix.synthetiser("Bonjour")
             self.assertFalse(voix.configuree(), "Aethex est mis en pause, le bot répond par écrit sans attendre")
+
+
+class TestEconomieDeCredits(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.dossier = tempfile.TemporaryDirectory()
+        self.patches = [mock.patch.object(voix, "DOSSIER_NOTES", self.dossier.name),
+                        mock.patch.object(voix, "voix", return_value="v")]
+        for patch in self.patches:
+            patch.start()
+        voix._depense.update(jour="", caracteres=0)
+
+    def tearDown(self):
+        for patch in self.patches:
+            patch.stop()
+        self.dossier.cleanup()
+        voix.synthetiser.cache_clear()
+
+    def test_phrase_fixe_synthetisee_une_seule_fois_meme_apres_redemarrage(self):
+        with mock.patch.object(voix, "synthetiser", return_value=b"OggS-fixe") as synthese:
+            self.assertIsNone(voix.note_gardee("Que voulez-vous ?"))
+            voix.synthetiser_phrase_fixe("Que voulez-vous ?")
+            voix.synthetiser_phrase_fixe("Que voulez-vous ?")
+            self.assertEqual(voix.note_gardee("Que voulez-vous ?"), b"OggS-fixe")
+        synthese.assert_called_once()
+
+    def test_plafond_quotidien(self):
+        kora = mock.Mock()
+        kora.synthesize_speech.return_value = wav_sinus(0.2)
+        voix.synthetiser.cache_clear()
+        with mock.patch.object(voix, "_kora", return_value=kora), mock.patch.object(voix, "CARACTERES_PAR_JOUR", 50):
+            voix.synthetiser("Une phrase de quarante caractères environ.")
+            with self.assertRaises(RuntimeError):
+                voix.synthetiser("Une autre phrase qui dépasse le plafond du jour.")
+        self.assertEqual(kora.synthesize_speech.call_count, 1)
