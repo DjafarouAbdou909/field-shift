@@ -1,6 +1,6 @@
 # AgriBot
 
-**Climate-informed crop rotation advice from NASA data, delivered by voice on WhatsApp to smallholder farmers in Côte d’Ivoire.**
+**Climate-informed crop rotation advice from NASA data and plant disease diagnosis from a photo, delivered by voice on WhatsApp to smallholder farmers in Côte d’Ivoire.**
 
 [![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026-0B3D91)](https://www.spaceappschallenge.org/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB)](https://www.python.org/)
@@ -12,14 +12,28 @@ Team **CodeX Africa** · Challenge **Field Shift: Adapting Farms with NASA Data*
 
 ## Overview
 
-Farmers in northern and central Côte d’Ivoire decide what to sow on rain-fed land while the start of the rainy season moves by weeks from one year to the next. Many of them cannot read, so written or web-based advice rarely reaches them.
+Farmers in northern and central Côte d’Ivoire decide what to sow on rain-fed land while the start of the rainy season moves by weeks from one year to the next. When a plant falls sick, there is rarely an advisor nearby to say what it is. Many of these farmers cannot read, so written or web-based advice rarely reaches them.
 
-AgriBot closes that gap. A transparent engine turns 25 years of NASA precipitation, temperature, humidity, wind and radiation data into a ranked comparison of crop rotations, with uncertainty ranges. AgriBot then delivers the result in one or two plain French sentences, as a WhatsApp voice note, and refers the farmer to their ANADER extension advisor.
+AgriBot closes that gap on two fronts:
+
+- **What to sow.** A transparent engine turns 25 years of NASA precipitation, temperature, humidity, wind and radiation data into a ranked comparison of crop rotations, with uncertainty ranges, and NASA HLS imagery flags vegetation that is weaker than usual.
+- **What is harming the plant.** The farmer sends a photo of a sick leaf. AgriBot describes the visible signs, names the most likely disease, pest or deficiency, explains what favours it and what it can do to the harvest, and gives two or three actions to take in the field that day. It never names a pesticide or any other product. In the offline app, a maize leaf model trained by the team runs on the phone itself, without network.
+
+AgriBot delivers every answer in plain French, as a WhatsApp voice note, and refers the farmer to their ANADER extension advisor for serious or uncertain cases.
+
+**Hybrid by design, with or without a network.** Connectivity in rural Côte d’Ivoire is patchy, so AgriBot works in two modes:
+
+| Mode | When | What the farmer gets |
+|---|---|---|
+| **Online** | A mobile data connection is available | WhatsApp voice assistant: rotation advice, vegetation alert, photo diagnosis and free farming questions |
+| **Offline** | No connection at all, after a single first visit | Installable web app: precomputed NASA-based rotation advice, GPS location, every message read aloud, and a maize leaf diagnosis that runs on the phone |
+
+In offline mode the phone needs no server, no network and no language model. Voice notes for the advisor are kept on the phone and shared once the network returns.
 
 | | |
 |---|---|
 | **Problem** | Shifting rains, plant diseases recognised too late, and advice that does not reach farmers who cannot read |
-| **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery and a first opinion on plant photos, by voice on WhatsApp, plus an offline web app for areas without a network |
+| **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery and a plant disease diagnosis from a photo, in a hybrid design: by voice on WhatsApp when online, and through an offline web app with an on-device leaf diagnosis when there is no connection at all |
 | **Users** | Smallholder farmers, and the extension advisors who support them |
 | **Demo deck** | [presentation/AgriBot_Presentation_EN.pdf](presentation/AgriBot_Presentation_EN.pdf), 7 slides, French version alongside |
 
