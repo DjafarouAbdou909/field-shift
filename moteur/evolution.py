@@ -17,6 +17,14 @@ année complète de mars à juillet pour départager. Aucun changement n'est don
 AgriBot n'en annonce aucun. La baisse de la température moyenne des cycles de maïs et de
 sorgho à Korhogo suit le décalage du calendrier vers des mois plus frais, et non un
 refroidissement.
+
+Limites des deux sources, notées le 17 novembre 2026. La coupure entre 2012 et 2013 tombe
+près du passage d'IMERG de l'ère TRMM à l'ère GPM, le satellite GPM ayant été lancé en
+2014, si bien que l'écart vu par IMERG peut venir en partie des instruments, hypothèse
+non testée. La pluie corrigée de MERRA-2 avait déjà été écartée comme source principale
+pour son désaccord avec IMERG et le pluviomètre de Korhogo, et sa rupture de 2020
+établie sur l'Afrique ne se voit pas aux deux villes, docs/donnees.md, constat 5. Le
+désaccord entre les deux sources se lit donc comme une limite des données.
 """
 
 import numpy as np

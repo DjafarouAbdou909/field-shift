@@ -73,7 +73,7 @@ Water score from 0 to 5, higher is better, reference scenario.
 - **Bouaké is more exposed to water shortage** for every rotation. Median annual rain: 1,222 mm at Korhogo (1,033 to 1,318), 1,120 mm at Bouaké (901 to 1,279).
 - **The current practice ranks last for water in both towns.** At Bouaké it stays last in every scenario tested. At Korhogo the ranking depends on the cotton sowing date and cycle length, and AgriBot says so.
 - **Rain onset at Korhogo ranged from 24 March (2013) to 28 May (2017).**
-- **No climate shift is announced.** IMERG finds a 22-day later onset at Korhogo in 2013-2025, while MERRA-2 finds a 22-day earlier one.
+- **No climate shift is announced.** IMERG finds a 22-day later onset at Korhogo in 2013-2025, while MERRA-2 finds a 22-day earlier one. Neither series is a firm arbiter here. The 2012-2013 split falls close to the change in the IMERG input constellation from the TRMM era to the GPM era, the GPM Core Observatory having launched in 2014, so the IMERG shift may partly reflect instruments rather than climate; this hypothesis is not yet tested. MERRA-2 corrected rainfall was already set aside as the main rain source because it disagrees with IMERG and the Korhogo rain gauge. We therefore read the disagreement as a data limit, not as evidence of a climate change.
 - **Vegetation alert.** At Korhogo, vegetation on 2 November 2026 was within its usual range; over past dates the alert fires 9.5 % of the time, against 10 % by design. Bouaké is too cloudy for a reliable comparison, and AgriBot says so rather than guess.
 
 Full evaluation and limits: [docs/evaluation.md](docs/evaluation.md).
@@ -219,7 +219,7 @@ field-shift/
 | No yield or income prediction, for lack of a yield model and sourced prices | Partner with CNRA and ANADER for local yield and price data |
 | Market and soil criteria rest on studies from Nigeria and Burkina Faso | Replace with studies from the Poro and Gbêkê regions |
 | No agronomist has reviewed the advice yet | Review by an ANADER advisor before any field use |
-| IMERG and MERRA-2 disagree on the rain onset trend at Korhogo | Arbitrate with Ivorian ground stations (SODEXAM) |
+| The rain onset trend at Korhogo is unresolved: the period split is close to the TRMM to GPM transition in IMERG, and MERRA-2 rainfall disagrees with local gauges | Repeat the comparison with a split after 2014, and arbitrate with Ivorian ground stations (SODEXAM) |
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
 | MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
 | The offline leaf model recognises healthy leaves only 26 times in 100 and covers maize only | Retrain on field photos from Côte d’Ivoire; add the cocoa model in preparation |
