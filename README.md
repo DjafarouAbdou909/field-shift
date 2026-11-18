@@ -195,6 +195,24 @@ WhatsApp requires a public HTTPS URL for the webhook, from a host or a tunnel su
 | `AETHEX_API_KEY`, `AETHEX_VOICE_ID`, `AETHEX_CARACTERES_PAR_JOUR` | Voice synthesis and daily character cap |
 | `BASE_DE_DONNEES`, `URL_APPLICATION`, `PLATEFORME_URL` | Database path and links sent to farmers |
 
+## Deployment
+
+The [deploy/](deploy/) folder puts AgriBot on any Ubuntu 24.04 server with a single command from the developer's machine:
+
+```bash
+bash deploy/deployer.sh user@server-ip example.com   # install bot, advisor app, HTTPS and firewall
+bash deploy/verifier.sh example.com                  # health, Meta webhook check, advisor app
+```
+
+| Component | Setup |
+|---|---|
+| **Webhook** | `https://bot.example.com/webhook`, FastAPI under systemd, restarted automatically |
+| **Advisor app** | `https://app.example.com`, Streamlit under systemd |
+| **HTTPS** | Caddy, with certificates obtained and renewed automatically |
+| **Security** | Dedicated `agribot` service user, `.env` readable by that user only, firewall open on SSH, HTTP and HTTPS only, only `/webhook` and `/sante` exposed on the bot host |
+
+Step-by-step guide, in French: [deploy/LISEZMOI.md](deploy/LISEZMOI.md).
+
 ## Testing and reproducibility
 
 ```bash
@@ -223,6 +241,7 @@ field-shift/
 ├── tests/           unit tests
 ├── docs/            scoping, data, evaluation, sources, prior work, decision log (in French)
 ├── offline/         offline web platform: precomputed advice, on-device leaf diagnosis
+├── deploy/          one-command server deployment: systemd services, Caddy HTTPS, update script
 └── presentation/    final deck in English and French, PDF and PowerPoint
 ```
 
@@ -237,7 +256,7 @@ field-shift/
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
 | MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
 | The offline leaf model recognises healthy leaves only 26 times in 100 and covers maize only | Retrain on field photos from Côte d’Ivoire; add the cocoa model in preparation |
-| The bot currently runs on a team laptop | Deploy on a cloud virtual machine with a fixed HTTPS domain |
+| The bot still runs on a team laptop during judging | Deployment scripts are ready in `deploy/`; move to a server with the team’s Space Apps domain |
 
 ## Prior work and decisions
 

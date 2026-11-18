@@ -1,0 +1,21 @@
+# Modèle de /etc/caddy/Caddyfile, __DOMAINE__ étant remplacé par installer.sh.
+# Caddy obtient et renouvelle seul les certificats HTTPS de Let's Encrypt.
+
+bot.__DOMAINE__ {
+	encode gzip
+	# Seuls le webhook de Meta et la vérification de santé sont exposés.
+	handle /webhook* {
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle /sante {
+		reverse_proxy 127.0.0.1:8000
+	}
+	handle {
+		respond "AgriBot" 200
+	}
+}
+
+app.__DOMAINE__ {
+	encode gzip
+	reverse_proxy 127.0.0.1:8501
+}
