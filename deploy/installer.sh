@@ -20,6 +20,20 @@ echo "Paquets système"
 apt-get update -q
 DEBIAN_FRONTEND=noninteractive apt-get install -y -q python3.12 python3.12-venv ffmpeg git caddy ufw rsync curl
 
+echo "Mémoire d'appoint"
+# Avec 2 Go, le bot, Whisper et l'application tiennent juste. 2 Go de swap évitent qu'un pic de
+# mémoire n'arrête un service. Rien n'est fait si le serveur a déjà du swap ou plus de 3 Go.
+MEMOIRE_MO=$(awk '/MemTotal/ {print int($2 / 1024)}' /proc/meminfo)
+if [ "$MEMOIRE_MO" -lt 3072 ] && [ -z "$(swapon --show --noheadings)" ]; then
+    fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
+    chmod 600 /swapfile
+    mkswap /swapfile >/dev/null
+    swapon /swapfile
+    grep -q '^/swapfile ' /etc/fstab || echo '/swapfile none swap sw 0 0' >> /etc/fstab
+    sysctl -q vm.swappiness=10
+    echo 'vm.swappiness=10' > /etc/sysctl.d/99-agribot.conf
+fi
+
 echo "Utilisateur de service $UTILISATEUR"
 id "$UTILISATEUR" >/dev/null 2>&1 || useradd --system --create-home --home-dir /home/$UTILISATEUR \
     --shell /usr/sbin/nologin "$UTILISATEUR"

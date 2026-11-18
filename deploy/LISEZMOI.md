@@ -12,7 +12,7 @@ Ce guide met AgriBot sur un serveur allumé jour et nuit, pour que le bot ne dé
 ## Ce qu'il faut avant de commencer
 
 1. **Le domaine gratuit Space Apps**, réclamé chez Porkbun, par exemple `agribot-ci.com`.
-2. **Un serveur Ubuntu 24.04** avec au moins **2 Go de mémoire**, 4 Go étant plus confortable pour Whisper, et 20 Go de disque. Notez son **adresse IP** et le nom d'utilisateur de connexion, souvent `root` ou `ubuntu`.
+2. **Un serveur Ubuntu 24.04** avec au moins **2 Go de mémoire** et 20 Go de disque. Avec moins de 3 Go, l'installation ajoute 2 Go de mémoire d'appoint sur le disque, pour que le bot, Whisper et l'application tiennent ensemble. Notez son **adresse IP** et le nom d'utilisateur de connexion, souvent `root` ou `ubuntu`.
 3. **Un accès SSH par clé** depuis votre PC. Testez `ssh utilisateur@adresse-ip`, la connexion doit s'ouvrir.
 4. **Le dépôt à jour sur GitHub**, car le serveur télécharge le code depuis GitHub. Faites `git push origin main` avant.
 

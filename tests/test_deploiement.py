@@ -44,6 +44,13 @@ class TestDeploiement(unittest.TestCase):
         installer = (DEPLOY / "installer.sh").read_text()
         self.assertIn("-m 600", installer, ".env du serveur lisible par le seul utilisateur du service")
 
+    def test_memoire_d_appoint_sur_petit_serveur(self):
+        """Sous 3 Go, 2 Go de swap sont créés une seule fois, et gardés au redémarrage."""
+        installer = (DEPLOY / "installer.sh").read_text()
+        self.assertIn('[ "$MEMOIRE_MO" -lt 3072 ]', installer)
+        self.assertIn("swapon --show", installer)
+        self.assertIn("grep -q '^/swapfile ' /etc/fstab", installer)
+
     def test_lien_detail_public(self):
         """Le lien Détail des agriculteurs pointe vers l'application publique, pas vers localhost."""
         self.assertIn("URL_APPLICATION=https://app.$DOMAINE", (DEPLOY / "installer.sh").read_text())
