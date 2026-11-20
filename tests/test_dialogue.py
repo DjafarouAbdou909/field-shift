@@ -444,6 +444,71 @@ class TestTranscription(Base):
         local.assert_not_called()
 
 
+class TestVoixALaDemande(Base):
+    """« Je ne sais pas lire, une note vocale stp », échange réel du 20 novembre 2026."""
+
+    DIAGNOSTIC = ("Le problème le plus probable est une attaque de petits insectes sur les jeunes feuilles.\n\n"
+                  + AVERTISSEMENT_DIAGNOSTIC)
+
+    def setUp(self):
+        super().setUp()
+        self.configuree = mock.patch.object(dialogue.voix, "configuree", return_value=True)
+        self.configuree.start()
+        self.addCleanup(self.configuree.stop)
+        dialogue.conversation._memoire.clear()
+        self.addCleanup(dialogue.conversation._memoire.clear)
+
+    def diagnostic(self, contenu, type_image, culture=None):
+        return Diagnostic(donnees_fictives=False, culture_declaree=culture, statut="analyse",
+                          texte=self.DIAGNOSTIC, origine_images=ORIGINE)
+
+    def photo_puis(self, *messages):
+        self.consentir()
+        with mock.patch.object(dialogue, "diagnostiquer", side_effect=self.diagnostic):
+            self.envoyer(image())
+        return self.envoyer(*messages)
+
+    def test_relit_le_diagnostic_a_voix_haute(self):
+        envois = self.photo_puis(texte("je ne sais pas lire, une note vocale stp"))
+        self.assertEqual([e[0] for e in envois], ["audio"])
+        dialogue.voix.synthetiser.assert_called_with(dialogue.pour_la_voix(self.DIAGNOSTIC))
+        self.assertTrue(self.session().voix_demandee)
+
+    def test_reste_en_voix_meme_a_l_ecrit_puis_revient_a_l_ecrit(self):
+        self.photo_puis(texte("en audio svp"))
+        envois = self.envoyer(bouton("rotation"))
+        self.assertIn("audio", [e[0] for e in envois], "la suite du parcours est dite à voix haute")
+        envois = self.envoyer(texte("par écrit stp"))
+        self.assertEqual(envois, [("texte", NUMERO, gabarits.ecrit_active())])
+        self.assertFalse(self.session().voix_demandee)
+
+    def test_demande_longue_avec_question_repondue_par_la_voix(self):
+        self.consentir()
+        with mock.patch.object(dialogue.groq, "configure", return_value=True), \
+                mock.patch.object(dialogue.groq, "repondre", return_value=("question", "Semez après une bonne pluie.")):
+            envois = self.envoyer(texte("je ne sais pas lire, dites moi en vocal quand je dois semer le maïs cette année"))
+        self.assertEqual([e[0] for e in envois], ["audio"])
+        self.assertTrue(self.session().voix_demandee)
+
+    def test_intention_voix_comprise_par_groq(self):
+        self.consentir()
+        with mock.patch.object(dialogue.groq, "configure", return_value=True), \
+                mock.patch.object(dialogue.groq, "repondre", return_value=("voix", "")):
+            envois = self.envoyer(texte("redis moi ça avec ta bouche"))
+        self.assertEqual([e[0] for e in envois], ["audio"])
+
+    def test_voix_en_panne(self):
+        self.consentir()
+        self.configuree.stop()
+        with mock.patch.object(dialogue.voix, "configuree", return_value=False):
+            envois = self.envoyer(texte("une note vocale stp"))
+        self.configuree.start()
+        self.assertEqual(envois, [("texte", NUMERO, gabarits.voix_indisponible())])
+
+    def test_parle_moi_de_reste_une_question(self):
+        self.assertIsNone(gabarits.DEMANDE_VOIX.search(dialogue.normaliser("parle moi de la pluie à Korhogo")))
+
+
 class TestDiscussion(Base):
     def test_question_ecrite_reponse_ecrite(self):
         self.consentir()

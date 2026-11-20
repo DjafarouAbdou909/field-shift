@@ -86,6 +86,20 @@ class TestWebhook(unittest.TestCase):
         traiter.assert_called_once()
         self.assertEqual(traiter.call_args.args[0]["text"]["body"], "rotation")
 
+    def test_age_et_longueur_journalises_sans_le_contenu(self):
+        """Un message livré en retard se voit dans le journal, qui ne contient jamais le texte de l'agriculteur."""
+        import json
+        message = json.loads((WEBHOOKS / "texte.json").read_text())
+        envoi = message["entry"][0]["changes"][0]["value"]["messages"][0]
+        envoi["timestamp"] = str(int(main.time.time()) - 3600)
+        corps = json.dumps(message).encode()
+        entetes = {"X-Hub-Signature-256": signer(corps), "Content-Type": "application/json"}
+        with mock.patch("bot.dialogue.traiter"), self.assertLogs("bot", "INFO") as journal:
+            self.client.post("/webhook", content=corps, headers=entetes)
+        ligne = next(l for l in journal.output if "reçu" in l)
+        self.assertRegex(ligne, r"message text reçu, envoyé il y a 36\d\d s, 8 caractères")
+        self.assertNotIn("rotation", ligne)
+
 
 if __name__ == "__main__":
     unittest.main()

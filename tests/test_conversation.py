@@ -54,3 +54,20 @@ class TestMemoire(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestMemoireDesMessages(unittest.TestCase):
+    def tearDown(self):
+        conversation._memoire.clear()
+
+    def test_dernier_message_d_agribot_sans_doublon(self):
+        conversation.noter("cle", "AgriBot", "Diagnostic de la photo.")
+        conversation.noter("cle", "AgriBot", "Diagnostic de la photo.")
+        conversation.noter("cle", "agriculteur", "je ne sais pas lire")
+        self.assertEqual(conversation.dernier_message("cle"), "Diagnostic de la photo.")
+        self.assertEqual(len(conversation.historique("cle")), 2)
+        self.assertIsNone(conversation.dernier_message("autre"))
+
+    def test_consigne_sait_que_le_bot_parle(self):
+        self.assertIn("ne dis jamais que tu ne peux pas envoyer de message vocal", conversation.CONSIGNE)
+        self.assertIn("intention à voix", conversation.CONSIGNE)

@@ -7,6 +7,7 @@ Lancement local, depuis la racine du dépôt
 import functools
 import hmac
 import json
+import time
 import logging
 
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, Request
@@ -104,6 +105,15 @@ async def recevoir(requete: Request, taches: BackgroundTasks):
         if registre(reglages.base_de_donnees).deja_vu(message["id"]):
             journal.info("message déjà traité ignoré")
             continue
-        journal.info("message %s reçu", message.get("type"))
+        # L'âge du message, d'après l'heure d'envoi donnée par WhatsApp, révèle un message livré en retard.
+        # Aucun contenu n'est écrit dans le journal, seulement le type, l'âge et la longueur d'un texte.
+        try:
+            age = max(0, int(time.time()) - int(message.get("timestamp", 0))) if message.get("timestamp") else None
+        except (TypeError, ValueError):
+            age = None
+        longueur = len((message.get("text") or {}).get("body", "")) if message.get("type") == "text" else None
+        journal.info("message %s reçu%s%s", message.get("type"),
+                     f", envoyé il y a {age} s" if age is not None else "",
+                     f", {longueur} caractères" if longueur is not None else "")
         taches.add_task(dialogue.traiter, message)
     return {"statut": "recu"}

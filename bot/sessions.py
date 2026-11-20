@@ -3,7 +3,8 @@
 La clé est securite.empreinte_numero, jamais le numéro en clair. Seuls l'étape du
 parcours, les consentements et les choix de l'agriculteur sont gardés, avec l'identifiant
 WhatsApp et le type d'une photo reçue avant le consentement à son envoi, effacés dès
-qu'elle est analysée ou refusée. Aucune photo, aucun audio ni aucun texte libre n'est
+qu'elle est analysée ou refusée. voix_demandee garde le souhait de l'agriculteur d'être
+servi en notes vocales, même quand il écrit, jusqu'à ce qu'il demande l'écrit. Aucune photo, aucun audio ni aucun texte libre n'est
 stocké. Une session est effacée quand l'agriculteur refuse le consentement ou écrit STOP.
 """
 
@@ -14,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 COLONNES = ("empreinte", "etat", "consentement", "lieu", "rotation", "priorite", "consentement_photo",
-            "photo_en_attente", "mode_vocal", "mise_a_jour")
+            "photo_en_attente", "mode_vocal", "voix_demandee", "mise_a_jour")
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,7 @@ class Session:
     consentement_photo: bool = False
     photo_en_attente: str | None = None
     mode_vocal: bool = False
+    voix_demandee: bool = False
     mise_a_jour: str = ""
 
     def avec(self, **changements) -> "Session":
@@ -59,7 +61,7 @@ class Sessions:
         # Une colonne ajoutée par ALTER TABLE est de type TEXT et rend 0 sous la forme '0'.
         return Session(**{**valeurs, **{c: str(valeurs[c]) in ("1", "True") for c in ("consentement",
                                                                                      "consentement_photo",
-                                                                                     "mode_vocal")}})
+                                                                                     "mode_vocal", "voix_demandee")}})
 
     def ecrire(self, session: Session) -> Session:
         session = session.avec(mise_a_jour=datetime.now(timezone.utc).isoformat(timespec="seconds"))

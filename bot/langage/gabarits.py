@@ -18,6 +18,7 @@ jamais.
 """
 
 import os
+import re
 
 from moteur.contrat import AlerteVegetation, Diagnostic, Recommandation
 from moteur.lieux import LIEUX
@@ -280,3 +281,20 @@ def incompris() -> str:
 
 def erreur_technique() -> str:
     return "Un problème technique m'empêche de répondre. Réessayez dans quelques minutes."
+
+
+# Voix ou écrit, à la demande de l'agriculteur
+
+DEMANDE_VOIX = re.compile(r"\b(notes? vocales?|vocal|vocale|audio|a l'oral|a voix haute|en voix|par la voix|"
+                          r"lis moi|lisez moi|relis|relisez|je ne sais pas lire|je sais pas lire|"
+                          r"je ne lis pas|je ne peux pas lire|j'arrive pas a lire|je n'arrive pas a lire)\b")
+DEMANDE_ECRIT = re.compile(r"\b(par ecrit|a l'ecrit|en ecrit|ecris moi|ecrivez moi|en texte|plus de vocal|"
+                           r"pas de vocal|sans vocal|arrete les vocaux|arretez les vocaux)\b")
+
+
+def voix_activee() -> str:
+    return "D'accord, je vous réponds maintenant par la voix. Posez votre question."
+
+
+def ecrit_active() -> str:
+    return "D'accord, je vous réponds maintenant par écrit."

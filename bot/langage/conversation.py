@@ -39,7 +39,9 @@ Règles absolues :
 - Ne prédis aucun rendement et n'invente aucun chiffre précis.
 - Si tu n'es pas sûr, dis-le simplement.
 
-Dis aussi si l'agriculteur demande un conseil de rotation des cultures pour son propre champ, en mettant intention à rotation. Pour toute autre question, même sur les rotations en général, mets intention à question et réponds."""
+Tu sais répondre par note vocale : ne dis jamais que tu ne peux pas envoyer de message vocal ou audio. Les échanges précédents contiennent aussi tes autres messages, comme le diagnostic d'une photo ou un conseil de rotation, et l'agriculteur peut y faire référence.
+
+Dis aussi si l'agriculteur demande un conseil de rotation des cultures pour son propre champ, en mettant intention à rotation. S'il demande une note vocale, un audio, qu'on lui lise ou répète un message, ou dit qu'il ne sait pas lire, mets intention à voix. Pour toute autre question, même sur les rotations en général, mets intention à question et réponds."""
 
 PRODUITS = [
     "pesticide", "insecticide", "fongicide", "herbicide", "nematicide", "acaricide", "bactericide", "rodenticide",
@@ -63,10 +65,29 @@ def historique(cle: str) -> list[tuple[str, str]]:
     return list(echanges)
 
 
-def retenir(cle: str, question: str, reponse: str) -> None:
+def noter(cle: str, qui: str, texte: str) -> None:
+    """Ajoute un message à la mémoire de la conversation, sans doublon du dernier message."""
+    texte = texte.strip()
+    if not texte:
+        return
     echanges = deque(historique(cle), maxlen=ECHANGES_GARDES * 2)
-    echanges += [("agriculteur", question[:QUESTION_MAX]), ("AgriBot", reponse)]
+    if echanges and echanges[-1] == (qui, texte):
+        return
+    echanges.append((qui, texte[:QUESTION_MAX] if qui == "agriculteur" else texte))
     _memoire[cle] = (time.monotonic(), echanges)
+
+
+def retenir(cle: str, question: str, reponse: str) -> None:
+    noter(cle, "agriculteur", question)
+    noter(cle, "AgriBot", reponse)
+
+
+def dernier_message(cle: str) -> str | None:
+    """Dernier message d'AgriBot dans les 30 minutes, pour le relire à voix haute si on le demande."""
+    for qui, texte in reversed(historique(cle)):
+        if qui == "AgriBot":
+            return texte
+    return None
 
 
 def oublier(cle: str) -> None:

@@ -88,20 +88,20 @@ def transcrire(audio: bytes, type_audio: str, session=None) -> str:
 
 
 def repondre(cle: str, question: str, generation=None) -> tuple[str, str]:
-    """Intention, rotation, question ou indisponible, et réponse filtrée à une question écrite ou transcrite."""
+    """Intention, rotation, voix, question ou indisponible, et réponse filtrée à une question écrite ou transcrite."""
     contexte = "\n".join(f"{qui} : {quoi}" for qui, quoi in conversation.historique(cle)) or "aucun"
     try:
         sortie = (generation or generer)(
             conversation.CONSIGNE,
             f"Échanges précédents\n{contexte}\n\nNouveau message de l'agriculteur\n"
             f"{question[:conversation.QUESTION_MAX]}",
-            schema("reponse_agricole", {"intention": {"type": "string", "enum": ["rotation", "question"]},
+            schema("reponse_agricole", {"intention": {"type": "string", "enum": ["rotation", "voix", "question"]},
                                         "reponse": {"type": "string"}}))
     except Exception as erreur:
         journal.warning("Groq indisponible pour répondre, %s", type(erreur).__name__)
         return "indisponible", conversation.SECOURS
-    if sortie.get("intention") == "rotation":
-        return "rotation", ""
+    if sortie.get("intention") in ("rotation", "voix"):
+        return sortie["intention"], ""
     reponse = conversation.filtrer(sortie.get("reponse") or "") if sortie.get("reponse") else conversation.SECOURS
     conversation.retenir(cle, question, reponse)
     return "question", reponse

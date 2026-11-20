@@ -73,6 +73,10 @@ COMMANDES_DEBUT = {"bonjour", "bonsoir", "salut", "menu", "recommencer", "start"
 COMMANDE_EFFACER = "stop"
 
 
+# Au-delà, une demande de voix contient aussi une question, qui reçoit sa réponse par la voix.
+MOTS_DEMANDE_SEULE = 12
+
+
 class Etat(str, Enum):
     ACCUEIL = "accueil"
     CONSENTEMENT = "consentement"
@@ -210,7 +214,12 @@ class Conversation:
 
     @property
     def vocal(self) -> bool:
-        return self.session.mode_vocal and voix.configuree()
+        return (self.session.mode_vocal or self.session.voix_demandee) and voix.configuree()
+
+    def noter(self, texte: str) -> None:
+        """Garde chaque message d'AgriBot 30 minutes, pour comprendre « le message précédent » et le relire."""
+        if texte and texte != gabarits.INVITE_CHOIX:
+            conversation.noter(self.session.empreinte, "AgriBot", texte)
 
     def dire(self, texte: str) -> bool:
         """Envoie le texte en note vocale, et dit s'il a pu partir. Une phrase fixe ne coûte aucun crédit."""
@@ -225,6 +234,7 @@ class Conversation:
 
     def texte(self, texte: str) -> None:
         """Un message, en note vocale si l'agriculteur parle, par écrit sinon, jamais les deux."""
+        self.noter(texte)
         if not (self.vocal and self.dire(texte)):
             self.canal.envoyer_texte(self.numero, texte)
 
@@ -232,11 +242,13 @@ class Conversation:
         self.canal.envoyer_texte(self.numero, texte)
 
     def boutons(self, texte: str, boutons: dict[str, str]) -> None:
+        self.noter(texte)
         if self.vocal and self.dire(f"{texte}\n{gabarits.choix_a_dire(boutons)}"):
             texte = gabarits.INVITE_CHOIX
         self.canal.envoyer_boutons(self.numero, texte, boutons)
 
     def liste(self, texte: str, lignes: dict[str, str]) -> None:
+        self.noter(texte)
         if self.vocal and self.dire(f"{texte}\n{gabarits.choix_a_dire(lignes)}"):
             texte = gabarits.INVITE_CHOIX
         self.canal.envoyer_liste(self.numero, texte, lignes, gabarits.LIBELLE_LISTE)
@@ -324,6 +336,7 @@ class Conversation:
         self.analyser_photo(image, legende)
 
     def analyser_photo(self, image: tuple[str, str], legende: str | None) -> None:
+        conversation.noter(self.session.empreinte, "agriculteur", f"[photo d'une plante]{' ' + legende if legende else ''}")
         media_id, type_image = image
         if type_de_base(type_image) in TYPES_IMAGE:
             contenu = self.canal.telecharger_media(media_id)
@@ -352,6 +365,9 @@ class Conversation:
         if intention == "rotation":
             self.demander_lieu()
             return
+        if intention == "voix":
+            self.passer_a_la_voix()
+            return
         if intention == "question":
             self.texte(reponse)
             self.etape(Etat.MENU)
@@ -366,6 +382,22 @@ class Conversation:
         else:
             self.texte(gabarits.discussion_indisponible())
             self.etape(Etat.MENU)
+
+    # Voix ou écrit, à la demande
+
+    def passer_a_la_voix(self) -> None:
+        """Relit à voix haute le dernier message d'AgriBot, puis continue en notes vocales."""
+        self.session = self.magasin.ecrire(self.session.avec(voix_demandee=True))
+        if not voix.configuree():
+            self.canal.envoyer_texte(self.numero, gabarits.voix_indisponible())
+            return
+        dernier = conversation.dernier_message(self.session.empreinte)
+        if not self.dire(dernier or gabarits.voix_activee()):
+            self.canal.envoyer_texte(self.numero, gabarits.voix_indisponible())
+
+    def passer_a_l_ecrit(self) -> None:
+        self.session = self.magasin.ecrire(self.session.avec(voix_demandee=False, mode_vocal=False))
+        self.canal.envoyer_texte(self.numero, gabarits.ecrit_active())
 
     def avancer(self, entree: dict) -> None:
         s, etat = self.session, Etat(self.session.etat)
@@ -386,6 +418,17 @@ class Conversation:
         if texte in COMMANDES_DEBUT:
             self.montrer_menu() if s.consentement else self.accueillir()
             return
+        if entree.get("texte") and not entree.get("choix") and s.consentement:
+            phrase = normaliser(entree["texte"])
+            if gabarits.DEMANDE_ECRIT.search(phrase):
+                self.passer_a_l_ecrit()
+                return
+            if gabarits.DEMANDE_VOIX.search(phrase):
+                if len(phrase.split()) <= MOTS_DEMANDE_SEULE:
+                    self.passer_a_la_voix()
+                    return
+                # Une demande de voix avec une question, la question reçoit sa réponse par la voix.
+                self.session = s = self.magasin.ecrire(s.avec(voix_demandee=True))
         if "image" in entree and etat != Etat.CONSENTEMENT:
             self.recevoir_photo(entree["image"], entree.get("legende"))
             return
