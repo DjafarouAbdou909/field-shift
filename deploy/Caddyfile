@@ -31,3 +31,20 @@ app.__DOMAINE__ {
 	}
 	reverse_proxy 127.0.0.1:8501
 }
+
+# Plateforme hors connexion, servie telle quelle depuis offline/app du dépôt.
+hors-ligne.__DOMAINE__ {
+	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
+	# Le service de mise en cache doit être revérifié à chaque visite pour que les mises à jour arrivent.
+	header /sw.js Cache-Control "no-cache"
+	@manifeste path *.webmanifest
+	header @manifeste Content-Type "application/manifest+json"
+	root * /opt/agribot/offline/app
+	file_server
+}

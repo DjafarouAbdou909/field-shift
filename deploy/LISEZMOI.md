@@ -8,6 +8,7 @@ Ce guide met AgriBot sur un serveur allumé jour et nuit, pour que le bot ne dé
 |---|---|
 | `https://bot.mondomaine.com/webhook` | Le webhook que Meta appelle à chaque message WhatsApp |
 | `https://app.mondomaine.com` | L'application des conseillers, ouverte par le bouton Détail du bot |
+| `https://hors-ligne.mondomaine.com` | La plateforme hors connexion de `offline/app`, toujours à jour avec le dépôt |
 
 ## Ce qu'il faut avant de commencer
 
@@ -24,6 +25,7 @@ Dans Porkbun, ouvrez votre domaine, puis **DNS**, et ajoutez deux enregistrement
 |---|---|---|---|
 | A | `bot` | adresse IP du serveur | 600 |
 | A | `app` | adresse IP du serveur | 600 |
+| A | `hors-ligne` | adresse IP du serveur | 600 |
 
 Attendez quelques minutes, puis vérifiez depuis votre PC.
 

@@ -208,6 +208,7 @@ bash deploy/verifier.sh example.com                  # health, Meta webhook chec
 |---|---|
 | **Webhook** | `https://bot.example.com/webhook`, FastAPI under systemd, restarted automatically |
 | **Advisor app** | `https://app.example.com`, Streamlit under systemd |
+| **Offline platform** | `https://hors-ligne.example.com`, static files of `offline/app` served by Caddy, always in sync with the repository |
 | **HTTPS** | Caddy, with certificates obtained and renewed automatically |
 | **Security** | Dedicated `agribot` service user, `.env` readable by that user only, firewall open on SSH, HTTP and HTTPS only, only `/webhook` and `/sante` exposed on the bot host |
 | **Hardening** | Daily security updates, fail2ban, SSH key-only login once a key is installed, HTTPS security headers |

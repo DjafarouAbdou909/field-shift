@@ -56,7 +56,11 @@ sudo -u "$UTILISATEUR" "$RACINE/venv/bin/pip" install -q -r "$RACINE/requirement
 echo "Données NASA et réglages"
 sudo -u "$UTILISATEUR" mkdir -p "$RACINE/data"
 if [ -d "$ENVOI/data" ]; then
-    rsync -a "$ENVOI/data/" "$RACINE/data/"
+    # Les données NASA du PC remplacent celles du serveur. Les sessions des agriculteurs et les voix
+    # déjà synthétisées du serveur, plus récentes, ne sont jamais écrasées par la copie du PC.
+    rsync -a --exclude bot.sqlite3 --exclude voix/ "$ENVOI/data/" "$RACINE/data/"
+    [ -f "$RACINE/data/bot.sqlite3" ] || { [ -f "$ENVOI/data/bot.sqlite3" ] && cp "$ENVOI/data/bot.sqlite3" "$RACINE/data/"; }
+    [ -d "$ENVOI/data/voix" ] && rsync -a --ignore-existing "$ENVOI/data/voix/" "$RACINE/data/voix/"
     chown -R "$UTILISATEUR:$UTILISATEUR" "$RACINE/data"
 fi
 if [ -f "$ENVOI/.env" ]; then
@@ -79,7 +83,8 @@ systemctl daemon-reload
 systemctl enable --quiet agribot agribot-app
 systemctl restart agribot agribot-app
 
-echo "HTTPS par Caddy pour bot.$DOMAINE et app.$DOMAINE"
+echo "HTTPS par Caddy pour bot.$DOMAINE, app.$DOMAINE et hors-ligne.$DOMAINE"
+install -d -m 755 /etc/agribot && echo "$DOMAINE" > /etc/agribot/domaine
 sed "s/__DOMAINE__/$DOMAINE/g" "$RACINE/deploy/Caddyfile" > /etc/caddy/Caddyfile
 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null
 systemctl enable --quiet caddy
@@ -127,4 +132,5 @@ done
 curl -fsS http://127.0.0.1:8000/sante && echo
 echo
 echo "AgriBot est installé. Webhook à saisir chez Meta, https://bot.$DOMAINE/webhook"
+echo "Plateforme hors connexion, https://hors-ligne.$DOMAINE"
 echo "Journal du bot, sudo journalctl -u agribot -f"

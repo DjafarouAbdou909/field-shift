@@ -69,7 +69,27 @@ class TestDeploiement(unittest.TestCase):
 
     def test_entetes_https(self):
         caddy = (DEPLOY / "Caddyfile").read_text()
-        self.assertEqual(caddy.count("Strict-Transport-Security"), 2)
+        self.assertEqual(caddy.count("Strict-Transport-Security"), 3)
+
+    def test_plateforme_hors_connexion_servie(self):
+        """La plateforme hors connexion est servie par le VPS, son service de cache revérifié à chaque visite."""
+        caddy = (DEPLOY / "Caddyfile").read_text()
+        bloc = caddy.split("hors-ligne.__DOMAINE__")[1]
+        self.assertIn("root * /opt/agribot/offline/app", bloc)
+        self.assertIn('header /sw.js Cache-Control "no-cache"', bloc)
+        self.assertTrue((RACINE / "offline" / "app" / "sw.js").exists())
+
+    def test_redeploiement_garde_les_sessions_du_serveur(self):
+        """Un nouveau déploiement depuis le PC n'écrase ni les sessions ni les voix du serveur."""
+        installer = (DEPLOY / "installer.sh").read_text()
+        self.assertIn("--exclude bot.sqlite3 --exclude voix/", installer)
+        self.assertIn('[ -f "$RACINE/data/bot.sqlite3" ] ||', installer)
+        self.assertIn("--ignore-existing", installer)
+
+    def test_mise_a_jour_regenere_caddy(self):
+        miseajour = (DEPLOY / "mettre_a_jour.sh").read_text()
+        self.assertIn("/etc/agribot/domaine", miseajour)
+        self.assertIn("caddy validate", miseajour)
 
     def test_lien_detail_public(self):
         """Le lien Détail des agriculteurs pointe vers l'application publique, pas vers localhost."""
