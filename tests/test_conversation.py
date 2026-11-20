@@ -71,3 +71,5 @@ class TestMemoireDesMessages(unittest.TestCase):
     def test_consigne_sait_que_le_bot_parle(self):
         self.assertIn("ne dis jamais que tu ne peux pas envoyer de message vocal", conversation.CONSIGNE)
         self.assertIn("intention à voix", conversation.CONSIGNE)
+        self.assertIn("intention à parler", conversation.CONSIGNE)
+        self.assertIn("Pas de souci, ce n'est pas grave", conversation.CONSIGNE)

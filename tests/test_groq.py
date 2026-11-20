@@ -58,6 +58,11 @@ class TestGroq(unittest.TestCase):
                                                                                               "reponse": ""})),
                          ("rotation", ""))
 
+    def test_mot_qui_rassure_celui_qui_prefere_parler(self):
+        generation = mock.Mock(return_value={"intention": "parler", "reponse": "Pas de souci, parlez-moi."})
+        self.assertEqual(groq.repondre("cle", "je ne sais pas écrire", generation), ("parler", "Pas de souci, parlez-moi."))
+        self.assertEqual(conversation.historique("cle")[-1], ("AgriBot", "Pas de souci, parlez-moi."))
+
     def test_panne(self):
         self.assertEqual(groq.repondre("cle", "Q", mock.Mock(side_effect=RuntimeError()))[0], "indisponible")
         self.assertIsNone(groq.choisir("x", gabarits.BOUTONS_MENU, mock.Mock(side_effect=RuntimeError())))

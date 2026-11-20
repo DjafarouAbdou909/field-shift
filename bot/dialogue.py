@@ -125,7 +125,7 @@ def phrases_fixes() -> list[str]:
                   (gabarits.suite(), gabarits.BOUTONS_RESULTAT)]
     seuls = [gabarits.accueil(), gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
              gabarits.alerte_indisponible(), gabarits.incompris(), gabarits.efface(), gabarits.zone_non_couverte(),
-             gabarits.erreur_technique()]
+             gabarits.erreur_technique(), gabarits.rassurer_lecture(), gabarits.rassurer_ecriture()]
     return [pour_la_voix(f"{texte}\n{gabarits.choix_a_dire(choix)}") for texte, choix in avec_choix] + \
         [pour_la_voix(texte) for texte in seuls]
 
@@ -368,6 +368,11 @@ class Conversation:
         if intention == "voix":
             self.passer_a_la_voix()
             return
+        if intention == "parler":
+            # L'agriculteur ne sait pas écrire ou préfère parler, Groq le rassure avant de passer à la voix.
+            self.passer_a_la_voix(reponse or gabarits.rassurer_ecriture(), relire=False)
+            self.etape(Etat.MENU)
+            return
         if intention == "question":
             self.texte(reponse)
             self.etape(Etat.MENU)
@@ -385,14 +390,15 @@ class Conversation:
 
     # Voix ou écrit, à la demande
 
-    def passer_a_la_voix(self) -> None:
-        """Relit à voix haute le dernier message d'AgriBot, puis continue en notes vocales."""
+    def passer_a_la_voix(self, rassurer: str | None = None, relire: bool = True) -> None:
+        """Rassure d'abord l'agriculteur si besoin, relit le dernier message d'AgriBot, puis continue en notes vocales."""
         self.session = self.magasin.ecrire(self.session.avec(voix_demandee=True))
         if not voix.configuree():
             self.canal.envoyer_texte(self.numero, gabarits.voix_indisponible())
             return
-        dernier = conversation.dernier_message(self.session.empreinte)
-        if not self.dire(dernier or gabarits.voix_activee()):
+        dernier = conversation.dernier_message(self.session.empreinte) if relire else None
+        notes = [t for t in (rassurer, dernier) if t] or [gabarits.voix_activee()]
+        if not all(self.dire(note) for note in notes):
             self.canal.envoyer_texte(self.numero, gabarits.voix_indisponible())
 
     def passer_a_l_ecrit(self) -> None:
@@ -423,9 +429,12 @@ class Conversation:
             if gabarits.DEMANDE_ECRIT.search(phrase):
                 self.passer_a_l_ecrit()
                 return
-            if gabarits.DEMANDE_VOIX.search(phrase):
+            if gabarits.DEMANDE_VOIX.search(phrase) or gabarits.DIFFICULTE_ECRIRE.search(phrase):
                 if len(phrase.split()) <= MOTS_DEMANDE_SEULE:
-                    self.passer_a_la_voix()
+                    rassurer, relire = gabarits.accueil_de_la_voix(phrase)
+                    if rassurer and not relire:
+                        conversation.retenir(s.empreinte, entree["texte"], rassurer)
+                    self.passer_a_la_voix(rassurer, relire)
                     return
                 # Une demande de voix avec une question, la question reçoit sa réponse par la voix.
                 self.session = s = self.magasin.ecrire(s.avec(voix_demandee=True))

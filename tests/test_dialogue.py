@@ -470,8 +470,28 @@ class TestVoixALaDemande(Base):
 
     def test_relit_le_diagnostic_a_voix_haute(self):
         envois = self.photo_puis(texte("je ne sais pas lire, une note vocale stp"))
-        self.assertEqual([e[0] for e in envois], ["audio"])
+        self.assertEqual([e[0] for e in envois], ["audio", "audio"], "un mot qui rassure, puis la relecture")
+        dialogue.voix.synthetiser_phrase_fixe.assert_called_with(dialogue.pour_la_voix(gabarits.rassurer_lecture()))
         dialogue.voix.synthetiser.assert_called_with(dialogue.pour_la_voix(self.DIAGNOSTIC))
+        self.assertTrue(self.session().voix_demandee)
+
+    def test_ne_sait_pas_ecrire_est_rassure(self):
+        """« Je ne sais pas écrire » reçoit d'abord « Pas de souci », échange réel du 20 novembre 2026."""
+        self.consentir()
+        envois = self.envoyer(texte("je ne sais pas écrire"))
+        self.assertEqual([e[0] for e in envois], ["audio"], "le menu n'est pas relu sans un mot")
+        dialogue.voix.synthetiser_phrase_fixe.assert_called_with(dialogue.pour_la_voix(gabarits.rassurer_ecriture()))
+        self.assertTrue(gabarits.rassurer_ecriture().startswith("Pas de souci, ce n'est pas grave"))
+        self.assertTrue(self.session().voix_demandee)
+
+    def test_groq_rassure_celui_qui_prefere_parler(self):
+        self.consentir()
+        mot = "Pas de souci. Parlez-moi avec le micro, je vous réponds à l'oral."
+        with mock.patch.object(dialogue.groq, "configure", return_value=True), \
+                mock.patch.object(dialogue.groq, "repondre", return_value=("parler", mot)):
+            envois = self.envoyer(texte("l'écrit c'est dur pour moi"))
+        self.assertEqual([e[0] for e in envois], ["audio"])
+        dialogue.voix.synthetiser.assert_called_with(dialogue.pour_la_voix(mot))
         self.assertTrue(self.session().voix_demandee)
 
     def test_reste_en_voix_meme_a_l_ecrit_puis_revient_a_l_ecrit(self):

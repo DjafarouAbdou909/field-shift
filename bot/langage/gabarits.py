@@ -292,6 +292,31 @@ DEMANDE_ECRIT = re.compile(r"\b(par ecrit|a l'ecrit|en ecrit|ecris moi|ecrivez m
                            r"pas de vocal|sans vocal|arrete les vocaux|arretez les vocaux)\b")
 
 
+DIFFICULTE_LIRE = re.compile(r"\b(je ne sais pas lire|je sais pas lire|je ne lis pas|je ne peux pas lire|"
+                             r"j'arrive pas a lire|je n'arrive pas a lire)\b")
+DIFFICULTE_ECRIRE = re.compile(r"\b(je ne sais pas ecrire|je sais pas ecrire|je n'ecris pas|j'ecris pas|"
+                               r"je ne peux pas ecrire|j'arrive pas a ecrire|je n'arrive pas a ecrire)\b")
+
+
+def rassurer_lecture() -> str:
+    return ("Pas de souci, ce n'est pas grave. Je vais vous parler à l'oral, "
+            "et vous pouvez me répondre par message vocal, avec le micro de WhatsApp.")
+
+
+def rassurer_ecriture() -> str:
+    return ("Pas de souci, ce n'est pas grave, vous n'avez pas besoin d'écrire. Appuyez sur le micro de WhatsApp "
+            "et parlez-moi, je vous répondrai aussi à l'oral. Comment puis-je vous aider ?")
+
+
+def accueil_de_la_voix(phrase: str) -> tuple[str | None, bool]:
+    """Phrase qui rassure l'agriculteur avant de passer à la voix, et s'il faut relire le dernier message."""
+    if DIFFICULTE_ECRIRE.search(phrase):
+        return rassurer_ecriture(), False
+    if DIFFICULTE_LIRE.search(phrase):
+        return rassurer_lecture(), True
+    return None, True
+
+
 def voix_activee() -> str:
     return "D'accord, je vous réponds maintenant par la voix. Posez votre question."
 
