@@ -26,4 +26,4 @@ fi
 systemctl restart agribot agribot-app
 sleep 3
 curl -fsS http://127.0.0.1:8000/sante && echo
-echo "AgriBot est à jour, commit $(git -C "$RACINE" log --oneline -1)"
+echo "AgriBot est à jour, commit $(sudo -u agribot git -C "$RACINE" log --oneline -1)"
