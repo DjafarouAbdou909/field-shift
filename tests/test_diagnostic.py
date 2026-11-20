@@ -20,7 +20,8 @@ class TestRequete(unittest.TestCase):
     def test_requete_figee(self):
         """Modèle figé, aucune conservation par l'API, texte et image dans une étape user_input."""
         corps = diagnostic.requete(JPEG, "image/jpeg", "maïs")
-        self.assertEqual(corps["model"], "gemini-4-hydrogen")
+        self.assertEqual(corps["model"], "gemini-3.5-flash")
+        self.assertEqual(corps["generation_config"]["thinking_level"], "minimal")
         self.assertIs(corps["store"], False)
         self.assertEqual(corps["input"][0]["type"], "user_input")
         self.assertEqual([c["type"] for c in corps["input"][0]["content"]], ["text", "image"])
@@ -114,7 +115,33 @@ class TestDiagnostic(unittest.TestCase):
                 diagnostic.appeler({}, session=session, cle="c")
             self.assertEqual(session.post.call_count, 1)
         finally:
-            diagnostic._quota_epuise_jusqua = 0.0
+            diagnostic._quota_epuise_jusqua.clear()
+
+    def test_modele_de_secours_si_le_premier_echoue(self):
+        """Quota épuisé ou panne du premier modèle, la photo est analysée par le second."""
+        def poste(adresse, json, timeout, headers):
+            if json["model"] == "gemini-3.5-flash":
+                return mock.Mock(status_code=429)
+            reponse = mock.Mock(status_code=200)
+            reponse.json.return_value = interaction(REPONSE)
+            return reponse
+        session = mock.Mock()
+        session.post.side_effect = poste
+        try:
+            d = diagnostic.diagnostiquer(JPEG, "image/jpeg", "maïs", session=session, cle="c")
+            self.assertEqual(d.statut, "analyse")
+            self.assertEqual([c.kwargs["json"]["model"] for c in session.post.call_args_list],
+                             ["gemini-3.5-flash", "gemini-3.5-flash-lite"])
+            session.post.reset_mock()
+            diagnostic.diagnostiquer(JPEG, "image/jpeg", "maïs", session=session, cle="c")
+            self.assertEqual([c.kwargs["json"]["model"] for c in session.post.call_args_list],
+                             ["gemini-3.5-flash-lite"], "le modèle épuisé reste en pause")
+        finally:
+            diagnostic._quota_epuise_jusqua.clear()
+
+    def test_delai_court(self):
+        """Une attente de plus de 40 secondes passe au modèle de secours au lieu de bloquer l'agriculteur."""
+        self.assertLessEqual(diagnostic.DELAI_SECONDES, 45)
 
     def test_agent_platform_si_configure(self):
         with mock.patch.dict("os.environ", {"AGENT_PLATFORM_PROJET": "mon-projet", "AGENT_PLATFORM_API_KEY": "cle-ap",

@@ -17,8 +17,14 @@ l'avertissement final est toujours rétabli.
 Modèle, adresse et réglages vérifiés le 14 novembre 2026 dans la documentation officielle,
 https://aistudio.google.com/docs, vers laquelle renvoie https://ai.google.dev/gemini-api/docs.
 
-- Modèle gemini-4-hydrogen, version stable, entrées texte et image, page
-  docs/models/gemini-4-hydrogen.
+- Modèles gemini-3.5-flash puis, en secours, gemini-3.5-flash-lite, tous deux listés par
+  l'API models avec la clé du responsable le 20 novembre 2026. gemini-4-hydrogen, utilisé
+  jusque-là, mettait 66 secondes sur une photo de test, et 80,8 secondes sur la photo d'un
+  agriculteur d'après le journal du serveur. Sur la même photo de test, avec la réflexion
+  minimale, gemini-3.5-flash répond en 4,0 secondes en reconnaissant le soja, et
+  gemini-3.5-flash-lite en 2,4 secondes en restant vague sur la culture, d'où cet ordre.
+  gemini-3.8-flash met 56 secondes et refuse la réflexion minimale. Chaque modèle a son
+  propre quota, si bien que le secours sert aussi quand le premier est épuisé.
 - API Interactions en version v1, la version stable. Texte et image vont dans une étape
   user_input, l'image seule dans input étant refusée par l'API le 15 novembre 2026.
 - store à faux. Sinon l'API conserve chaque interaction 55 jours au niveau payant.
@@ -43,8 +49,9 @@ from .contrat import AVERTISSEMENT_DIAGNOSTIC, Diagnostic
 
 journal = logging.getLogger("moteur")
 
-MODELE = "gemini-4-hydrogen"
-MODELE_VERIFIE_LE = "2026-11-14"
+MODELES = ("gemini-3.5-flash", "gemini-3.5-flash-lite")
+MODELE = MODELES[0]
+MODELE_VERIFIE_LE = "2026-11-20"
 ADRESSE = "https://generativelanguage.googleapis.com/v1/interactions"
 ADRESSE_AGENT_PLATFORM = "https://aiplatform.googleapis.com/v1/projects/{projet}/locations/global/interactions"
 
@@ -64,19 +71,20 @@ def acces() -> tuple[str, str | None]:
         return ADRESSE_AGENT_PLATFORM.format(projet=projet), cle
     return ADRESSE, os.environ.get("GEMINI_API_KEY")
 RESOLUTION = "high"
-NIVEAU_DE_REFLEXION = "low"
+NIVEAU_DE_REFLEXION = "minimal"
+DELAI_SECONDES = 40  # au-delà, le modèle de secours est essayé plutôt que de laisser l'agriculteur attendre
 GRAINE = 2026
 TENTATIVES, PAUSE_SECONDES, ERREURS_PASSAGERES = 2, 1, {500, 502, 503, 504}
 QUOTA_PAUSE_SECONDES = 15 * 60
-_quota_epuise_jusqua = 0.0
+_quota_epuise_jusqua: dict[str, float] = {}
 
 
 class QuotaEpuise(RuntimeError):
-    """Gemini a répondu 429. Les appels suivants échouent aussitôt pendant QUOTA_PAUSE_SECONDES."""
+    """Gemini a répondu 429 pour un modèle, dont les appels échouent aussitôt pendant QUOTA_PAUSE_SECONDES."""
 TAILLE_MIN_OCTETS = 100
 TAILLE_MAX_OCTETS = 14 * 1024 * 1024  # base64 grossit de 4 tiers, la requête reste sous 20 Mo
 TYPES_IMAGE = {"image/jpeg", "image/png", "image/webp", "image/heic", "image/heif"}
-ORIGINE = (f"Photo envoyée par l'utilisateur, analysée par Google Gemini, modèle {MODELE}, sans conservation "
+ORIGINE = (f"Photo envoyée par l'utilisateur, analysée par Google Gemini, modèle {MODELE} ou {MODELES[1]}, sans conservation "
            "par Field Shift.")
 
 CONSIGNE = """Tu es un assistant agricole qui aide un agriculteur ivoirien à comprendre ce qui arrive à sa plante. Tu n'es pas un laboratoire phytosanitaire certifié.
@@ -111,9 +119,9 @@ def consigne(culture: str | None) -> str:
     return CONSIGNE.format(avertissement=AVERTISSEMENT_DIAGNOSTIC, culture=culture or "non précisée")
 
 
-def requete(image: bytes, type_image: str, culture: str | None) -> dict:
+def requete(image: bytes, type_image: str, culture: str | None, modele: str = MODELE) -> dict:
     """Corps de la requête à l'API Interactions."""
-    return {"model": MODELE, "store": False,
+    return {"model": modele, "store": False,
             "input": [{"type": "user_input", "content": [
                 {"type": "text", "text": consigne(culture)},
                 {"type": "image", "data": base64.b64encode(image).decode("ascii"), "mime_type": type_image,
@@ -164,24 +172,24 @@ def interpreter(texte: str | None, culture: str | None) -> Diagnostic:
 
 def appeler(corps: dict, session: requests.Session | None = None, cle: str | None = None) -> dict:
     """Envoie la requête et rend l'interaction. La clé vient de GEMINI_API_KEY, jamais du dépôt."""
-    global _quota_epuise_jusqua
+    modele = corps.get("model", MODELE)
     adresse, cle_env = acces()
     cle = cle or cle_env
     if not cle:
         raise RuntimeError("clé GEMINI_API_KEY ou AGENT_PLATFORM_API_KEY absente de l'environnement")
-    if time.monotonic() < _quota_epuise_jusqua:
-        raise QuotaEpuise("quota Gemini épuisé, appel sauté")
+    if time.monotonic() < _quota_epuise_jusqua.get(modele, 0.0):
+        raise QuotaEpuise(f"quota de {modele} épuisé, appel sauté")
     for tentative in range(TENTATIVES):
-        reponse = (session or requests).post(adresse, json=corps, timeout=120,
+        reponse = (session or requests).post(adresse, json=corps, timeout=DELAI_SECONDES,
                                              headers={"x-goog-api-key": cle, "Content-Type": "application/json"})
         if reponse.status_code not in ERREURS_PASSAGERES or tentative == TENTATIVES - 1:
             break
         journal.warning("Gemini indisponible, code %s, nouvel essai", reponse.status_code)
         time.sleep(PAUSE_SECONDES)
     if reponse.status_code == 429:
-        _quota_epuise_jusqua = time.monotonic() + QUOTA_PAUSE_SECONDES
-        journal.warning("quota Gemini épuisé, Gemini mis en pause %s minutes", QUOTA_PAUSE_SECONDES // 60)
-        raise QuotaEpuise("quota Gemini épuisé")
+        _quota_epuise_jusqua[modele] = time.monotonic() + QUOTA_PAUSE_SECONDES
+        journal.warning("quota de %s épuisé, modèle mis en pause %s minutes", modele, QUOTA_PAUSE_SECONDES // 60)
+        raise QuotaEpuise(f"quota de {modele} épuisé")
     if reponse.status_code >= 400:
         journal.warning("Gemini a refusé la requête, code %s", reponse.status_code)
     reponse.raise_for_status()
@@ -201,9 +209,16 @@ def diagnostiquer(image: bytes, type_image: str | None, culture: str | None = No
     type_image = type_de_base(type_image)
     if type_image not in TYPES_IMAGE:
         return echec(FORMAT_REFUSE, culture)
-    try:
-        interaction = appeler(requete(image, type_image, culture), session, cle)
-    except Exception as erreur:
-        journal.error("échec du diagnostic, %s", type(erreur).__name__)
-        return echec(A_REESSAYER, culture)
-    return interpreter(texte_de_sortie(interaction), culture)
+    for modele in MODELES:
+        debut = time.monotonic()
+        try:
+            interaction = appeler(requete(image, type_image, culture, modele), session, cle)
+        except Exception as erreur:
+            journal.warning("diagnostic impossible avec %s, %s", modele, type(erreur).__name__)
+            continue
+        texte = texte_de_sortie(interaction)
+        if texte:
+            journal.info("diagnostic par %s en %.1f s", modele, time.monotonic() - debut)
+            return interpreter(texte, culture)
+    journal.error("échec du diagnostic avec tous les modèles")
+    return echec(A_REESSAYER, culture)

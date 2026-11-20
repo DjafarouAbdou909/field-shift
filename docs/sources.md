@@ -100,6 +100,7 @@ Documentation officielle de Google lue le 14 novembre 2026 sur https://aistudio.
 | Point vérifié | Constat | Page |
 |---|---|---|
 | Modèle | `gemini-4-hydrogen`, version stable, entrées texte, image, vidéo, audio et PDF, sorties structurées, mise à jour de novembre 2026 | docs/models/gemini-4-hydrogen |
+| Modèles du 20 novembre 2026 | `gemini-3.5-flash`, puis `gemini-3.5-flash-lite` en secours, présents dans la liste rendue par l'API models avec la clé du responsable, réflexion minimale acceptée, `gemini-4-hydrogen` n'étant plus utilisé pour sa lenteur | API models, appel GET v1beta/models |
 | Version de l'API | API Interactions en v1, version stable, où tous les modèles sont disponibles. La liste des modèles de la référence v1 omet pourtant `gemini-4-hydrogen` | api-reference/api-versions et api-reference/interactions-api/create-interaction |
 | Images | Image en ligne encodée en base64, requête limitée à 20 Mo. Environ 1 120 jetons par image en résolution high, réglage recommandé pour les images | docs/image-understanding et docs/media-resolution |
 | Réponse imposée | Schéma JSON avec énumération, sortie syntaxiquement valide, valeurs à valider par l'application | docs/structured-output |

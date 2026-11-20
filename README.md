@@ -136,7 +136,7 @@ Its full commit history is preserved in this repository. See [offline/README.md]
 |---|---|---|
 | **Groq**, `whisper-large-v3-turbo` | Transcribes farmers’ voice notes | Local `faster-whisper` (base model), then Aethex, as fallbacks |
 | **Groq**, `openai/gpt-oss-120b` | Understands free answers and writes short replies to farming questions | Strict JSON schema; system prompt forbids products and speaking for ANADER; output filtered again |
-| **Google Gemini**, `gemini-4-hydrogen` | First opinion on plant photos | Called for photos only; never names a product; every answer ends with a fixed advisory notice |
+| **Google Gemini**, `gemini-3.5-flash`, then `gemini-3.5-flash-lite` as fallback | First opinion on plant photos, in about 4 seconds | Called for photos only; never names a product; every answer ends with a fixed advisory notice |
 | **Aethex** | **AI-generated voice** of every spoken reply | Streaming synthesis; fixed phrases cached; daily character cap |
 | **MobileNetV3 leaf model**, trained by the team (offline app) | Recognises maize streak and northern leaf blight on the phone, without network | Trained in Google Colab on openly licensed datasets; answers “not sure” below threshold; reliability shown with every answer |
 | **Phone speech synthesis** (offline app) | Reads messages aloud | Uses the voices already installed on the phone, through the browser’s Web Speech API |
