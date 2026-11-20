@@ -49,27 +49,32 @@ def accueil() -> str:
 
 
 def consentement() -> str:
-    return ("Pour vous aider, je garde seulement vos choix. Vos messages et vos photos passent par des services "
-            "d'intelligence artificielle. Ce service est pour les adultes. Dites stop pour tout effacer. "
-            "Êtes-vous d'accord ?")
+    return ("Avant de commencer, une petite chose. Pour vous aider, je garde seulement vos choix. Vos messages et vos "
+            "photos passent par des services d'intelligence artificielle. Ce service est pour les adultes, et vous "
+            "pouvez dire stop à tout moment pour tout effacer. Êtes-vous d'accord ?")
 
 
 BOUTONS_CONSENTEMENT = {"accepte": "Oui, d'accord", "refuse": "Non merci"}
 
 
 def refus() -> str:
-    return "D'accord, je ne garde rien. Dites bonjour si vous changez d'avis."
+    return "D'accord, je respecte votre choix et je ne garde rien. Si vous changez d'avis, dites simplement bonjour."
 
 
 def efface() -> str:
-    return "C'est fait, j'ai tout effacé. Dites bonjour pour recommencer."
+    return "C'est fait, j'ai tout effacé. Quand vous voudrez, dites bonjour et on recommence ensemble."
 
 
 # Menu
 
-def menu() -> str:
-    return ("Que voulez-vous ? Posez votre question, demandez quoi semer, envoyez la photo d'une plante malade, "
-            "ou demandez comment va la végétation de votre zone.")
+SALUTATIONS = {"": "", "retour": "Bonjour, content de vous retrouver. ", "merci": "Merci pour votre confiance. "}
+
+
+def menu(salutation: str = "") -> str:
+    """Le menu, précédé d'un bonjour pour qui revient ou d'un merci après l'accord."""
+    return (f"{SALUTATIONS[salutation]}Comment puis-je vous aider aujourd'hui ? Vous pouvez me poser une question, "
+            "me demander quoi semer, m'envoyer la photo d'une plante malade, ou savoir comment va la végétation "
+            "de votre zone.")
 
 
 INVITE_CHOIX = "👇"
@@ -82,7 +87,7 @@ LIBELLE_LISTE = "Choisir"
 # Lieu
 
 def demande_lieu() -> str:
-    return "Où est votre champ ? Choisissez votre ville, ou envoyez votre position."
+    return "Avec plaisir. Où se trouve votre champ ? Choisissez votre ville, ou envoyez-moi votre position."
 
 
 LIGNES_LIEUX = {identifiant: lieu["nom"] for identifiant, lieu in LIEUX.items()}
@@ -90,21 +95,22 @@ LIGNES_LIEUX = {identifiant: lieu["nom"] for identifiant, lieu in LIEUX.items()}
 
 def zone_non_couverte() -> str:
     villes = " et ".join(lieu["nom"] for lieu in LIEUX.values())
-    return f"Désolé, je connais seulement {villes} pour le moment. Votre conseiller ANADER peut vous aider."
+    return (f"Je suis désolé, pour le moment je connais seulement {villes}. "
+            "Votre conseiller ANADER pourra vous aider pour votre zone.")
 
 
 # Rotation actuelle et priorité
 
 def demande_rotation() -> str:
-    return "Qu'est-ce que vous cultivez dans ce champ, d'une année à l'autre ?"
+    return "Très bien. Et dans ce champ, que cultivez-vous d'une année à l'autre ?"
 
 
 LIGNES_ROTATIONS = {strategie.id: strategie.nom for strategie in STRATEGIES}
 
 
 def demande_priorite() -> str:
-    return ("Qu'est-ce qui compte le plus pour vous ? Avoir assez d'eau, bien vendre votre récolte, "
-            "ou enrichir votre terre ?")
+    return ("Dernière question. Qu'est-ce qui compte le plus pour vous cette saison ? Avoir assez d'eau, "
+            "bien vendre votre récolte, ou enrichir votre terre ?")
 
 
 BOUTONS_PRIORITE = {"eau": "Assez d'eau", "revenu": "Bien vendre", "sol": "Enrichir la terre"}
@@ -142,7 +148,7 @@ def resume(reco: Recommandation) -> str:
     lignes = ["[TEST, données fictives]"] if reco.donnees_fictives else []
     debut = f"À {reco.lieu.nom}{', ' + but if but else ''}, "
     if premiere.id == actuelle.id:
-        lignes.append(f"{debut}continuez avec {_en_phrase(premiere.nom)}, c'est le mieux.")
+        lignes.append(f"Bonne nouvelle. {debut}continuez avec {_en_phrase(premiere.nom)}, c'est le meilleur choix.")
     else:
         dernier = reco.classement.index(actuelle.id) == len(reco.classement) - 1
         place = "en dernier" if dernier else RANGS.get(reco.classement.index(actuelle.id) + 1, "")
@@ -150,7 +156,7 @@ def resume(reco: Recommandation) -> str:
         lignes.append(f"Ce que vous faites aujourd'hui, {_en_phrase(actuelle.nom)}, vient {place}.")
     if not reco.classement_stable and (changement := scenario(reco)):
         lignes.append(changement)
-    lignes.append("Parlez-en avec votre conseiller ANADER.")
+    lignes.append("Parlez-en aussi avec votre conseiller ANADER avant de décider.")
     return " ".join(lignes)
 
 
@@ -170,15 +176,15 @@ def pourquoi(reco: Recommandation) -> str:
 
 
 def suite() -> str:
-    return "Voulez-vous savoir pourquoi ? Vous pouvez aussi me poser une question."
+    return "Voulez-vous savoir pourquoi je vous conseille cela ? Vous pouvez aussi me poser toute autre question."
 
 
 def calcul_en_cours() -> str:
-    return "Un instant, je regarde pour votre champ."
+    return "Merci. Je regarde les données de pluie et de climat de la NASA pour votre champ, un petit instant."
 
 
 def voix_indisponible() -> str:
-    return "La réponse vocale n'est pas disponible pour l'instant. Le texte ci-dessus reste valable."
+    return "Désolé, je ne peux pas vous parler à l'oral pour le moment. Le message écrit plus haut reste valable."
 
 
 def detail(reco: Recommandation) -> str:
@@ -214,13 +220,14 @@ def alerte(a: AlerteVegetation) -> str:
 
 
 def alerte_indisponible() -> str:
-    return "Je ne peux pas regarder la végétation de votre zone pour l'instant. Réessayez plus tard."
+    return "Désolé, je n'arrive pas à voir la végétation de votre zone pour le moment. Réessayez un peu plus tard."
 
 
 # Diagnostic par photo
 
 def demande_photo() -> str:
-    return "Envoyez une photo nette de la partie malade de la plante, prise de près, à la lumière du jour."
+    return ("D'accord, montrez-moi la plante. Prenez une photo nette de la partie malade, de près et à la lumière "
+            "du jour, puis envoyez-la-moi.")
 
 
 def diagnostic(d: Diagnostic) -> str:
@@ -261,26 +268,29 @@ MOTS_DEMANDE = {"rotation": ["rotation", "rotations", "quoi semer"], "photo": ["
 def choix_a_dire(options: dict[str, str]) -> str:
     """Phrase qui lit les choix à voix haute, pour qui ne lit pas les boutons."""
     titres = [t.rstrip(" ?") for t in options.values()]
-    return f"Dites {', '.join(titres[:-1])} ou {titres[-1]}." if len(titres) > 1 else f"Dites {titres[0]}."
+    return (f"Dites simplement {', '.join(titres[:-1])} ou {titres[-1]}." if len(titres) > 1
+            else f"Dites simplement {titres[0]}.")
 
 
 # Messages communs
 
 def discussion_indisponible() -> str:
-    return ("Je ne peux pas répondre aux questions libres pour le moment. Je peux comparer des rotations pour votre "
-            "champ, dites ou écrivez rotation, ou regarder la photo d'une plante malade, envoyez-la-moi.")
+    return ("Désolé, je ne peux pas répondre aux questions libres en ce moment. Je peux quand même comparer des "
+            "rotations pour votre champ, dites ou écrivez rotation, ou regarder la photo d'une plante malade, "
+            "envoyez-la-moi.")
 
 
 def vocal_indisponible() -> str:
-    return "Je ne peux pas écouter les messages vocaux pour l'instant. Répondez avec les boutons ou par écrit."
+    return "Désolé, je n'arrive pas à écouter les messages vocaux pour le moment. Utilisez les boutons ou écrivez-moi."
 
 
 def incompris() -> str:
-    return "Je n'ai pas compris. Répondez avec les boutons ou par un message vocal, ou dites Bonjour pour recommencer."
+    return ("Pardon, je n'ai pas bien compris. Vous pouvez utiliser les boutons, m'envoyer un message vocal, "
+            "ou dire bonjour pour recommencer.")
 
 
 def erreur_technique() -> str:
-    return "Un problème technique m'empêche de répondre. Réessayez dans quelques minutes."
+    return "Désolé, j'ai un petit souci technique. Réessayez dans quelques minutes, je serai là."
 
 
 # Voix ou écrit, à la demande de l'agriculteur
@@ -318,8 +328,8 @@ def accueil_de_la_voix(phrase: str) -> tuple[str | None, bool]:
 
 
 def voix_activee() -> str:
-    return "D'accord, je vous réponds maintenant par la voix. Posez votre question."
+    return "Avec plaisir, je vous parle maintenant à l'oral. Je vous écoute."
 
 
 def ecrit_active() -> str:
-    return "D'accord, je vous réponds maintenant par écrit."
+    return "D'accord, je vous écris maintenant."

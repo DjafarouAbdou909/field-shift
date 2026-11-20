@@ -118,7 +118,8 @@ def choisir(entree: dict, options: dict[str, str], souple: bool = True) -> str |
 
 def phrases_fixes() -> list[str]:
     """Textes dits à l'identique à chaque fois, préparés en notes vocales au démarrage du bot."""
-    avec_choix = [(gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT), (gabarits.menu(), gabarits.BOUTONS_MENU),
+    avec_choix = [(gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT),
+                  *((gabarits.menu(salut), gabarits.BOUTONS_MENU) for salut in gabarits.SALUTATIONS),
                   (gabarits.demande_lieu(), gabarits.LIGNES_LIEUX),
                   (gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS),
                   (gabarits.demande_priorite(), gabarits.BOUTONS_PRIORITE),
@@ -264,8 +265,8 @@ class Conversation:
         self.boutons(gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT)
         self.etape(Etat.CONSENTEMENT)
 
-    def montrer_menu(self) -> None:
-        self.boutons(gabarits.menu(), gabarits.BOUTONS_MENU)
+    def montrer_menu(self, salutation: str = "") -> None:
+        self.boutons(gabarits.menu(salutation), gabarits.BOUTONS_MENU)
         self.etape(Etat.MENU)
 
     def demander_lieu(self) -> None:
@@ -422,7 +423,7 @@ class Conversation:
             self.accueillir()
             return
         if texte in COMMANDES_DEBUT:
-            self.montrer_menu() if s.consentement else self.accueillir()
+            self.montrer_menu("retour") if s.consentement else self.accueillir()
             return
         if entree.get("texte") and not entree.get("choix") and s.consentement:
             phrase = normaliser(entree["texte"])
@@ -449,7 +450,7 @@ class Conversation:
                 if s.photo_en_attente:
                     self.analyser_photo(tuple(s.photo_en_attente.split("|", 1)), None)
                 else:
-                    self.montrer_menu()
+                    self.montrer_menu("merci")
             elif choix == "refuse":
                 self.magasin.effacer(s.empreinte)
                 self.texte(gabarits.refus())

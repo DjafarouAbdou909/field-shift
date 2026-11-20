@@ -48,7 +48,7 @@ class TestComprendre(unittest.TestCase):
 class TestChoixADire(unittest.TestCase):
     def test_choix_lus(self):
         self.assertEqual(gabarits.choix_a_dire(gabarits.BOUTONS_PRIORITE),
-                         "Dites Assez d'eau, Bien vendre ou Enrichir la terre.")
+                         "Dites simplement Assez d'eau, Bien vendre ou Enrichir la terre.")
 
 
 if __name__ == "__main__":

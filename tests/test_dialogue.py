@@ -484,6 +484,13 @@ class TestVoixALaDemande(Base):
         self.assertTrue(gabarits.rassurer_ecriture().startswith("Pas de souci, ce n'est pas grave"))
         self.assertTrue(self.session().voix_demandee)
 
+    def test_bonjour_de_retour_et_merci_apres_l_accord(self):
+        envois = self.envoyer(texte("Bonjour"), bouton("accepte"))
+        self.assertTrue(envois[-1][2].startswith("Merci pour votre confiance."))
+        envois = self.envoyer(texte("bonjour"))
+        self.assertTrue(envois[-1][2].startswith("Bonjour, content de vous retrouver."))
+        self.assertEqual(envois[-1][3], gabarits.BOUTONS_MENU)
+
     def test_groq_rassure_celui_qui_prefere_parler(self):
         self.consentir()
         mot = "Pas de souci. Parlez-moi avec le micro, je vous réponds à l'oral."
