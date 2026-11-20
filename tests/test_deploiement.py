@@ -51,6 +51,26 @@ class TestDeploiement(unittest.TestCase):
         self.assertIn("swapon --show", installer)
         self.assertIn("grep -q '^/swapfile ' /etc/fstab", installer)
 
+    def test_securite_et_entretien_du_serveur(self):
+        """Mises à jour de sécurité, fail2ban, SSH par clé lu en premier, journal limité, sauvegarde et surveillance."""
+        installer = (DEPLOY / "installer.sh").read_text()
+        for attendu in ("unattended-upgrades", "fail2ban", "SystemMaxUse=200M", "agribot-sauvegarde.timer",
+                        "agribot-surveillance.timer", "PasswordAuthentication no"):
+            self.assertIn(attendu, installer)
+        self.assertIn("/etc/ssh/sshd_config.d/00-agribot.conf", installer,
+                      "la première valeur lue gagne, le fichier doit passer avant 50-cloud-init.conf")
+        self.assertIn('if [ -s "$DOSSIER_COMPTE/.ssh/authorized_keys" ]', installer,
+                      "le mot de passe n'est coupé que si une clé est installée")
+        for unite in ("agribot-sauvegarde.service", "agribot-sauvegarde.timer", "agribot-surveillance.service",
+                      "agribot-surveillance.timer"):
+            self.assertTrue((DEPLOY / unite).exists(), unite)
+        self.assertIn("http://127.0.0.1:8000/sante", (DEPLOY / "agribot-surveillance.service").read_text())
+        self.assertIn("tail -n +15", (DEPLOY / "sauvegarder.sh").read_text(), "14 copies gardées")
+
+    def test_entetes_https(self):
+        caddy = (DEPLOY / "Caddyfile").read_text()
+        self.assertEqual(caddy.count("Strict-Transport-Security"), 2)
+
     def test_lien_detail_public(self):
         """Le lien Détail des agriculteurs pointe vers l'application publique, pas vers localhost."""
         self.assertIn("URL_APPLICATION=https://app.$DOMAINE", (DEPLOY / "installer.sh").read_text())

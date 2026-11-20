@@ -210,6 +210,8 @@ bash deploy/verifier.sh example.com                  # health, Meta webhook chec
 | **Advisor app** | `https://app.example.com`, Streamlit under systemd |
 | **HTTPS** | Caddy, with certificates obtained and renewed automatically |
 | **Security** | Dedicated `agribot` service user, `.env` readable by that user only, firewall open on SSH, HTTP and HTTPS only, only `/webhook` and `/sante` exposed on the bot host |
+| **Hardening** | Daily security updates, fail2ban, SSH key-only login once a key is installed, HTTPS security headers |
+| **Operations** | Nightly backup of sessions and voice cache with 14-day retention, health check every 5 minutes with automatic restart, capped system logs |
 
 Step-by-step guide, in French: [deploy/LISEZMOI.md](deploy/LISEZMOI.md).
 

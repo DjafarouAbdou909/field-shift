@@ -1,0 +1,6 @@
+[Unit]
+Description=AgriBot, sauvegarde quotidienne des sessions et des voix
+
+[Service]
+Type=oneshot
+ExecStart=/bin/bash /opt/agribot/deploy/sauvegarder.sh

@@ -1,0 +1,7 @@
+[Unit]
+Description=AgriBot, relance du bot s'il ne répond plus
+
+[Service]
+Type=oneshot
+# systemd relance déjà un bot arrêté. Ce contrôle relance aussi un bot bloqué qui ne répond plus.
+ExecStart=/bin/bash -c 'curl -fsS --max-time 15 http://127.0.0.1:8000/sante >/dev/null || { sleep 20; curl -fsS --max-time 15 http://127.0.0.1:8000/sante >/dev/null || systemctl restart agribot; }'

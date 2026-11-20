@@ -3,6 +3,12 @@
 
 bot.__DOMAINE__ {
 	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
 	# Seuls le webhook de Meta et la vérification de santé sont exposés.
 	handle /webhook* {
 		reverse_proxy 127.0.0.1:8000
@@ -17,5 +23,11 @@ bot.__DOMAINE__ {
 
 app.__DOMAINE__ {
 	encode gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "no-referrer"
+		-Server
+	}
 	reverse_proxy 127.0.0.1:8501
 }

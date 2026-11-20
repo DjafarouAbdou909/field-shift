@@ -11,12 +11,12 @@ Ce guide met AgriBot sur un serveur allumé jour et nuit, pour que le bot ne dé
 
 ## Ce qu'il faut avant de commencer
 
-1. **Le domaine gratuit Space Apps**, réclamé chez Porkbun, par exemple `agribot-ci.com`.
+1. **Un nom de domaine**, par exemple `agribot-ci.com`. Sans domaine, utilisez l'adresse gratuite sslip.io tirée de l'adresse IP du serveur. Pour l'IP `51.75.10.20`, le domaine à donner est `51-75-10-20.sslip.io`, et l'étape 1 ne sert à rien. Cette adresse change si le serveur change, il faut alors mettre à jour le webhook chez Meta.
 2. **Un serveur Ubuntu 24.04** avec au moins **2 Go de mémoire** et 20 Go de disque. Avec moins de 3 Go, l'installation ajoute 2 Go de mémoire d'appoint sur le disque, pour que le bot, Whisper et l'application tiennent ensemble. Notez son **adresse IP** et le nom d'utilisateur de connexion, souvent `root` ou `ubuntu`.
 3. **Un accès SSH par clé** depuis votre PC. Testez `ssh utilisateur@adresse-ip`, la connexion doit s'ouvrir.
 4. **Le dépôt à jour sur GitHub**, car le serveur télécharge le code depuis GitHub. Faites `git push origin main` avant.
 
-## Étape 1, faire pointer le domaine vers le serveur
+## Étape 1, faire pointer le domaine vers le serveur, sauf avec sslip.io
 
 Dans Porkbun, ouvrez votre domaine, puis **DNS**, et ajoutez deux enregistrements.
 
@@ -42,6 +42,20 @@ bash deploy/deployer.sh utilisateur@adresse-ip mondomaine.com
 ```
 
 La commande envoie au serveur, par SSH et nulle part ailleurs, votre fichier `.env`, les données NASA de `data/` et les fichiers de `deploy/`. Puis elle installe sur le serveur Python, ffmpeg, le code, le bot, l'application des conseillers, le HTTPS par Caddy et un pare-feu. Elle peut être relancée sans risque.
+
+Le serveur est aussi sécurisé et entretenu.
+
+| Protection | Détail |
+|---|---|
+| Mises à jour de sécurité | Installées chaque jour par Ubuntu, sans intervention |
+| fail2ban | Bloque les adresses qui multiplient les échecs de connexion SSH |
+| SSH par clé uniquement | Le mot de passe est coupé si une clé est installée, d'où l'intérêt de `ssh-copy-id` avant le déploiement |
+| Sauvegarde | Chaque nuit à 3 h, sessions et voix dans `/var/backups/agribot`, 14 jours gardés |
+| Surveillance | Toutes les 5 minutes, le bot est relancé s'il ne répond plus |
+| HTTPS | Certificats renouvelés seuls, en-têtes de sécurité ajoutés |
+| Journal système | Limité à 200 Mo pour ne jamais remplir le disque |
+
+Avant l'étape 2, installez votre clé SSH sur le serveur avec `ssh-copy-id utilisateur@adresse-ip`, le mot de passe de l'hébergeur étant demandé une seule fois.
 
 Sur le serveur, le fichier `.env` n'est lisible que par l'utilisateur `agribot`, et la copie envoyée est effacée après l'installation. Le lien Détail du bot est réglé sur `https://app.mondomaine.com`.
 

@@ -18,7 +18,9 @@ UTILISATEUR=agribot
 
 echo "Paquets système"
 apt-get update -q
-DEBIAN_FRONTEND=noninteractive apt-get install -y -q python3.12 python3.12-venv ffmpeg git caddy ufw rsync curl
+DEBIAN_FRONTEND=noninteractive apt-get install -y -q python3.12 python3.12-venv ffmpeg git caddy ufw rsync curl \
+    sqlite3 fail2ban unattended-upgrades
+timedatectl set-timezone Africa/Abidjan || true
 
 echo "Mémoire d'appoint"
 # Avec 2 Go, le bot, Whisper et l'application tiennent juste. 2 Go de swap évitent qu'un pic de
@@ -88,6 +90,34 @@ ufw allow OpenSSH >/dev/null
 ufw allow 80/tcp >/dev/null
 ufw allow 443/tcp >/dev/null
 ufw --force enable >/dev/null
+
+echo "Sécurité et entretien du serveur"
+# Mises à jour de sécurité d'Ubuntu installées chaque jour, sans intervention.
+echo 'APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";' > /etc/apt/apt.conf.d/20auto-upgrades
+# fail2ban bloque les adresses qui multiplient les échecs de connexion SSH, réglage par défaut d'Ubuntu.
+systemctl enable --quiet --now fail2ban
+# Journal système limité à 200 Mo, pour ne jamais remplir le disque.
+mkdir -p /etc/systemd/journald.conf.d
+printf '[Journal]\nSystemMaxUse=200M\n' > /etc/systemd/journald.conf.d/agribot.conf
+systemctl restart systemd-journald
+# Connexion SSH par mot de passe coupée seulement si une clé SSH est déjà installée pour ce compte.
+COMPTE="${SUDO_USER:-root}"
+DOSSIER_COMPTE="$(getent passwd "$COMPTE" | cut -d: -f6)"
+if [ -s "$DOSSIER_COMPTE/.ssh/authorized_keys" ]; then
+    printf 'PasswordAuthentication no\nKbdInteractiveAuthentication no\nPermitRootLogin prohibit-password\n' \
+        > /etc/ssh/sshd_config.d/00-agribot.conf
+    sshd -t && { systemctl reload ssh 2>/dev/null || systemctl restart ssh; }
+    echo "Connexion SSH par clé uniquement, le mot de passe ne suffit plus."
+else
+    echo "Aucune clé SSH installée pour $COMPTE, la connexion par mot de passe reste ouverte. Lancez ssh-copy-id puis relancez le déploiement."
+fi
+# Sauvegarde quotidienne des sessions et surveillance du bot toutes les 5 minutes.
+for unite in agribot-sauvegarde.service agribot-sauvegarde.timer agribot-surveillance.service agribot-surveillance.timer; do
+    install -m 644 "$RACINE/deploy/$unite" "/etc/systemd/system/$unite"
+done
+systemctl daemon-reload
+systemctl enable --quiet --now agribot-sauvegarde.timer agribot-surveillance.timer
 
 echo "Vérification locale"
 for essai in $(seq 1 30); do

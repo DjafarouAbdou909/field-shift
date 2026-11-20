@@ -12,7 +12,9 @@ RACINE=/opt/agribot
 sudo -u agribot git -C "$RACINE" pull --ff-only
 sudo -u agribot "$RACINE/venv/bin/pip" install -q -r "$RACINE/requirements.txt"
 install -m 644 "$RACINE/deploy/agribot.service" /etc/systemd/system/agribot.service
-install -m 644 "$RACINE/deploy/agribot-app.service" /etc/systemd/system/agribot-app.service
+for unite in agribot-app.service agribot-sauvegarde.service agribot-sauvegarde.timer agribot-surveillance.service agribot-surveillance.timer; do
+    install -m 644 "$RACINE/deploy/$unite" "/etc/systemd/system/$unite"
+done
 systemctl daemon-reload
 systemctl restart agribot agribot-app
 sleep 3
