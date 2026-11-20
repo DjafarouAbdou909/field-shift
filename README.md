@@ -43,11 +43,11 @@ In offline mode the phone needs no server, no network and no language model. Voi
 |---|---|
 | **Rotation advice** | Ranks three rotations, including the farmer’s current one, for the farmer’s town and priority: enough water, a good market or a richer soil |
 | **Vegetation alert** | Compares the latest NASA HLS images of the farmer’s area with the same dates in past years, and never guesses a cause |
-| **Photo diagnosis** | Explains what a plant photo shows, the likely problem and what to do in the field, with no product ever named |
-| **Farming conversation** | Answers free farming questions in two or three sentences |
-| **Voice first** | Voice notes in and out; if the farmer writes, AgriBot writes back |
+| **Photo diagnosis** | Explains what a plant photo shows, the likely problem and what to do in the field, with no product ever named, in about 3 seconds |
+| **Farming conversation** | Answers free farming questions in two or three sentences, and remembers the last 30 minutes of the conversation, diagnoses and advice included, so “the previous message” is understood |
+| **Voice first** | Voice notes in and out. A farmer who writes but asks for a voice note, or says they cannot read, hears the last message read aloud and keeps getting voice replies until they ask for text |
 | **Advisor app** | Streamlit app showing every score with its source and uncertainty |
-| **Offline platform** | Installable web app that works with no network after the first visit, with pictograms, voice reading and an on-device leaf diagnosis: https://conseil-rotation-ci.netlify.app, source in [offline/](offline/) |
+| **Offline platform** | Installable web app that works with no network after the first visit, with pictograms, voice reading and an on-device leaf diagnosis, also served by the team’s server: https://conseil-rotation-ci.netlify.app, source in [offline/](offline/) |
 
 ## NASA data
 
@@ -158,7 +158,7 @@ AI never produces the rotation ranking, the scores or the vegetation alert, in e
 | **No product advice** | No pesticide, fertiliser, brand or dose is ever named; a filter removes any sentence that would |
 | **No impersonation** | AgriBot never speaks for ANADER and refers serious or uncertain cases to the ANADER advisor |
 | **Consent first** | The first message asks for consent and states that messages and photos go through AI services; “stop” erases everything |
-| **Data minimisation** | Phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; third-party processing under each provider’s retention policy |
+| **Data minimisation** | Phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; conversation memory kept 30 minutes in RAM only; logs record message type, age and length, never content; third-party processing under each provider’s retention policy |
 | **Honest uncertainty** | Scores carry ranges, fragile rankings name the scenario that would change them, unavailable data is stated as such |
 
 ## Quickstart
@@ -216,6 +216,8 @@ bash deploy/verifier.sh example.com                  # health, Meta webhook chec
 
 Step-by-step guide, in French: [deploy/LISEZMOI.md](deploy/LISEZMOI.md).
 
+**Live since 20 November 2026.** AgriBot runs around the clock on an Ubuntu 24.04 server with 4 vCPU and 8 GB of memory, deployed with these scripts. Response times read from the server log: 0.7 to 1.2 seconds for buttons and written messages. The photo diagnosis took 2.8 seconds in testing with the Flash model, down from about 80 seconds with the previous model.
+
 ## Testing and reproducibility
 
 ```bash
@@ -259,7 +261,7 @@ field-shift/
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
 | MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
 | The offline leaf model recognises healthy leaves only 26 times in 100 and covers maize only | Retrain on field photos from Côte d’Ivoire; add the cocoa model in preparation |
-| The bot still runs on a team laptop during judging | Deployment scripts are ready in `deploy/`; move to a server with the team’s Space Apps domain |
+| The server address is derived from its IP through sslip.io, so it changes with the server | Move to a registered domain, so the WhatsApp webhook and the offline app address never change |
 
 ## Prior work and decisions
 
