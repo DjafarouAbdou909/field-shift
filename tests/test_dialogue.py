@@ -29,6 +29,9 @@ class FauxCanal:
     def envoyer_audio(self, destinataire, audio):
         self.envois.append(("audio", destinataire, audio))
 
+    def envoyer_image(self, destinataire, image, legende=""):
+        self.envois.append(("image", destinataire, image[:8], legende))
+
     def telecharger_media(self, media_id):
         return b"contenu-" + media_id.encode()
 
@@ -73,7 +76,8 @@ class Base(unittest.TestCase):
                             mock.patch.object(dialogue.voix, "synthetiser_phrase_fixe", return_value=b"OggS-voix"),
                             mock.patch.object(dialogue.transcription_locale, "transcrire",
                                               side_effect=RuntimeError("modèle non chargé")),
-                            mock.patch.object(dialogue.geocodage, "chercher", return_value=None)]
+                            mock.patch.object(dialogue.geocodage, "chercher", return_value=None),
+                            mock.patch.object(dialogue, "en_fond", side_effect=lambda tache: tache())]
         for patch in self.sans_reseau:
             patch.start()
 
@@ -259,7 +263,7 @@ class TestAlerteDeVegetation(Base):
         self.consentir()
         with mock.patch.object(dialogue, "alerte_du_lieu", return_value=self.alerte()) as calcul:
             envois = self.envoyer(bouton("vegetation"))
-            self.assertEqual(envois[-1][2], gabarits.demande_lieu())
+            self.assertEqual(envois[-1][2], gabarits.demande_lieu_vegetation())
             self.assertEqual(self.session().etat, "alerte_lieu")
             envois = self.envoyer(ligne("korhogo"))
         calcul.assert_called_once_with("korhogo")
@@ -281,19 +285,62 @@ class TestAlerteDeVegetation(Base):
                 mock.patch.object(dialogue.groq, "repondre") as groq:
             envois = self.envoyer(texte("Comment va la végétation chez moi ?"))
         groq.assert_not_called()
-        self.assertEqual(envois[-1][2], gabarits.demande_lieu())
+        self.assertEqual(envois[-1][2], gabarits.demande_lieu_vegetation())
 
     def test_alerte_en_panne(self):
         self.consentir()
         with mock.patch.object(dialogue, "alerte_du_lieu", side_effect=ValueError("hls")):
             envois = self.envoyer(bouton("vegetation"), ligne("bouake"))
-        self.assertEqual(envois[-1][2], gabarits.alerte_indisponible())
+        self.assertTrue(envois[-1][2].startswith(gabarits.alerte_indisponible()))
+        self.assertTrue(envois[-1][2].endswith(gabarits.invitation_champ()))
 
     def test_ville_sans_images_satellite(self):
         """Une nouvelle ville n'a pas encore d'extraction HLS, le bot le dit au lieu d'une panne."""
         self.consentir()
         envois = self.envoyer(bouton("vegetation"), texte("Odienné"))
-        self.assertEqual(envois[-1][2], gabarits.alerte_pas_encore("Odienné"))
+        self.assertTrue(envois[-1][2].startswith(gabarits.alerte_pas_encore("Odienné")))
+
+    def carte(self, faibles=0, date="2026-11-14"):
+        import numpy as np
+        from moteur.champ import CarteChamp
+        statuts = np.full((15, 15), "normale", dtype=object)
+        statuts[2:4, 10:13] = "faible" if faibles else "normale"
+        return CarteChamp(date, statuts, 57, "T29PRL", list(range(2013, 2026)))
+
+    def test_position_envoyee_donne_la_carte_du_champ(self):
+        """Le satellite fait le tour du champ, la carte arrive en image avec son explication."""
+        self.consentir()
+        self.envoyer(bouton("vegetation"))
+        with mock.patch.object(dialogue, "carte_du_champ", return_value=self.carte(faibles=6)) as calcul:
+            envois = self.envoyer(position(9.55, -5.75))
+        calcul.assert_called_once_with(9.55, -5.75)
+        self.assertEqual([e[0] for e in envois], ["texte", "image", "texte"])
+        self.assertEqual(envois[0][2], gabarits.carte_en_cours())
+        self.assertEqual(envois[1][2], b"\x89PNG\r\n\x1a\n", "une vraie image PNG")
+        self.assertIn("6 carrés sur 225 sont en rouge", envois[2][2])
+        self.assertIn("vers le nord-est", envois[2][2])
+        self.assertIn("Quelques carrés rouges isolés", envois[2][2])
+        self.assertEqual(self.session().etat, "menu")
+        self.assertIsNone(self.session().lieu, "la position du champ n'est jamais gardée")
+
+    def test_position_au_menu_donne_aussi_la_carte(self):
+        self.consentir()
+        with mock.patch.object(dialogue, "carte_du_champ", return_value=self.carte()):
+            envois = self.envoyer(position(9.55, -5.75))
+        self.assertIn("Toute la partie mesurée est verte", envois[-1][2])
+
+    def test_nuages_partout_sans_image(self):
+        self.consentir()
+        with mock.patch.object(dialogue, "carte_du_champ", return_value=self.carte(date=None)):
+            envois = self.envoyer(position(9.55, -5.75))
+        self.assertEqual([e[0] for e in envois], ["texte", "texte"])
+        self.assertIn("nuages ont caché votre champ", envois[-1][2])
+
+    def test_carte_en_panne(self):
+        self.consentir()
+        with mock.patch.object(dialogue, "carte_du_champ", side_effect=RuntimeError("Earthdata")):
+            envois = self.envoyer(position(9.55, -5.75))
+        self.assertEqual(envois[-1][2], gabarits.carte_indisponible())
 
 
 class TestPhoto(Base):

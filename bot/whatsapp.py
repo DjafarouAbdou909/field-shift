@@ -31,6 +31,7 @@ URL_GRAPH = f"https://graph.facebook.com/{VERSION_API}"
 TEXTE_MAX, CORPS_BOUTONS_MAX, TITRE_BOUTON_MAX, BOUTONS_MAX = 4096, 1024, 20, 3
 LIGNES_MAX, TITRE_LIGNE_MAX, LIBELLE_LISTE_MAX = 10, 24, 20
 AUDIO_MAX_OCTETS = 16 * 1024 * 1024
+IMAGE_MAX_OCTETS = 5 * 1024 * 1024
 
 
 def messages_entrants(charge: dict) -> Iterator[dict]:
@@ -170,3 +171,14 @@ def televerser_audio(audio_ogg_opus: bytes) -> str:
 def envoyer_audio(destinataire: str, audio_ogg_opus: bytes) -> None:
     """Envoie la note vocale comme message vocal, par l'identifiant de son téléversement."""
     _envoyer(destinataire, "audio", {"id": televerser_audio(audio_ogg_opus), "voice": True})
+
+
+def envoyer_image(destinataire: str, image_png: bytes, legende: str = "") -> None:
+    """Envoie une image PNG, la carte du champ, téléversée puis envoyée par son identifiant."""
+    if len(image_png) > IMAGE_MAX_OCTETS:
+        raise ValueError("image de plus de 5 Mo")
+    televersement = _http().post(f"{URL_GRAPH}/{_numero()}/media", headers=_entetes(), timeout=60,
+                               data={"messaging_product": "whatsapp", "type": "image/png"},
+                               files={"file": ("carte.png", image_png, "image/png")})
+    televersement.raise_for_status()
+    _envoyer(destinataire, "image", {"id": televersement.json()["id"], "caption": legende[:1024]})

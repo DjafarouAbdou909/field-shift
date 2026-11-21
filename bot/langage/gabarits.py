@@ -280,6 +280,54 @@ def alerte_indisponible() -> str:
     return "Désolé, je n'arrive pas à voir la végétation de votre zone pour le moment. Réessayez un peu plus tard."
 
 
+def invitation_champ() -> str:
+    return "Pour voir votre propre champ depuis le satellite, envoyez-moi sa position en étant dans le champ."
+
+
+def demande_lieu_vegetation() -> str:
+    return ("Pour voir votre champ depuis le satellite, envoyez-moi sa position en étant dans le champ, avec le "
+            "trombone ou le plus, puis Position. Vous pouvez aussi me dire le nom de votre ville.")
+
+
+def carte_en_cours() -> str:
+    return ("Merci. Je regarde votre champ avec les images satellite de la NASA, de cette année et des années "
+            "passées. La carte arrive dans deux à trois minutes.")
+
+
+def carte_indisponible() -> str:
+    return ("Désolé, je n'ai pas pu préparer la carte de votre champ pour le moment. Réessayez plus tard, ou "
+            "envoyez-moi la photo d'une plante qui vous inquiète.")
+
+
+def carte_champ(carte) -> str:
+    """Explication de la carte du champ, en mots simples, sans aucune cause déduite.
+
+    Le 10e centile de la règle fait qu'environ un carré sur dix peut être rouge sans problème
+    réel, ce que le message dit pour ne pas inquiéter l'agriculteur à tort.
+    """
+    from moteur.champ import direction
+
+    if carte.date is None:
+        return ("Les nuages ont caché votre champ sur toutes les images de ces 30 derniers jours. Je ne peux pas "
+                "encore le comparer. Réessayez dans quelques jours.")
+    total = carte.statuts.size
+    faibles, gris = carte.compte("faible"), carte.compte("indisponible")
+    lignes = [f"Voici votre champ vu par les satellites de la NASA le {date_en_mots(carte.date)}. Chaque carré fait "
+              "30 mètres de côté, et le rond blanc est l'endroit où vous étiez."]
+    if faibles == 0:
+        lignes.append("Toute la partie mesurée est verte, dans les valeurs habituelles pour cette période.")
+    else:
+        ou = direction(carte.statuts)
+        ou = "tout près de l'endroit où vous étiez" if ou == "au centre" else ou
+        lignes.append(f"{faibles} carrés sur {total} sont en rouge, plus faibles que d'habitude, surtout {ou}. "
+                      "Quelques carrés rouges isolés peuvent apparaître même quand tout va bien. Allez voir surtout "
+                      "s'ils sont nombreux et regroupés, et envoyez-moi la photo d'une plante.")
+    if gris:
+        lignes.append(f"{gris} carrés sont gris, cachés par les nuages, sans mesure.")
+    lignes.append("Les images ne disent pas pourquoi. Parlez-en avec votre conseiller ANADER.")
+    return "\n".join(lignes)
+
+
 def alerte_pas_encore(ville: str) -> str:
     return (f"Je n'ai pas encore les images satellite de la zone de {ville}. Elles arrivent bientôt. "
             "Pour l'instant, je les ai pour Korhogo et Bouaké.")

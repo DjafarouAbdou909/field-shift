@@ -49,6 +49,7 @@ sur disque.
 
 import functools
 import logging
+import threading
 import re
 import time
 from enum import Enum
@@ -56,6 +57,7 @@ from enum import Enum
 from moteur import recommander
 from moteur.criteres import POIDS_PAR_PRIORITE
 from moteur.alerte import alerte_du_lieu
+from moteur.champ import carte_du_champ, dessiner
 from moteur.climat import climat_du_lieu
 from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC
 from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
@@ -69,6 +71,15 @@ from .securite import empreinte_numero
 from .sessions import Session, Sessions
 
 journal = logging.getLogger("bot")
+# Deux cartes de champ au plus à la fois, chacune lisant une soixantaine d'images.
+CARTES_EN_MEME_TEMPS = threading.Semaphore(2)
+
+
+def en_fond(tache) -> None:
+    """Lance une tâche longue sans retarder la réponse, remplacé par un appel direct dans les tests."""
+    threading.Thread(target=tache, daemon=True).start()
+
+
 # En deçà, le champ est dans la ville couverte et la distance n'est pas annoncée.
 DISTANCE_ANNONCEE_KM = 10
 COMMANDES_DEBUT = {"bonjour", "bonsoir", "salut", "menu", "recommencer", "start", "hello"}
@@ -363,8 +374,30 @@ class Conversation:
         if self.session.lieu:
             self.donner_alerte(self.session.lieu)
         else:
-            self.texte(gabarits.demande_lieu())
+            self.texte(gabarits.demande_lieu_vegetation())
             self.etape(Etat.ALERTE_LIEU)
+
+    def lancer_carte(self, latitude: float, longitude: float) -> None:
+        """Carte du champ autour de la position, préparée en fond puis envoyée en image avec son explication.
+
+        La position n'est gardée ni dans la session ni dans le journal, seulement le temps du calcul.
+        """
+        self.texte(gabarits.carte_en_cours())
+        self.etape(Etat.MENU)
+
+        def preparer() -> None:
+            with CARTES_EN_MEME_TEMPS:
+                try:
+                    carte = carte_du_champ(latitude, longitude)
+                    if carte.date is not None:
+                        self.canal.envoyer_image(self.numero, dessiner(carte, gabarits.date_en_mots),
+                                                 "Votre champ vu par satellite")
+                    self.texte(gabarits.carte_champ(carte))
+                except Exception as erreur:
+                    journal.warning("carte du champ impossible, %s", type(erreur).__name__)
+                    self.texte(gabarits.carte_indisponible())
+
+        en_fond(preparer)
 
     def donner_alerte(self, lieu: str) -> None:
         try:
@@ -374,7 +407,7 @@ class Conversation:
         except Exception as erreur:
             journal.warning("alerte de végétation indisponible, %s", type(erreur).__name__)
             texte = gabarits.alerte_indisponible()
-        self.texte(texte)
+        self.texte(f"{texte}\n{gabarits.invitation_champ()}")
         self.etape(Etat.MENU, lieu=lieu)
 
     # Diagnostic par photo
@@ -508,6 +541,10 @@ class Conversation:
             else:
                 self.accueillir()
 
+        elif etat in (Etat.MENU, Etat.ALERTE_LIEU) and entree.get("position"):
+            # Une position envoyée au menu ou pour la végétation demande la carte du champ.
+            self.lancer_carte(*entree["position"])
+
         elif etat == Etat.MENU:
             choix = choisir(entree, gabarits.BOUTONS_MENU, souple=False)
             if choix == "rotation":
@@ -531,7 +568,7 @@ class Conversation:
             if lieu := self.situer(entree):
                 self.donner_alerte(lieu)
             elif not entree.get("texte") and not entree.get("position"):
-                self.texte(gabarits.demande_lieu())
+                self.texte(gabarits.demande_lieu_vegetation())
 
         elif etat == Etat.ROTATION:
             rotation = choisir(entree, gabarits.LIGNES_ROTATIONS)

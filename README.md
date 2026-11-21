@@ -44,6 +44,7 @@ In offline mode the phone needs no server, no network and no language model. Voi
 | **Nationwide coverage** | The farmer names a town or village, or shares a GPS position. Villages are located with OpenStreetMap and attached to the nearest of the 33 regional and district capitals, and the bot says which one |
 | **Rotation advice** | In the 12 savanna capitals of the north and centre, ranks three rotations, including the farmer’s current one, for the farmer’s town and priority: enough water, a good market or a richer soil |
 | **Climate of my area** | In the 21 capitals of the southern forest zone, where the savanna rotations do not apply, summarises 25 years of NASA IMERG rain: annual rain and a dry year, the wettest months of both rainy seasons and the dip between them, and how much March to July rain varies; no rain-onset date is given there, because the onset rule is cut by its 1 March search date in the south |
+| **Field health map** | The farmer sends the position of their field; AgriBot reads NASA HLS NDVI and cloud mask directly from the LP DAAC cloud for a 450 m square of 30 m cells around it, applies the vegetation-alert rule to each cell against the same dates of 2013 to last year, and sends back an image, green as usual, red weaker than usual, grey under clouds, with a short voice or text explanation, in about two minutes. Only a position rounded to about 5 km reaches the NASA catalogue, and the exact position is never stored |
 | **Vegetation alert** | Compares the latest NASA HLS images of the farmer’s area with the same dates in past years, and never guesses a cause |
 | **Photo diagnosis** | Explains what a plant photo shows, the likely problem and what to do in the field, with no product ever named, in about 3 seconds |
 | **Farming conversation** | Answers free farming questions in two or three sentences, and remembers the last 30 minutes of the conversation, diagnoses and advice included, so “the previous message” is understood |
@@ -195,6 +196,7 @@ WhatsApp requires a public HTTPS URL for the webhook, from a host or a tunnel su
 | `GROQ_API_KEY` | Transcription, understanding and written answers |
 | `GEMINI_API_KEY`, or `AGENT_PLATFORM_PROJET` with `AGENT_PLATFORM_API_KEY` | Photo diagnosis through the Gemini API or Google Cloud Agent Platform |
 | `AETHEX_API_KEY`, `AETHEX_VOICE_ID`, `AETHEX_CARACTERES_PAR_JOUR` | Voice synthesis and daily character cap |
+| `EARTHDATA_TOKEN` | NASA Earthdata token to read HLS images for the field map; `~/.netrc` is used otherwise |
 | `BASE_DE_DONNEES`, `URL_APPLICATION`, `PLATEFORME_URL` | Database path and links sent to farmers |
 
 ## Deployment
@@ -261,6 +263,7 @@ field-shift/
 | No agronomist has reviewed the advice yet | Review by an ANADER advisor before any field use |
 | The rain onset trend at Korhogo is unresolved: the period split is close to the TRMM to GPM transition in IMERG, and MERRA-2 rainfall disagrees with local gauges | Repeat the comparison with a split after 2014, and arbitrate with Ivorian ground stations (SODEXAM) |
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
+| The field map centres a 450 m square on the position sent, not on the true field boundary, and its 10th-percentile rule colours about one cell in ten red by design | Let the farmer trace the field boundary, and group red cells before warning |
 | The vegetation alert covers only Korhogo and Bouaké; the other 31 capitals still need their AppEEARS extractions | Run the MCD12Q1 and HLS extractions for every capital |
 | No rotation comparison yet for the southern forest zone, whose two rainy seasons and food crops need sourced rotations, which could not be read | Build southern rotations with CNRA and ANADER sources, and a second-season model |
 | Savanna or forest zone is set by district, a provisional rule; the CNRA cotton-basin survey also lists localities in Marahoué and Haut-Sassandra, whose capitals are counted as forest | Refine the zone per department once a sourced map is read |
