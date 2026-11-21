@@ -182,11 +182,11 @@ function distanceKm(a, b) {
 
 function accueil() {
   etat.lieu = etat.priorite = null;
-  dire("Bonjour ! Après le coton, faut-il semer du maïs, du sorgho, de l'arachide ou du niébé ?\n"
-    + "Je compare pour vous, selon la pluie de votre zone et ce qui compte pour vous.\n"
+  dire("Bonjour, je suis content de vous aider, partout en Côte d'Ivoire et sans internet.\n"
+    + "Dans le nord et le centre, je compare pour vous les rotations, selon la pluie de votre zone et ce qui "
+    + "compte pour vous. Dans le sud, je vous dis ce que la NASA a mesuré du climat de votre zone.\n"
     + "Je peux aussi regarder une photo de feuille de maïs malade.\n"
-    + "Pas besoin d'internet, et tout reste dans votre téléphone.\n"
-    + "Où se trouve votre champ ?", (b) => {
+    + "Tout reste dans votre téléphone. Où se trouve votre champ ?", (b) => {
     const credit = document.createElement("div");
     credit.className = "discret";
     credit.textContent = "Climat mesuré par les satellites de la NASA. Noms de lieux GeoNames, CC BY 4.0.";
@@ -207,11 +207,32 @@ function autresChoix(retour) {
 }
 
 function demanderLieu() {
-  const options = [["Utiliser ma position", localiser, "position"]];
-  for (const [id, lieu] of Object.entries(donnees.lieux)) options.push([lieu.nom, () => choisirLieu(id), "village"]);
-  options.push(["Photo d'une feuille", photographier, "photo"]);
-  options.push(["Autres choix", () => autresChoix(demanderLieu), "plus"]);
-  proposer(options);
+  proposer([
+    ["Utiliser ma position", localiser, "position"],
+    ["Choisir ma ville", choisirSecteur, "village"],
+    ["Photo d'une feuille", photographier, "photo"],
+    ["Autres choix", () => autresChoix(demanderLieu), "plus"],
+  ]);
+}
+
+// Les 33 villes sont choisies en deux temps, la partie du pays puis la ville, pour garder
+// cinq boutons au plus à l'écran et des annonces vocales courtes.
+const SECTEURS = ["Nord", "Centre", "Est", "Ouest", "Sud"];
+const VILLES_PAR_PAGE = 4;
+
+function choisirSecteur() {
+  dire("Dans quelle partie du pays se trouve votre champ ?", () => proposer(
+    SECTEURS.map((s) => [s, () => choisirVille(s, 0), "village"])));
+}
+
+function choisirVille(secteur, page) {
+  const villes = Object.entries(donnees.lieux).filter(([, l]) => l.secteur === secteur)
+    .sort((a, b) => a[1].nom.localeCompare(b[1].nom, "fr"));
+  const visibles = villes.slice(page * VILLES_PAR_PAGE, (page + 1) * VILLES_PAR_PAGE);
+  const options = visibles.map(([id, l]) => [l.nom, () => choisirLieu(id), "village"]);
+  if ((page + 1) * VILLES_PAR_PAGE < villes.length) options.push(["Autres villes", () => choisirVille(secteur, page + 1), "plus"]);
+  else options.push(["Retour", choisirSecteur, "retour"]);
+  dire(page ? "Voici d'autres villes." : "Choisissez la ville la plus proche de votre champ.", () => proposer(options));
 }
 
 // Pour choisir entre les zones, quelques kilomètres de précision suffisent. L'application
@@ -301,13 +322,12 @@ async function annoncerPosition(position, ancienne) {
     .map(([cle, l]) => [cle, distanceKm(ici, l)]).sort((a, b) => a[1] - b[1])[0];
   let ou = texteLieu(await nommer(ici), position.precision);
   if (ancienne) ou = `D'après votre dernière position connue, ${ou.charAt(0).toLowerCase()}${ou.slice(1)}`;
-  const zones = Object.values(donnees.lieux).map((l) => l.nom).join(" et de ");
   if (km > donnees.rayon_couverture_km) {
-    dire(`${ou} Je ne connais pas encore cette zone. Pour l'instant, je conseille seulement les champs `
-      + `autour de ${zones}. Choisissez une zone pour voir ses conseils.`, demanderLieu);
+    dire(`${ou} Désolé, cette position semble hors de la Côte d'Ivoire que je connais. Choisissez la ville `
+      + "la plus proche de votre champ.", choisirSecteur);
     return;
   }
-  dire(`${ou} Vous êtes dans la zone de ${donnees.lieux[id].nom}.`, () => choisirLieu(id));
+  dire(`${ou} Je prends les données de ${donnees.lieux[id].nom}, la ville la plus proche.`, () => choisirLieu(id));
 }
 
 // Nom de la localité la plus proche, d'après la liste GeoNames embarquée dans l'application.
@@ -350,22 +370,36 @@ function echecPosition(erreur) {
   const technique = `Code ${erreur.code || "inconnu"}${erreur.message ? `, ${erreur.message}` : ""}.`;
   dire(`${MESSAGES_POSITION[erreur.code] || MESSAGES_POSITION[2]}\n${technique}`, () => proposer([
     ["Réessayer", localiser, "position"],
-    ...Object.entries(donnees.lieux).map(([id, l]) => [l.nom, () => choisirLieu(id), "village"]),
+    ["Choisir ma ville", choisirSecteur, "village"],
   ]));
 }
 
 function choisirLieu(id) {
   etat.lieu = id;
-  dire(`Zone de ${donnees.lieux[id].nom}. Que cultivez-vous en ce moment ?`, () => proposer([
+  const lieu = donnees.lieux[id];
+  if (lieu.zone === "foret") { climatDuSud(lieu); return; }
+  dire(`Très bien, zone de ${lieu.nom}. Que cultivez-vous en ce moment ?`, () => proposer([
     ["Coton puis maïs", demanderPriorite, "coton"],
-    ["Autre chose", () => dire("Pour l'instant, je ne compare que des rotations à partir de coton puis maïs. "
+    ["Autre chose", () => dire("Désolé, pour l'instant je ne compare que des rotations à partir de coton puis maïs. "
       + "Laissez un message vocal à votre conseiller ANADER pour votre cas.", () => proposer([
       ["Message vocal pour mon conseiller", enregistrer, "micro"], ["Recommencer", accueil, "recommencer"]]), "autre")],
   ]));
 }
 
+// Sud forestier, le climat de la zone mesuré par la NASA, sans rotation comparée.
+function climatDuSud(lieu) {
+  dernierResume = lieu.climat;
+  const suite = () => proposer([
+    ["Écouter", () => { if (!parler(lieu.climat)) dire(SANS_VOIX, suite); else suite(); }, "ecouter"],
+    ["Photo d'une feuille", photographier, "photo"],
+    ["Message vocal pour mon conseiller", enregistrer, "micro"],
+    ["Recommencer", accueil, "recommencer"],
+  ]);
+  dire(lieu.climat, suite);
+}
+
 function demanderPriorite() {
-  dire("Qu'est-ce qui compte le plus pour vous ?", () => proposer(
+  dire("Dernière question. Qu'est-ce qui compte le plus pour vous ?", () => proposer(
     Object.entries(donnees.priorites).map(([id, libelle]) => [libelle, () => resultat(id), id])));
 }
 

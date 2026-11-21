@@ -157,7 +157,7 @@ class TestDonnees(unittest.TestCase):
 
     def test_grille(self):
         grille = points(self.config)
-        self.assertEqual(len(grille), 18)
+        self.assertEqual(len(grille), 9 * 33, "neuf points par ville, 33 villes")
         centre = [p for p in grille if p.lieu == "korhogo"][4]
         self.assertEqual((centre.lat, centre.lon), (9.45, -5.65))
 
@@ -181,6 +181,40 @@ class TestDonnees(unittest.TestCase):
             self.config), {"IMERG_PRECTOT": 1})
         with self.assertRaises(ValueError):
             power.controler({"properties": {"parameter": {}}}, self.config)
+
+
+class TestClimatDuSud(unittest.TestCase):
+    """Climat de la zone d'une ville du sud, sans date de début des pluies, décision du 21 novembre 2026."""
+
+    def serie(self):
+        from datetime import date, timedelta
+        par_mois = {1: 0.5, 2: 1.5, 3: 3, 4: 4, 5: 6, 6: 10, 7: 3, 8: 1.5, 9: 2.5, 10: 7, 11: 4, 12: 1}
+        jours, pluie, jour = [], [], date(2001, 1, 1)
+        while jour <= date(2024, 12, 31):
+            jours.append(jour)
+            pluie.append(par_mois[jour.month] * (0.8 if jour.year % 2 == 0 else 1.2))
+            jour += timedelta(days=1)
+        return {"jours": jours, "pluie": pluie}
+
+    def test_saisons_creux_et_texte(self):
+        from moteur.climat import quantile, resumer, texte
+        c = resumer(self.serie())
+        self.assertEqual((c["mois_pic_grande_saison"], c["mois_pic_seconde"], c["mois_creux"]), (6, 10, 8))
+        self.assertEqual(c["annees"], (2001, 2024))
+        self.assertLess(c["pluie_annuelle_q10"], c["pluie_annuelle_mediane"])
+        message = texte(c, "Abidjan")
+        self.assertIn("24 ans de mesures satellite de la NASA, de 2001 à 2024, pour la zone d'Abidjan", message)
+        self.assertIn("juin", message)
+        self.assertIn("conseiller ANADER", message)
+        self.assertNotIn("démarrent", message)
+        self.assertEqual(quantile([1, 2, 3, 4], 0.1), 1.3)
+
+    def test_trente_trois_villes_dans_la_configuration(self):
+        config = charger()
+        self.assertEqual(len(config["lieux"]), 33)
+        self.assertEqual({l["zone"] for l in config["lieux"]}, {"savane", "foret"})
+        self.assertEqual({l["secteur"] for l in config["lieux"]}, {"Nord", "Centre", "Est", "Ouest", "Sud"})
+        self.assertEqual(config["rayon_couverture_km"], 150)
 
 
 if __name__ == "__main__":

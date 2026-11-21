@@ -13,6 +13,7 @@ from datetime import datetime, timezone
 
 from donnees.config import RACINE, charger
 
+from . import climat as climat_zone
 from .criteres import debuts_par_annee, sensibilite
 from .saison import faux_departs
 from .series import series_lieux
@@ -275,6 +276,12 @@ def construire(config: dict) -> dict:
     }
     s = config["sensibilite"]
     for lieu in config["lieux"]:
+        if lieu.get("zone", "savane") != "savane":
+            # Sud forestier, le climat de la zone, sans rotation ni date de début des pluies.
+            sortie["lieux"][lieu["id"]] = {
+                "nom": lieu["nom"], "lat": lieu["lat"], "lon": lieu["lon"], "zone": lieu["zone"],
+                "secteur": lieu["secteur"], "climat": climat_zone.texte(climat_zone.resumer(series[lieu["id"]]), lieu["nom"])}
+            continue
         serie, debuts = series[lieu["id"]], debuts_par_annee(series[lieu["id"]], config)
         faux, evaluees = faux_departs(serie["jours"], serie["pluie"], debuts, config["saison"])
         debut_median = date_texte(quartiles([d.timetuple().tm_yday for d in debuts.values() if d])[1])
@@ -303,6 +310,7 @@ def construire(config: dict) -> dict:
             r["cle_audio"] = f"{lieu['id']}_{priorite}"
             r["audio"] = enregistrement(r["cle_audio"])
         sortie["lieux"][lieu["id"]] = {"nom": lieu["nom"], "lat": lieu["lat"], "lon": lieu["lon"],
+                                      "zone": lieu.get("zone", "savane"), "secteur": lieu.get("secteur", ""),
                                       "alerte": texte_faux_departs(faux, evaluees, config["saison"]),
                                       "indicateurs": indicateurs(serie, debuts, config), "resultats": resultats}
     return sortie
@@ -314,7 +322,7 @@ def main() -> None:
     SORTIE.write_text(json.dumps(donnees, ensure_ascii=False, indent=1), encoding="utf-8")
     textes = ["# Textes à enregistrer", "", "Fichier généré par python -m moteur.exporter, à ne pas modifier.", ""]
     for lieu in donnees["lieux"].values():
-        for r in lieu["resultats"].values():
+        for r in lieu.get("resultats", {}).values():
             etat = f"enregistré, {r['audio']}" if r["audio"] else "à enregistrer"
             textes += [f"## {r['cle_audio']}, {etat}", "", r["resume"], ""]
     (DOSSIER_AUDIO / "textes_a_enregistrer.md").write_text("\n".join(textes), encoding="utf-8")

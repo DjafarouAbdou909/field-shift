@@ -1,7 +1,7 @@
 // Fonctionnement hors connexion. Tout est servi d'abord depuis le cache, pour que
 // l'application démarre même quand le réseau ne répond pas. Les recommandations sont
 // ensuite mises à jour en arrière-plan si le réseau répond.
-const CACHE = "conseil-rotation-v29";
+const CACHE = "conseil-rotation-v30";
 const FICHIERS = ["./", "index.html", "style.css", "app.js", "icone.svg", "icone-192.png", "icone-512.png",
                   "manifest.webmanifest", "donnees/recommandations.json", "donnees/localites.json"];
 
@@ -9,7 +9,7 @@ async function installer() {
   const cache = await caches.open(CACHE);
   await cache.addAll(FICHIERS);
   const donnees = await (await cache.match("donnees/recommandations.json")).json();
-  const audios = Object.values(donnees.lieux).flatMap((l) => Object.values(l.resultats))
+  const audios = Object.values(donnees.lieux).flatMap((l) => Object.values(l.resultats || {}))
     .map((r) => r.audio).filter(Boolean);
   await cache.addAll(audios);
   // Le diagnostic, environ 17 Mo, n'est pas installé ici, pour que l'essentiel soit prêt sans

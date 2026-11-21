@@ -2,7 +2,9 @@
 
 NASA Space Apps Challenge 2026, défi « Field Shift: Adapting Farms with NASA Data ».
 
-Une application de conversation qui aide un agriculteur de Korhogo ou de Bouaké, en Côte d'Ivoire, à comparer sa rotation des cultures à d'autres, à partir des données de la NASA. Elle fonctionne **entièrement sans connexion** après une première ouverture.
+Une application de conversation qui aide un agriculteur de toute la Côte d'Ivoire, dans les 33 chefs-lieux de région et de district, à comparer sa rotation des cultures à d'autres, à partir des données de la NASA. Elle fonctionne **entièrement sans connexion** après une première ouverture.
+
+Depuis le 21 novembre 2026, le conseil de rotation couvre les 12 villes de savane du nord et du centre, et les 21 villes du sud forestier reçoivent le climat de leur zone, mesuré par la NASA de 2001 à 2024, sans date de début des pluies. La ville se choisit par la position, ou en deux temps, la partie du pays puis la ville.
 
 ## Principe
 

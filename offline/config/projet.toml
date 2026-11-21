@@ -1,7 +1,8 @@
 # Paramètres du projet. Chaque valeur tirée d'une source cite sa ligne exacte.
 
 # Distance au-delà de laquelle l'application déclare un agriculteur hors zone. Choix de conception.
-rayon_couverture_km = 60
+# 150 km depuis le 21 novembre 2026, comme le bot, pour couvrir tout le pays avec 33 villes.
+rayon_couverture_km = 150
 
 # Extractions AppEEARS désactivées le 14 novembre 2026. Les mêmes produits sur les mêmes
 # points sont extraits par le dépôt de l'équipe, et un compte Earthdata ne traite ses
@@ -17,17 +18,274 @@ fin = "2024-12-31"
 pas = 0.1
 rayon = 1
 
+# Les 33 chefs-lieux de région et de district, repris de moteur/lieux.py du dépôt le 21 novembre 2026,
+# mêmes coordonnées et même zone. La zone savane reçoit le conseil de rotation, la zone forêt le
+# climat de la zone. Le secteur, groupement des districts en cinq, sert seulement au choix de la ville
+# à l'écran, cinq boutons au plus. Choix de conception.
+
 [[lieux]]
 id = "korhogo"
 nom = "Korhogo"
 lat = 9.458
 lon = -5.629
+zone = "savane"
+secteur = "Nord"
 
 [[lieux]]
 id = "bouake"
 nom = "Bouaké"
-lat = 7.690
-lon = -5.030
+lat = 7.69
+lon = -5.03
+zone = "savane"
+secteur = "Centre"
+
+[[lieux]]
+id = "boundiali"
+nom = "Boundiali"
+lat = 9.523
+lon = -6.482
+zone = "savane"
+secteur = "Nord"
+
+[[lieux]]
+id = "ferkessedougou"
+nom = "Ferkessédougou"
+lat = 9.594
+lon = -5.198
+zone = "savane"
+secteur = "Nord"
+
+[[lieux]]
+id = "odienne"
+nom = "Odienné"
+lat = 9.504
+lon = -7.562
+zone = "savane"
+secteur = "Nord"
+
+[[lieux]]
+id = "minignan"
+nom = "Minignan"
+lat = 9.999
+lon = -7.836
+zone = "savane"
+secteur = "Nord"
+
+[[lieux]]
+id = "touba"
+nom = "Touba"
+lat = 8.284
+lon = -7.682
+zone = "savane"
+secteur = "Ouest"
+
+[[lieux]]
+id = "mankono"
+nom = "Mankono"
+lat = 8.045
+lon = -6.074
+zone = "savane"
+secteur = "Ouest"
+
+[[lieux]]
+id = "seguela"
+nom = "Séguéla"
+lat = 7.961
+lon = -6.67
+zone = "savane"
+secteur = "Ouest"
+
+[[lieux]]
+id = "bouna"
+nom = "Bouna"
+lat = 9.269
+lon = -2.999
+zone = "savane"
+secteur = "Est"
+
+[[lieux]]
+id = "bondoukou"
+nom = "Bondoukou"
+lat = 8.084
+lon = -2.799
+zone = "savane"
+secteur = "Est"
+
+[[lieux]]
+id = "katiola"
+nom = "Katiola"
+lat = 8.091
+lon = -5.151
+zone = "savane"
+secteur = "Centre"
+
+[[lieux]]
+id = "yamoussoukro"
+nom = "Yamoussoukro"
+lat = 6.82
+lon = -5.278
+zone = "foret"
+secteur = "Centre"
+
+[[lieux]]
+id = "abidjan"
+nom = "Abidjan"
+lat = 5.32
+lon = -4.016
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "sassandra"
+nom = "Sassandra"
+lat = 4.949
+lon = -6.092
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "soubre"
+nom = "Soubré"
+lat = 5.785
+lon = -6.593
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "san_pedro"
+nom = "San-Pédro"
+lat = 4.759
+lon = -6.646
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "abengourou"
+nom = "Abengourou"
+lat = 6.727
+lon = -3.497
+zone = "foret"
+secteur = "Est"
+
+[[lieux]]
+id = "aboisso"
+nom = "Aboisso"
+lat = 5.467
+lon = -3.207
+zone = "foret"
+secteur = "Est"
+
+[[lieux]]
+id = "gagnoa"
+nom = "Gagnoa"
+lat = 6.133
+lon = -5.951
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "divo"
+nom = "Divo"
+lat = 5.841
+lon = -5.355
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "toumodi"
+nom = "Toumodi"
+lat = 6.56
+lon = -5.016
+zone = "foret"
+secteur = "Centre"
+
+[[lieux]]
+id = "daoukro"
+nom = "Daoukro"
+lat = 7.058
+lon = -3.966
+zone = "foret"
+secteur = "Centre"
+
+[[lieux]]
+id = "bongouanou"
+nom = "Bongouanou"
+lat = 6.648
+lon = -4.205
+zone = "foret"
+secteur = "Centre"
+
+[[lieux]]
+id = "dimbokro"
+nom = "Dimbokro"
+lat = 6.649
+lon = -4.704
+zone = "foret"
+secteur = "Centre"
+
+[[lieux]]
+id = "agboville"
+nom = "Agboville"
+lat = 5.931
+lon = -4.213
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "dabou"
+nom = "Dabou"
+lat = 5.324
+lon = -4.372
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "adzope"
+nom = "Adzopé"
+lat = 6.106
+lon = -3.864
+zone = "foret"
+secteur = "Sud"
+
+[[lieux]]
+id = "guiglo"
+nom = "Guiglo"
+lat = 6.43
+lon = -7.591
+zone = "foret"
+secteur = "Ouest"
+
+[[lieux]]
+id = "duekoue"
+nom = "Duékoué"
+lat = 6.714
+lon = -7.425
+zone = "foret"
+secteur = "Ouest"
+
+[[lieux]]
+id = "man"
+nom = "Man"
+lat = 7.41
+lon = -7.55
+zone = "foret"
+secteur = "Ouest"
+
+[[lieux]]
+id = "daloa"
+nom = "Daloa"
+lat = 6.887
+lon = -6.453
+zone = "foret"
+secteur = "Ouest"
+
+[[lieux]]
+id = "bouafle"
+nom = "Bouaflé"
+lat = 6.98
+lon = -5.746
+zone = "foret"
+secteur = "Ouest"
 
 [power]
 # IMERG n'est servi qu'en temps universel. En heure solaire locale, l'API renvoie -999.

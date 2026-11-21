@@ -27,7 +27,7 @@ AgriBot delivers every answer in plain, warm French, as a WhatsApp voice note wh
 | Mode | When | What the farmer gets |
 |---|---|---|
 | **Online** | A mobile data connection is available | WhatsApp voice assistant in 33 towns: rotation advice or climate of the area, field health map, vegetation alert, photo diagnosis and free farming questions |
-| **Offline** | No connection at all, after a single first visit | Installable web app: precomputed NASA-based rotation advice, GPS location, every message read aloud, and a maize leaf diagnosis that runs on the phone |
+| **Offline** | No connection at all, after a single first visit | Installable web app in the same 33 towns: precomputed NASA-based rotation advice or climate of the area, GPS location, every message read aloud, and a maize leaf diagnosis that runs on the phone |
 
 In offline mode the phone needs no server, no network and no language model. Voice notes for the advisor are kept on the phone and shared once the network returns.
 
@@ -124,7 +124,7 @@ Farmer ── WhatsApp ──► WhatsApp Cloud API ── signed webhook ──
 
 ## Offline platform
 
-Many farms have no reliable network. The [offline/](offline/) folder holds a second, fully offline channel, built during the hackathon, served by the team’s server and published at https://conseil-rotation-ci.netlify.app. It still covers Korhogo and Bouaké; its extension to the 33 towns, with the climate of the southern areas, is in progress. The field health map needs fresh NASA images and so stays online, but a map received on WhatsApp remains viewable in the conversation without network.
+Many farms have no reliable network. The [offline/](offline/) folder holds a second, fully offline channel, built during the hackathon, served by the team’s server and published at https://conseil-rotation-ci.netlify.app. Like the bot, it covers the 33 towns: rotation advice in the 12 savanna towns, and the climate of the area, measured by NASA from 2001 to 2024, in the 21 southern towns. The farmer picks the town from their position, or by part of the country then town, four towns per screen. The field health map needs fresh NASA images and so stays online, but a map received on WhatsApp remains viewable in the conversation without network.
 
 | Aspect | Design |
 |---|---|
@@ -133,7 +133,7 @@ Many farms have no reliable network. The [offline/](offline/) folder holds a sec
 | **Accessibility** | Pictogram on every button, every message read aloud by the phone’s built-in speech synthesis, GPS location without network, voice notes kept on the phone for the advisor |
 | **Leaf diagnosis** | MobileNetV3 maize leaf model trained by the team in Google Colab on openly licensed field photos from Uganda, Tanzania and Namibia, run in the browser with ONNX Runtime Web; it answers “not sure” below its confidence threshold and refuses photos without vegetation |
 | **Measured reliability** | Tested in Ghana, a country never seen in training: maize streak recognised 78 times in 100 (75 to 81), and a streak answer is right 95 times in 100; healthy leaves recognised only 26 times in 100, the model saying “not sure” 67 times in 100. These figures are shown under every answer |
-| **Tests** | 20 unit tests, including FAO-56 example 18 |
+| **Tests** | 22 unit tests, including FAO-56 example 18; full conversation tested in headless Chrome with the server stopped and the network cut |
 
 Its full commit history is preserved in this repository. See [offline/README.md](offline/README.md) for details, in French.
 
