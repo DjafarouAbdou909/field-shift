@@ -33,6 +33,7 @@ gardée. Le catalogue ne reçoit qu'une position arrondie à 0,05 degré, enviro
 suffit à trouver les tuiles de 110 km.
 """
 
+import functools
 import logging
 import os
 import tempfile
@@ -56,7 +57,7 @@ PREMIERE_ANNEE = 2013
 JOURS_RECENTS = 30
 PART_CLAIRE_MIN = 0.5
 ARRONDI_CATALOGUE = 0.05
-FILS = 16
+FILS = 24
 # Une carte est gardée en mémoire vive jusqu'à la fin du jour, pour une position à environ 30 m près.
 CARTES_GARDEES_MAX = 500
 ARRONDI_MEMOIRE = 4
@@ -113,11 +114,23 @@ def environnement_gdal() -> dict:
     # L'en-tête d'un fichier est lu en une seule requête, et les plages contiguës sont fusionnées.
     reglages = {"GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR", "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": "TIF",
                 "GDAL_HTTP_MAX_RETRY": "3", "GDAL_HTTP_RETRY_DELAY": "2", "GDAL_INGESTED_BYTES_AT_OPEN": "32768",
-                "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES"}
+                "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES", "GDAL_HTTP_VERSION": "2TLS", "GDAL_HTTP_MULTIPLEX": "YES",
+                # Une image bloquée échoue vite et compte comme nuageuse, sans retarder toute la carte.
+                "GDAL_HTTP_TIMEOUT": "10", "GDAL_HTTP_CONNECTTIMEOUT": "5"}
     if not os.environ.get("EARTHDATA_TOKEN"):
         cookies = os.path.join(tempfile.gettempdir(), "agribot-earthdata-cookies.txt")
         reglages.update(GDAL_HTTP_NETRC="YES", GDAL_HTTP_COOKIEFILE=cookies, GDAL_HTTP_COOKIEJAR=cookies)
     return reglages
+
+
+@functools.cache
+def _session_lpdaac() -> requests.Session:
+    """Connexion gardée ouverte vers le LP DAAC, une poignée de main TLS au lieu d'une par fichier."""
+    from requests.adapters import HTTPAdapter
+
+    session = requests.Session()
+    session.mount("https://", HTTPAdapter(pool_connections=4, pool_maxsize=2 * FILS))
+    return session
 
 
 def adresse_lisible(href: str, session=None) -> str:
@@ -131,8 +144,8 @@ def adresse_lisible(href: str, session=None) -> str:
     jeton = os.environ.get("EARTHDATA_TOKEN")
     if not jeton:
         return href
-    reponse = (session or requests).get(href, headers={"Authorization": f"Bearer {jeton}"}, allow_redirects=False,
-                                        timeout=60)
+    reponse = (session or _session_lpdaac()).get(href, headers={"Authorization": f"Bearer {jeton}"},
+                                                 allow_redirects=False, timeout=15)
     if reponse.status_code in (301, 302, 303, 307, 308) and reponse.headers.get("location"):
         return reponse.headers["location"]
     reponse.raise_for_status()
@@ -187,8 +200,8 @@ def carte_du_champ(latitude: float, longitude: float, aujourdhui: pd.Timestamp |
     tuile_retenue = Counter(tuile(i) for i in recentes).most_common(1)[0][0]
     recentes = sorted((i for i in recentes if tuile(i) == tuile_retenue), key=date_image, reverse=True)
 
-    lues: dict[str, tuple[pd.Timestamp, np.ndarray]] = {}
     echecs = []
+    marge = pd.Timedelta(days=DEMI_FENETRE_JOURS)
 
     def lire_une(image: dict) -> np.ndarray:
         """Lecture retentée deux fois, une image illisible comptant comme entièrement nuageuse."""
@@ -202,38 +215,50 @@ def carte_du_champ(latitude: float, longitude: float, aujourdhui: pd.Timestamp |
         echecs.append(image["id"])
         return np.full((cote, cote), np.nan)
 
-    def lire(images: list[dict]) -> None:
-        a_lire = [i for i in images if i["id"] not in lues]
-        if a_lire and not lues:
-            # La première lecture ouvre seule la session Earthdata, avant les lectures en parallèle.
-            lues[a_lire[0]["id"]] = (date_image(a_lire[0]), lire_une(a_lire[0]))
-            a_lire = a_lire[1:]
-        with ThreadPoolExecutor(FILS) as fils:
-            for image, valeurs in zip(a_lire, fils.map(lire_une, a_lire)):
-                lues[image["id"]] = (date_image(image), valeurs)
+    def reference_de(date: pd.Timestamp) -> list[dict]:
+        """Images de la tuile autour du même jour de chaque année passée, recherches en parallèle."""
+        def meme_jour(annee: int) -> pd.Timestamp:
+            try:
+                return date.replace(year=annee)
+            except ValueError:
+                return date.replace(year=annee, day=28)
 
-    lire(recentes)
-    if len(echecs) == len(lues):
-        raise RuntimeError("aucune image HLS lisible, la carte serait faussement nuageuse")
-    cible = next((lues[i["id"]][0] for i in recentes
-                  if np.isfinite(lues[i["id"]][1]).mean() >= PART_CLAIRE_MIN), None)
-    if cible is None:
-        return CarteChamp(None, vide.statuts, len(lues), tuile_retenue)
+        with ThreadPoolExecutor(FILS) as recherches:
+            par_annee = recherches.map(
+                lambda a: chercheur(lat_catalogue, lon_catalogue, meme_jour(a) - marge, meme_jour(a) + marge),
+                range(PREMIERE_ANNEE, date.year))
+            return [i for images in par_annee for i in images if tuile(i) == tuile_retenue]
 
-    marge = pd.Timedelta(days=DEMI_FENETRE_JOURS)
-
-    def meme_jour(annee: int) -> pd.Timestamp:
-        try:
-            return cible.replace(year=annee)
-        except ValueError:
-            return cible.replace(year=annee, day=28)
-
-    # Les recherches des années passées partent en même temps.
+    # Date supposée de la carte, la plus récente image peu nuageuse selon le catalogue. Les images des
+    # années passées autour de cette date sont lues en même temps que les images récentes, puis
+    # complétées si la vraie date, connue après lecture du champ, est différente.
+    supposee = next((date_image(i) for i in recentes
+                     if (i.get("properties", {}).get("eo:cloud_cover") or 100) <= 100 * PART_CLAIRE_MIN), None)
+    lectures: dict[str, tuple[pd.Timestamp, object]] = {}
     with ThreadPoolExecutor(FILS) as fils:
-        par_annee = fils.map(lambda a: chercheur(lat_catalogue, lon_catalogue, meme_jour(a) - marge, meme_jour(a) + marge),
-                             range(PREMIERE_ANNEE, cible.year))
-        reference = [i for images in par_annee for i in images if tuile(i) == tuile_retenue]
-    lire(reference)
+        def soumettre(images: list[dict]) -> None:
+            for image in images:
+                if image["id"] not in lectures:
+                    lectures[image["id"]] = (date_image(image), fils.submit(lire_une, image))
+
+        if not os.environ.get("EARTHDATA_TOKEN"):
+            # Avec ~/.netrc, la première lecture ouvre seule la session Earthdata.
+            lectures[recentes[0]["id"]] = (date_image(recentes[0]), fils.submit(lire_une, recentes[0]))
+            lectures[recentes[0]["id"]][1].result()
+        soumettre(recentes)
+        if supposee is not None:
+            soumettre(reference_de(supposee))
+        recents = {i["id"]: lectures[i["id"]][1].result() for i in recentes}
+        if len(echecs) >= len(recentes):
+            raise RuntimeError("aucune image HLS lisible, la carte serait faussement nuageuse")
+        cible = next((date_image(i) for i in recentes if np.isfinite(recents[i["id"]]).mean() >= PART_CLAIRE_MIN), None)
+        if cible is None:
+            for _, futur in lectures.values():
+                futur.cancel()
+            return CarteChamp(None, vide.statuts, len(recentes), tuile_retenue)
+        if cible != supposee:
+            soumettre(reference_de(cible))
+        lues = {identifiant: (date, futur.result()) for identifiant, (date, futur) in lectures.items()}
 
     dates = [d for d, _ in lues.values()]
     pile = np.stack([v for _, v in lues.values()])

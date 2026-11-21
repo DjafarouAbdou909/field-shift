@@ -17,8 +17,10 @@ def image(identifiant: str, date: str, tuile: str = "T29PRL") -> dict:
 class FauxCiel:
     """Images de 2013 à 2026 autour du 14 novembre, un coin de champ plus faible en 2026."""
 
-    def __init__(self, nuageux=False):
+    def __init__(self, nuageux=False, couverture=None, derniere_nuageuse=False):
         self.nuageux = nuageux
+        self.couverture = couverture
+        self.derniere_nuageuse = derniere_nuageuse
         self.recherches = []
 
     def chercheur(self, latitude, longitude, debut, fin):
@@ -26,6 +28,9 @@ class FauxCiel:
         dates = [d for annee in range(2013, 2027) for d in pd.date_range(f"{annee}-11-07", f"{annee}-11-21", freq="3D")
                  if debut <= d <= fin]
         images = [image(f"{d:%Y%j}T104000", f"{d:%Y-%m-%d}") for d in dates]
+        if self.couverture is not None:
+            for i in images:
+                i["properties"]["eo:cloud_cover"] = self.couverture
         return images + [image(f"{d:%Y%j}T104001", f"{d:%Y-%m-%d}", "T30PTR") for d in dates[:1]]
 
     def lecteur(self, img, latitude, longitude, demi_cote):
@@ -34,6 +39,8 @@ class FauxCiel:
         if date.year == 2026:
             valeurs[0:3, 12:15] = 0.3
         if self.nuageux and date.year == 2026:
+            valeurs[:] = np.nan
+        if self.derniere_nuageuse and str(date.date()) == "2026-11-19":
             valeurs[:] = np.nan
         return valeurs
 
@@ -49,6 +56,21 @@ class TestCarteDuChamp(unittest.TestCase):
         self.assertEqual(direction(carte.statuts), "vers le nord-est")
         self.assertEqual(carte.reference_annees, list(range(2013, 2026)))
         self.assertTrue(all(p == (9.55, -5.75) for p in ciel.recherches), "seule la position arrondie part")
+
+    def test_lecture_anticipee_meme_carte(self):
+        """Les années passées lues d'avance donnent la même carte, que la date supposée soit juste ou non."""
+        jour = pd.Timestamp("2026-11-20")
+        for derniere_nuageuse in (False, True):
+            sans = carte_du_champ(9.55, -5.75, jour, *self.ciel(None, derniere_nuageuse))
+            avec = carte_du_champ(9.55, -5.75, jour, *self.ciel(10, derniere_nuageuse))
+            self.assertEqual(avec.date, sans.date)
+            self.assertEqual(avec.statuts.tolist(), sans.statuts.tolist())
+            self.assertEqual(avec.date, "2026-11-16" if derniere_nuageuse else "2026-11-19")
+
+    @staticmethod
+    def ciel(couverture, derniere_nuageuse):
+        faux = FauxCiel(couverture=couverture, derniere_nuageuse=derniere_nuageuse)
+        return faux.chercheur, faux.lecteur
 
     def test_nuages_cette_annee(self):
         ciel = FauxCiel(nuageux=True)

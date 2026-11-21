@@ -291,7 +291,7 @@ def demande_lieu_vegetation() -> str:
 
 def carte_en_cours() -> str:
     return ("Merci. Je regarde votre champ avec les images satellite de la NASA, de cette année et des années "
-            "passées. La carte arrive dans moins d'une minute.")
+            "passées. La carte arrive dans une vingtaine de secondes.")
 
 
 def carte_indisponible() -> str:
