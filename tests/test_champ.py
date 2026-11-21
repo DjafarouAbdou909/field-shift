@@ -78,6 +78,35 @@ class TestCarteDuChamp(unittest.TestCase):
         self.assertEqual(carte.compte("faible"), 9)
 
 
+class TestPannes(unittest.TestCase):
+    def test_toutes_les_images_illisibles_est_une_panne_pas_des_nuages(self):
+        ciel = FauxCiel()
+
+        def illisible(*args):
+            raise OSError("authentification")
+
+        champ.time.sleep, sommeil = (lambda s: None), champ.time.sleep
+        try:
+            with self.assertRaises(RuntimeError):
+                carte_du_champ(9.55, -5.75, pd.Timestamp("2026-11-20"), ciel.chercheur, illisible)
+        finally:
+            champ.time.sleep = sommeil
+
+    def test_adresse_signee_avec_un_jeton(self):
+        import os
+        from unittest import mock
+
+        session = mock.Mock()
+        session.get.return_value.status_code = 303
+        session.get.return_value.headers = {"location": "https://stockage.example/signe"}
+        with mock.patch.dict(os.environ, {"EARTHDATA_TOKEN": "jeton-de-test"}):
+            self.assertEqual(champ.adresse_lisible("https://data.example/f.tif", session), "https://stockage.example/signe")
+        self.assertEqual(session.get.call_args.kwargs["headers"]["Authorization"], "Bearer jeton-de-test")
+        self.assertFalse(session.get.call_args.kwargs["allow_redirects"])
+        with mock.patch.dict(os.environ, {"EARTHDATA_TOKEN": ""}):
+            self.assertEqual(champ.adresse_lisible("https://data.example/f.tif", session), "https://data.example/f.tif")
+
+
 class TestMasqueEtPosition(unittest.TestCase):
     def test_masque_des_nuages_de_l_alerte(self):
         brut = np.array([[6000, 6000, 6000, -19999, 12000]])

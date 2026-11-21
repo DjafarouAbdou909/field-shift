@@ -19,13 +19,13 @@ directement sur le stockage du LP DAAC, seule la fenêtre du champ étant télé
 Essai du 21 novembre 2026 près de Korhogo, 17 images en 50 jours, fenêtre de 15 sur 15
 lue en environ 3 secondes par couche après une première authentification d'environ 40
 secondes. Le NDVI est stocké en entier, facteur 0,0001, valeur absente -19999. La couche
-Fmask des produits VI est supposée identique à celle des produits HLSL30 et HLSS30 que
-décode l'alerte, ce qui reste à vérifier dans le guide des produits. Seules les images de
+Fmask d'une image VI du catalogue pointe vers le fichier Fmask du produit HLSL30 ou
+HLSS30 lui-même, celui que décode l'alerte, vérifié le 21 novembre 2026. Seules les images de
 la tuile la plus fréquente sont gardées, pour que chaque carré soit le même point d'une
 image à l'autre.
 
 Authentification. Jeton Earthdata EARTHDATA_TOKEN de l'environnement, envoyé en en-tête
-Bearer, ou à défaut le compte de ~/.netrc. Ni le jeton ni le mot de passe ne sont jamais
+Bearer pour obtenir l'adresse signée de chaque fichier, ou à défaut le compte de ~/.netrc. Ni le jeton ni le mot de passe ne sont jamais
 affichés.
 
 Vie privée. La position exacte du champ ne quitte jamais le serveur et n'est jamais
@@ -106,16 +106,32 @@ def date_image(image: dict) -> pd.Timestamp:
 
 
 def environnement_gdal() -> dict:
-    """Réglages GDAL de lecture des fichiers protégés du LP DAAC, par jeton ou par ~/.netrc."""
+    """Réglages GDAL de lecture des fichiers du LP DAAC, avec ~/.netrc quand aucun jeton n'est donné."""
     reglages = {"GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR", "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": "TIF",
                 "GDAL_HTTP_MAX_RETRY": "3", "GDAL_HTTP_RETRY_DELAY": "2"}
-    jeton = os.environ.get("EARTHDATA_TOKEN")
-    if jeton:
-        reglages["GDAL_HTTP_HEADERS"] = f"Authorization: Bearer {jeton}"
-    else:
+    if not os.environ.get("EARTHDATA_TOKEN"):
         cookies = os.path.join(tempfile.gettempdir(), "agribot-earthdata-cookies.txt")
         reglages.update(GDAL_HTTP_NETRC="YES", GDAL_HTTP_COOKIEFILE=cookies, GDAL_HTTP_COOKIEJAR=cookies)
     return reglages
+
+
+def adresse_lisible(href: str, session=None) -> str:
+    """Adresse à ouvrir par GDAL. Avec un jeton, l'adresse signée vers laquelle le LP DAAC redirige.
+
+    Essai du 21 novembre 2026 sur le serveur, GDAL renvoie l'en-tête Bearer au stockage après la
+    redirection 303 et la lecture échoue, alors qu'une requête qui suit la redirection sans
+    l'en-tête reçoit le fichier. La redirection est donc demandée ici avec le jeton, et
+    l'adresse signée, valable un temps limité, est lue sans jeton.
+    """
+    jeton = os.environ.get("EARTHDATA_TOKEN")
+    if not jeton:
+        return href
+    reponse = (session or requests).get(href, headers={"Authorization": f"Bearer {jeton}"}, allow_redirects=False,
+                                        timeout=60)
+    if reponse.status_code in (301, 302, 303, 307, 308) and reponse.headers.get("location"):
+        return reponse.headers["location"]
+    reponse.raise_for_status()
+    raise RuntimeError(f"pas de redirection du LP DAAC, code {reponse.status_code}")
 
 
 def ndvi_clair(ndvi_brut: np.ndarray, fmask: np.ndarray) -> np.ndarray:
@@ -139,7 +155,7 @@ def lire_fenetre(image: dict, latitude: float, longitude: float, demi_cote: int 
     couches = {}
     with rasterio.Env(**environnement_gdal()):
         for couche in ("NDVI", "Fmask"):
-            with rasterio.open(image["assets"][couche]["href"]) as source:
+            with rasterio.open(adresse_lisible(image["assets"][couche]["href"])) as source:
                 x, y = transform("EPSG:4326", source.crs, [longitude], [latitude])
                 ligne, colonne = source.index(x[0], y[0])
                 fenetre = Window(colonne - demi_cote, ligne - demi_cote, cote, cote)
@@ -188,6 +204,8 @@ def carte_du_champ(latitude: float, longitude: float, aujourdhui: pd.Timestamp |
                 lues[image["id"]] = (date_image(image), valeurs)
 
     lire(recentes)
+    if len(echecs) == len(lues):
+        raise RuntimeError("aucune image HLS lisible, la carte serait faussement nuageuse")
     cible = next((lues[i["id"]][0] for i in recentes
                   if np.isfinite(lues[i["id"]][1]).mean() >= PART_CLAIRE_MIN), None)
     if cible is None:
