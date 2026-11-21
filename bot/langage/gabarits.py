@@ -101,10 +101,12 @@ def zone_non_couverte() -> str:
             "proche de votre champ, ou envoyez-moi votre position.")
 
 
-def lieu_rattache(village: str, ville: str, distance: float) -> str:
-    """Le village trouvé sur OpenStreetMap, ou la position, est rattaché à la ville couverte la plus proche."""
-    return (f"{village}, d'après OpenStreetMap, est à environ {round(distance)} km de {ville}. "
+def lieu_rattache(village: str, ville: str, distance: float, region: str | None = None) -> str:
+    """Le village trouvé sur OpenStreetMap est rattaché au chef-lieu de sa région, ou à la ville couverte la plus proche."""
+    ou = f"est dans la région {region}, à environ" if region else "est à environ"
+    return (f"{village}, d'après OpenStreetMap, {ou} {round(distance)} km de {ville}. "
             f"Je prends les données de {ville}.")
+
 
 
 def position_rattachee(ville: str, distance: float) -> str:

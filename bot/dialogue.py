@@ -59,7 +59,7 @@ from moteur.alerte import alerte_du_lieu
 from moteur.climat import climat_du_lieu
 from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC
 from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
-from moteur.lieux import LIEUX, rotation_disponible, ville_la_plus_proche
+from moteur.lieux import LIEUX, chef_lieu_de_region, distance_km, rotation_disponible, ville_la_plus_proche
 
 from . import geocodage, whatsapp
 from .config import parametres
@@ -291,11 +291,16 @@ class Conversation:
         if identifiant := geocodage.ville_nommee(texte):
             return identifiant
         if (trouve := geocodage.chercher(geocodage.nom_a_chercher(texte))) is not None:
-            latitude, longitude, village = trouve
-            if (proche := ville_la_plus_proche(latitude, longitude)) is not None:
+            latitude, longitude, village, region = trouve
+            # Le village prend les données du chef-lieu de sa région, ou à défaut de la ville la plus proche.
+            if identifiant := chef_lieu_de_region(region):
+                distance = distance_km(latitude, longitude, LIEUX[identifiant]["lat"], LIEUX[identifiant]["lon"])
+            elif proche := ville_la_plus_proche(latitude, longitude):
                 identifiant, distance = proche
+            if identifiant:
                 if distance >= DISTANCE_ANNONCEE_KM:
-                    self.texte(gabarits.lieu_rattache(village, LIEUX[identifiant]["nom"], distance))
+                    self.texte(gabarits.lieu_rattache(village, LIEUX[identifiant]["nom"], distance,
+                                                      LIEUX[identifiant]["region"] if chef_lieu_de_region(region) else None))
                 return identifiant
         if identifiant := comprehension.comprendre(texte, gabarits.LIGNES_LIEUX):
             return identifiant

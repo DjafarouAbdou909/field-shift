@@ -63,6 +63,26 @@ LIEUX = {
     for identifiant, nom, region, district, lat, lon in _VILLES
 }
 
+# Nom de la région, ou du district autonome, tel qu'OpenStreetMap l'écrit dans l'adresse d'un lieu, champs
+# state_district puis state, relevé le 20 novembre 2026, quand il diffère du nom retenu ci-dessus.
+NOMS_OSM = {"adzope": "Mé", "dimbokro": "N’zi", "abidjan": "Abidjan", "yamoussoukro": "Yamoussoukro"}
+
+
+def chef_lieu_de_region(region: str | None) -> str | None:
+    """Ville couverte qui est le chef-lieu de la région nommée par OpenStreetMap, ou None."""
+    from unicodedata import combining, normalize
+
+    def simple(texte: str) -> str:
+        return "".join(c for c in normalize("NFKD", texte.lower().replace("’", "'")) if not combining(c)).strip()
+
+    if not region:
+        return None
+    for identifiant, lieu in LIEUX.items():
+        if simple(region) in (simple(lieu["region"]), simple(NOMS_OSM.get(identifiant, lieu["region"]))):
+            return identifiant
+    return None
+
+
 # Villes de l'étude d'origine du 14 novembre 2026, sur lesquelles portent les notebooks, les commandes
 # d'évaluation et les chiffres de docs/, gardés tels quels.
 LIEUX_ETUDE = {identifiant: LIEUX[identifiant] for identifiant in ("korhogo", "bouake")}

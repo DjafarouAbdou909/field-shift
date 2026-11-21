@@ -199,11 +199,20 @@ class TestConseilDeRotation(Base):
         """Un village fictif près de Korhogo, qui n'est pas une ville couverte, est rattaché à la plus proche."""
         self.consentir()
         self.envoyer(bouton("rotation"))
-        with mock.patch.object(dialogue.geocodage, "chercher", return_value=(9.55, -5.75, "Villagetest")) as cherche:
+        with mock.patch.object(dialogue.geocodage, "chercher", return_value=(9.55, -5.75, "Villagetest", None)) as cherche:
             envois = self.envoyer(texte("j'habite à Villagetest"))
         cherche.assert_called_once_with("villagetest")
         self.assertIn("Villagetest, d'après OpenStreetMap, est à environ", envois[0][2])
         self.assertIn("Korhogo", envois[0][2])
+        self.assertEqual(self.session().lieu, "korhogo")
+
+    def test_village_rattache_au_chef_lieu_de_sa_region(self):
+        """Un village fictif du Poro, plus proche de Ferkessédougou, prend les données de Korhogo, chef-lieu du Poro."""
+        self.consentir()
+        self.envoyer(bouton("rotation"))
+        with mock.patch.object(dialogue.geocodage, "chercher", return_value=(9.58, -5.38, "Villagetest", "Poro")):
+            envois = self.envoyer(texte("Villagetest"))
+        self.assertIn("est dans la région Poro, à environ", envois[0][2])
         self.assertEqual(self.session().lieu, "korhogo")
 
     def test_sud_forestier_sans_rotation_pour_l_instant(self):

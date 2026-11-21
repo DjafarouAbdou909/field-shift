@@ -4,7 +4,7 @@ Extension à toute la Côte d'Ivoire du 20 novembre 2026. Un nom de ville couver
 sa région, est reconnu sans réseau dans la phrase. Sinon, les mots qui restent une fois
 retirés ceux de la phrase courante sont cherchés par Nominatim, le service de recherche
 d'OpenStreetMap, limité à la Côte d'Ivoire, et le village trouvé est rattaché à la ville
-couverte la plus proche.
+couverte qui est le chef-lieu de sa région, ou à défaut à la plus proche.
 
 Nominatim, politique d'usage lue sur https://operations.osmfoundation.org/policies/nominatim/
 le 20 novembre 2026, une requête par seconde au plus, un User-Agent qui identifie
@@ -75,8 +75,12 @@ def nom_a_chercher(texte: str) -> str:
 
 
 @functools.lru_cache(maxsize=512)
-def chercher(nom: str, session=None) -> tuple[float, float, str] | None:
-    """Latitude, longitude et nom d'un lieu de Côte d'Ivoire selon OpenStreetMap, ou None."""
+def chercher(nom: str, session=None) -> tuple[float, float, str, str | None] | None:
+    """Latitude, longitude, nom et région d'un lieu de Côte d'Ivoire selon OpenStreetMap, ou None.
+
+    La région est celle de l'adresse OpenStreetMap, state_district, ou à défaut state pour
+    les districts autonomes d'Abidjan et de Yamoussoukro.
+    """
     global _dernier_appel
     if len(nom) < 3 or len(nom.split()) > 4:
         return None
@@ -87,7 +91,8 @@ def chercher(nom: str, session=None) -> tuple[float, float, str] | None:
                 time.sleep(attente)
             _dernier_appel = time.monotonic()
         reponse = (session or requests).get(URL, timeout=DELAI_SECONDES, headers={"User-Agent": AGENT}, params={
-            "q": nom, "countrycodes": "ci", "format": "jsonv2", "limit": 1, "featureType": "settlement"})
+            "q": nom, "countrycodes": "ci", "format": "jsonv2", "limit": 1, "featureType": "settlement",
+            "addressdetails": 1})
         reponse.raise_for_status()
         resultats = reponse.json()
     except Exception as erreur:
@@ -96,4 +101,6 @@ def chercher(nom: str, session=None) -> tuple[float, float, str] | None:
     if not resultats:
         return None
     premier = resultats[0]
-    return float(premier["lat"]), float(premier["lon"]), premier.get("name") or nom.title()
+    adresse = premier.get("address") or {}
+    return (float(premier["lat"]), float(premier["lon"]), premier.get("name") or nom.title(),
+            adresse.get("state_district") or adresse.get("state"))

@@ -5,7 +5,7 @@ from unittest import mock
 
 from bot import geocodage
 from moteur.cultures import semis_coton
-from moteur.lieux import LIEUX, distance_km, lieux_de_zone, rotation_disponible, ville_la_plus_proche
+from moteur.lieux import LIEUX, chef_lieu_de_region, distance_km, lieux_de_zone, rotation_disponible, ville_la_plus_proche
 
 
 class TestVillesCouvertes(unittest.TestCase):
@@ -32,6 +32,15 @@ class TestVillesCouvertes(unittest.TestCase):
         self.assertLess(distance, 20)
         self.assertIsNone(ville_la_plus_proche(12.64, -8.0), "Bamako est hors de la zone couverte")
 
+    def test_chef_lieu_de_la_region_nommee_par_openstreetmap(self):
+        self.assertEqual(chef_lieu_de_region("Poro"), "korhogo")
+        self.assertEqual(chef_lieu_de_region("Mé"), "adzope")
+        self.assertEqual(chef_lieu_de_region("N’zi"), "dimbokro")
+        self.assertEqual(chef_lieu_de_region("Abidjan"), "abidjan")
+        self.assertEqual(chef_lieu_de_region("Gbêkê"), "bouake")
+        self.assertIsNone(chef_lieu_de_region("Savanes"), "un district n'est pas une région")
+        self.assertIsNone(chef_lieu_de_region(None))
+
     def test_fenetre_de_semis_du_coton_selon_le_9e_parallele(self):
         self.assertEqual(semis_coton("boundiali"), semis_coton("korhogo"))
         self.assertEqual(semis_coton("katiola"), semis_coton("bouake"))
@@ -53,9 +62,10 @@ class TestLieuDit(unittest.TestCase):
     def test_recherche_limitee_a_la_cote_d_ivoire_et_identifiee(self):
         geocodage.chercher.cache_clear()
         session = mock.Mock()
-        session.get.return_value.json.return_value = [{"lat": "9.583", "lon": "-5.383", "name": "Sinématiali"}]
+        session.get.return_value.json.return_value = [{"lat": "9.583", "lon": "-5.383", "name": "Sinématiali",
+                                                       "address": {"state_district": "Poro", "state": "Savanes"}}]
         with mock.patch.object(geocodage, "INTERVALLE_SECONDES", 0):
-            self.assertEqual(geocodage.chercher("sinematiali", session), (9.583, -5.383, "Sinématiali"))
+            self.assertEqual(geocodage.chercher("sinematiali", session), (9.583, -5.383, "Sinématiali", "Poro"))
         appel = session.get.call_args
         self.assertEqual(appel.kwargs["params"]["countrycodes"], "ci")
         self.assertEqual(appel.kwargs["headers"]["User-Agent"], geocodage.AGENT)
