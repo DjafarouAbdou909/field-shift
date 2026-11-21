@@ -1,6 +1,6 @@
 # AgriBot
 
-**Climate-informed crop rotation advice from NASA data and plant disease diagnosis from a photo, delivered by voice on WhatsApp to smallholder farmers in Côte d’Ivoire.**
+**Climate-informed crop rotation advice from NASA data, a satellite health map of each field and plant disease diagnosis from a photo, delivered by voice on WhatsApp to smallholder farmers across Côte d’Ivoire.**
 
 [![NASA Space Apps 2026](https://img.shields.io/badge/NASA%20Space%20Apps-2026-0B3D91)](https://www.spaceappschallenge.org/)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB)](https://www.python.org/)
@@ -12,20 +12,21 @@ Team **CodeX Africa** · Challenge **Field Shift: Adapting Farms with NASA Data*
 
 ## Overview
 
-Farmers in northern and central Côte d’Ivoire decide what to sow on rain-fed land while the start of the rainy season moves by weeks from one year to the next. When a plant falls sick, there is rarely an advisor nearby to say what it is. Many of these farmers cannot read, so written or web-based advice rarely reaches them.
+Farmers in Côte d’Ivoire decide what to sow on rain-fed land while the start of the rainy season moves by weeks from one year to the next. When a plant falls sick, there is rarely an advisor nearby to say what it is. Many of these farmers cannot read, so written or web-based advice rarely reaches them.
 
-AgriBot closes that gap on two fronts:
+AgriBot closes that gap on three fronts, in all 31 regions of the country:
 
-- **What to sow.** A transparent engine turns 25 years of NASA precipitation, temperature, humidity, wind and radiation data into a ranked comparison of crop rotations, with uncertainty ranges, and NASA HLS imagery flags vegetation that is weaker than usual.
+- **What to sow.** In the savanna of the north and centre, a transparent engine turns 25 years of NASA precipitation, temperature, humidity, wind and radiation data into a ranked comparison of crop rotations, with uncertainty ranges. In the southern forest zone, it summarises what 25 years of NASA rain measurements say about the farmer’s area.
+- **Where to look.** The farmer shares the position of their field, and NASA HLS imagery returns a map of 30 m cells showing which part is weaker than usual. The satellite walks the field, so a farmer with 10 hectares only goes where the map points.
 - **What is harming the plant.** The farmer sends a photo of a sick leaf. AgriBot describes the visible signs, names the most likely disease, pest or deficiency, explains what favours it and what it can do to the harvest, and gives two or three actions to take in the field that day. It never names a pesticide or any other product. In the offline app, a maize leaf model trained by the team runs on the phone itself, without network.
 
-AgriBot delivers every answer in plain French, as a WhatsApp voice note, and refers the farmer to their ANADER extension advisor for serious or uncertain cases.
+AgriBot delivers every answer in plain, warm French, as a WhatsApp voice note when the farmer prefers to listen, and refers the farmer to their ANADER extension advisor for serious or uncertain cases.
 
 **Hybrid by design, with or without a network.** Connectivity in rural Côte d’Ivoire is patchy, so AgriBot works in two modes:
 
 | Mode | When | What the farmer gets |
 |---|---|---|
-| **Online** | A mobile data connection is available | WhatsApp voice assistant: rotation advice, vegetation alert, photo diagnosis and free farming questions |
+| **Online** | A mobile data connection is available | WhatsApp voice assistant in 33 towns: rotation advice or climate of the area, field health map, vegetation alert, photo diagnosis and free farming questions |
 | **Offline** | No connection at all, after a single first visit | Installable web app: precomputed NASA-based rotation advice, GPS location, every message read aloud, and a maize leaf diagnosis that runs on the phone |
 
 In offline mode the phone needs no server, no network and no language model. Voice notes for the advisor are kept on the phone and shared once the network returns.
@@ -33,7 +34,7 @@ In offline mode the phone needs no server, no network and no language model. Voi
 | | |
 |---|---|
 | **Problem** | Shifting rains, plant diseases recognised too late, and advice that does not reach farmers who cannot read |
-| **Solution** | Rotation advice computed from NASA data, a vegetation alert from NASA satellite imagery and a plant disease diagnosis from a photo, in a hybrid design: by voice on WhatsApp when online, and through an offline web app with an on-device leaf diagnosis when there is no connection at all |
+| **Solution** | Rotation advice and climate summaries computed from NASA data, a field health map and a vegetation alert from NASA satellite imagery, and a plant disease diagnosis from a photo, in a hybrid design: by voice on WhatsApp when online, and through an offline web app with an on-device leaf diagnosis when there is no connection at all |
 | **Users** | Smallholder farmers, and the extension advisors who support them |
 | **Demo deck** | [presentation/AgriBot_Presentation_EN.pdf](presentation/AgriBot_Presentation_EN.pdf), 7 slides, French version alongside |
 
@@ -41,14 +42,14 @@ In offline mode the phone needs no server, no network and no language model. Voi
 
 | Feature | Description |
 |---|---|
-| **Nationwide coverage** | The farmer names a town or village, or shares a GPS position. Villages are located with OpenStreetMap and attached to the nearest of the 33 regional and district capitals, and the bot says which one |
+| **Nationwide coverage** | The farmer names a town or village, or shares a GPS position. A village is located with OpenStreetMap and attached to the capital of its region; a GPS position goes to the nearest of the 33 regional and district capitals, with no outside call; the bot always says which town it uses |
 | **Rotation advice** | In the 12 savanna capitals of the north and centre, ranks three rotations, including the farmer’s current one, for the farmer’s town and priority: enough water, a good market or a richer soil |
 | **Climate of my area** | In the 21 capitals of the southern forest zone, where the savanna rotations do not apply, summarises 25 years of NASA IMERG rain: annual rain and a dry year, the wettest months of both rainy seasons and the dip between them, and how much March to July rain varies; no rain-onset date is given there, because the onset rule is cut by its 1 March search date in the south |
 | **Field health map** | The farmer sends the position of their field; AgriBot reads NASA HLS NDVI and cloud mask directly from the LP DAAC cloud for a 450 m square of 30 m cells around it, applies the vegetation-alert rule to each cell against the same dates of 2013 to last year, and sends back an image, green as usual, red weaker than usual, grey under clouds, with a short voice or text explanation, in about 30 seconds on the server, and instantly when the same field is asked again the same day. Only a position rounded to about 5 km reaches the NASA catalogue, and the exact position is never stored |
-| **Vegetation alert** | Compares the latest NASA HLS images of the farmer’s area with the same dates in past years, and never guesses a cause |
+| **Vegetation alert** | Compares the latest NASA HLS images of the farmer’s area with the same dates in past years, and never guesses a cause; available at Korhogo and Bouaké, with the AppEEARS extractions for the other 31 towns submitted |
 | **Photo diagnosis** | Explains what a plant photo shows, the likely problem and what to do in the field, with no product ever named, in about 3 seconds |
-| **Farming conversation** | Answers free farming questions in two or three sentences, and remembers the last 30 minutes of the conversation, diagnoses and advice included, so “the previous message” is understood |
-| **Voice first** | Voice notes in and out. A farmer who writes but asks for a voice note, or says they cannot read, hears the last message read aloud and keeps getting voice replies until they ask for text |
+| **Farming conversation** | Answers free farming questions in two or three warm sentences, echoing the farmer’s words, with one concrete action and a follow-up question, and remembers the last 30 minutes of the conversation, diagnoses and advice included, so “the previous message” is understood |
+| **Voice first** | Voice notes in and out. A farmer who says they cannot read or write is first reassured, “Pas de souci, ce n’est pas grave”, then hears the last message read aloud and keeps getting voice replies until they ask for text |
 | **Advisor app** | Streamlit app showing every score with its source and uncertainty |
 | **Offline platform** | Installable web app that works with no network after the first visit, with pictograms, voice reading and an on-device leaf diagnosis, also served by the team’s server: https://conseil-rotation-ci.netlify.app, source in [offline/](offline/) |
 
@@ -56,11 +57,11 @@ In offline mode the phone needs no server, no network and no language model. Voi
 
 | Dataset | Access | Variables | Role |
 |---|---|---|---|
-| **GPM IMERG** | NASA POWER API | Daily precipitation, mean of the 9 cells around each town, 2001 to 2025 | Rain onset, dry spells, rain over each crop cycle |
+| **GPM IMERG** | NASA POWER API | Daily precipitation, mean of the 9 cells around each of the 33 towns, 2001 to 2025 | Rain onset, dry spells, rain over each crop cycle, climate of the southern areas |
 | **MERRA-2** | NASA POWER API | Temperature, dew point, wind speed, corrected precipitation | Crop water need; independent rain source to confirm any climate shift |
 | **CERES** | NASA POWER API | Surface solar radiation | Crop water need |
 | **MODIS MCD12Q1** | NASA AppEEARS | Land cover, IGBP classes | Selection of 50 vegetation points per town |
-| **HLS L30 and S30** | NASA AppEEARS | NDVI and Fmask quality layer, April 2013 to November 2026 | Vegetation alert |
+| **HLS L30 and S30** | NASA AppEEARS; NASA CMR-STAC catalogue and LP DAAC cloud storage, read directly | NDVI and Fmask quality layer, April 2013 to today | Vegetation alert; field health map, reading only the 450 m window of each image |
 
 NOAA GHCN-Daily rain gauges serve only as an independent check. Every source is registered in [docs/sources.md](docs/sources.md), and every downloaded series is logged with its SHA-256 checksum.
 
@@ -76,6 +77,8 @@ NOAA GHCN-Daily rain gauges serve only as an independent check. Every source is 
 | **Sensitivity** | Ranking re-run with 20 % less rain, a 14-day later onset, other cotton sowing dates and cycle lengths |
 | **Climate shift** | A change between 2001-2012 and 2013-2025 is announced only if IMERG and MERRA-2 agree in direction and significance |
 | **Vegetation alert** | Zone NDVI on each image date is the median of cloud-free HLS observations over 50 points; alert if it falls below the 10th percentile of the same calendar window in other years |
+| **Field health map** | The same rule applied to each 30 m cell of a 15 by 15 window around the field, on the images of a single HLS tile; by design about one cell in ten is red in a normal year, which the message says |
+| **Zones** | Savanna for the districts of Savanes, Denguélé, Woroba, Zanzan and Vallée du Bandama, forest elsewhere; a provisional rule, see the limitations |
 
 ## Results
 
@@ -106,19 +109,22 @@ Farmer ── WhatsApp ──► WhatsApp Cloud API ── signed webhook ──
      ┌───────────────────────┬─────────────────────┬────────────┴──────────┬─────────────────────┐
      ▼                       ▼                     ▼                       ▼                     ▼
  Rotation engine       Vegetation alert       Speech to text          Conversation          Photo diagnosis
- moteur/               moteur/alerte.py       Groq Whisper,           Groq gpt-oss-120b,    Google Gemini
- NASA POWER: IMERG,    NASA HLS via           local faster-whisper,   strict JSON schema,   (photos only)
- MERRA-2, CERES        AppEEARS               Aethex as fallbacks     product filter
+ moteur/, climate of   moteur/alerte.py,      Groq Whisper,           Groq gpt-oss-120b,    Google Gemini
+ the south             field map              local faster-whisper,   strict JSON schema,   (photos only)
+ NASA POWER: IMERG,    moteur/champ.py        Aethex as fallbacks     product filter
+ MERRA-2, CERES        NASA HLS, AppEEARS
+                       and LP DAAC cloud
+ Places: OpenStreetMap Nominatim (bot/geocodage.py), 33 capitals (moteur/lieux.py)
                                                                  │
                                                                  ▼
                                             Aethex streaming text to speech ──► OGG Opus voice note
 ```
 
-**Design principle:** every recommendation comes from the deterministic engine. AI models only transcribe, understand, word answers, read them aloud and look at photos.
+**Design principle:** every recommendation, climate summary and map comes from the deterministic engine. AI models only transcribe, understand, word answers, read them aloud and look at photos.
 
 ## Offline platform
 
-Many farms have no reliable network. The [offline/](offline/) folder holds a second, fully offline channel, built during the hackathon and published at https://conseil-rotation-ci.netlify.app.
+Many farms have no reliable network. The [offline/](offline/) folder holds a second, fully offline channel, built during the hackathon, served by the team’s server and published at https://conseil-rotation-ci.netlify.app. It still covers Korhogo and Bouaké; its extension to the 33 towns, with the climate of the southern areas, is in progress. The field health map needs fresh NASA images and so stays online, but a map received on WhatsApp remains viewable in the conversation without network.
 
 | Aspect | Design |
 |---|---|
@@ -161,7 +167,7 @@ AI never produces the rotation ranking, the scores or the vegetation alert, in e
 | **No product advice** | No pesticide, fertiliser, brand or dose is ever named; a filter removes any sentence that would |
 | **No impersonation** | AgriBot never speaks for ANADER and refers serious or uncertain cases to the ANADER advisor |
 | **Consent first** | The first message asks for consent and states that messages and photos go through AI services; “stop” erases everything |
-| **Data minimisation** | Only the place name typed or said by the farmer is sent to OpenStreetMap to find a village, never the number or the rest of the message; phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; conversation memory kept 30 minutes in RAM only; logs record message type, age and length, never content; third-party processing under each provider’s retention policy |
+| **Data minimisation** | Only the place name typed or said by the farmer is sent to OpenStreetMap to find a village, never the number or the rest of the message; for the field map, only a position rounded to about 5 km reaches the NASA catalogue, the exact position is kept in memory only while the map is built and for the rest of the day, and is never stored on disk; phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; conversation memory kept 30 minutes in RAM only; logs record message type, age and length, never content; third-party processing under each provider’s retention policy |
 | **Honest uncertainty** | Scores carry ranges, fragile rankings name the scenario that would change them, unavailable data is stated as such |
 
 ## Quickstart
@@ -220,7 +226,7 @@ bash deploy/verifier.sh example.com                  # health, Meta webhook chec
 
 Step-by-step guide, in French: [deploy/LISEZMOI.md](deploy/LISEZMOI.md).
 
-**Live since 20 November 2026.** AgriBot runs around the clock on an Ubuntu 24.04 server with 4 vCPU and 8 GB of memory, deployed with these scripts. Response times read from the server log: 0.7 to 1.2 seconds for buttons and written messages. The photo diagnosis took 2.8 seconds in testing with the Flash model, down from about 80 seconds with the previous model.
+**Live since 20 November 2026.** AgriBot runs around the clock on an Ubuntu 24.04 server with 4 vCPU and 8 GB of memory, deployed with these scripts. Response times read from the server log: 0.7 to 1.2 seconds for buttons and written messages. The photo diagnosis took 2.8 seconds in testing with the Flash model, down from about 80 seconds with the previous model. A field health map took 32 seconds on the server for 57 NASA images, after an immediate acknowledgement, and is instant when asked again the same day. The 12 savanna towns are prepared in 24 seconds at start-up.
 
 ## Testing and reproducibility
 
@@ -264,10 +270,11 @@ field-shift/
 | The rain onset trend at Korhogo is unresolved: the period split is close to the TRMM to GPM transition in IMERG, and MERRA-2 rainfall disagrees with local gauges | Repeat the comparison with a split after 2014, and arbitrate with Ivorian ground stations (SODEXAM) |
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
 | The field map centres a 450 m square on the position sent, not on the true field boundary, and its 10th-percentile rule colours about one cell in ten red by design | Let the farmer trace the field boundary, and group red cells before warning |
-| The vegetation alert covers only Korhogo and Bouaké; the other 31 capitals still need their AppEEARS extractions | Run the MCD12Q1 and HLS extractions for every capital |
+| The vegetation alert covers only Korhogo and Bouaké; the MCD12Q1 extractions of the other 31 capitals were submitted to AppEEARS on 21 November 2026 | Submit their HLS extractions once land cover is downloaded |
 | No rotation comparison yet for the southern forest zone, whose two rainy seasons and food crops need sourced rotations, which could not be read | Build southern rotations with CNRA and ANADER sources, and a second-season model |
 | Savanna or forest zone is set by district, a provisional rule; the CNRA cotton-basin survey also lists localities in Marahoué and Haut-Sassandra, whose capitals are counted as forest | Refine the zone per department once a sourced map is read |
-| MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
+| MODIS at 500 m sees mostly savanna, so the zone alert covers the area, never a single field | The field health map now answers for a single field; extend it with the field boundary |
+| The field map needs a NASA Earthdata token on the server, and such tokens expire after some weeks | Renew the token in `.env`; the bot reports the map as unavailable, never as cloudy, when no image can be read |
 | The offline leaf model recognises healthy leaves only 26 times in 100 and covers maize only | Retrain on field photos from Côte d’Ivoire; add the cocoa model in preparation |
 | The server address is derived from its IP through sslip.io, so it changes with the server | Move to a registered domain, so the WhatsApp webhook and the offline app address never change |
 
