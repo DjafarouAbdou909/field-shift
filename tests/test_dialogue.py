@@ -311,7 +311,7 @@ class TestAlerteDeVegetation(Base):
         """Le satellite fait le tour du champ, la carte arrive en image avec son explication."""
         self.consentir()
         self.envoyer(bouton("vegetation"))
-        with mock.patch.object(dialogue, "carte_du_champ", return_value=self.carte(faibles=6)) as calcul:
+        with mock.patch.object(dialogue, "carte_du_jour", return_value=self.carte(faibles=6)) as calcul:
             envois = self.envoyer(position(9.55, -5.75))
         calcul.assert_called_once_with(9.55, -5.75)
         self.assertEqual([e[0] for e in envois], ["texte", "image", "texte"])
@@ -325,20 +325,20 @@ class TestAlerteDeVegetation(Base):
 
     def test_position_au_menu_donne_aussi_la_carte(self):
         self.consentir()
-        with mock.patch.object(dialogue, "carte_du_champ", return_value=self.carte()):
+        with mock.patch.object(dialogue, "carte_du_jour", return_value=self.carte()):
             envois = self.envoyer(position(9.55, -5.75))
         self.assertIn("Toute la partie mesurée est verte", envois[-1][2])
 
     def test_nuages_partout_sans_image(self):
         self.consentir()
-        with mock.patch.object(dialogue, "carte_du_champ", return_value=self.carte(date=None)):
+        with mock.patch.object(dialogue, "carte_du_jour", return_value=self.carte(date=None)):
             envois = self.envoyer(position(9.55, -5.75))
         self.assertEqual([e[0] for e in envois], ["texte", "texte"])
         self.assertIn("nuages ont caché votre champ", envois[-1][2])
 
     def test_carte_en_panne(self):
         self.consentir()
-        with mock.patch.object(dialogue, "carte_du_champ", side_effect=RuntimeError("Earthdata")):
+        with mock.patch.object(dialogue, "carte_du_jour", side_effect=RuntimeError("Earthdata")):
             envois = self.envoyer(position(9.55, -5.75))
         self.assertEqual(envois[-1][2], gabarits.carte_indisponible())
 

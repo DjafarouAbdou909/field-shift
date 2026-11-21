@@ -56,7 +56,10 @@ PREMIERE_ANNEE = 2013
 JOURS_RECENTS = 30
 PART_CLAIRE_MIN = 0.5
 ARRONDI_CATALOGUE = 0.05
-FILS = 8
+FILS = 16
+# Une carte est gardée en mémoire vive jusqu'à la fin du jour, pour une position à environ 30 m près.
+CARTES_GARDEES_MAX = 500
+ARRONDI_MEMOIRE = 4
 ECHELLE_NDVI = 0.0001
 NDVI_ABSENT = -19999
 
@@ -107,8 +110,10 @@ def date_image(image: dict) -> pd.Timestamp:
 
 def environnement_gdal() -> dict:
     """Réglages GDAL de lecture des fichiers du LP DAAC, avec ~/.netrc quand aucun jeton n'est donné."""
+    # L'en-tête d'un fichier est lu en une seule requête, et les plages contiguës sont fusionnées.
     reglages = {"GDAL_DISABLE_READDIR_ON_OPEN": "EMPTY_DIR", "CPL_VSIL_CURL_ALLOWED_EXTENSIONS": "TIF",
-                "GDAL_HTTP_MAX_RETRY": "3", "GDAL_HTTP_RETRY_DELAY": "2"}
+                "GDAL_HTTP_MAX_RETRY": "3", "GDAL_HTTP_RETRY_DELAY": "2", "GDAL_INGESTED_BYTES_AT_OPEN": "32768",
+                "GDAL_HTTP_MERGE_CONSECUTIVE_RANGES": "YES"}
     if not os.environ.get("EARTHDATA_TOKEN"):
         cookies = os.path.join(tempfile.gettempdir(), "agribot-earthdata-cookies.txt")
         reglages.update(GDAL_HTTP_NETRC="YES", GDAL_HTTP_COOKIEFILE=cookies, GDAL_HTTP_COOKIEJAR=cookies)
@@ -152,16 +157,20 @@ def lire_fenetre(image: dict, latitude: float, longitude: float, demi_cote: int 
     from rasterio.windows import Window
 
     cote = 2 * demi_cote + 1
-    couches = {}
-    with rasterio.Env(**environnement_gdal()):
-        for couche in ("NDVI", "Fmask"):
+
+    def lire_couche(couche: str) -> np.ndarray:
+        with rasterio.Env(**environnement_gdal()):
             with rasterio.open(adresse_lisible(image["assets"][couche]["href"])) as source:
                 x, y = transform("EPSG:4326", source.crs, [longitude], [latitude])
                 ligne, colonne = source.index(x[0], y[0])
                 fenetre = Window(colonne - demi_cote, ligne - demi_cote, cote, cote)
-                couches[couche] = source.read(1, window=fenetre, boundless=True,
-                                              fill_value=NDVI_ABSENT if couche == "NDVI" else 255)
-    return ndvi_clair(couches["NDVI"], couches["Fmask"])
+                return source.read(1, window=fenetre, boundless=True,
+                                   fill_value=NDVI_ABSENT if couche == "NDVI" else 255)
+
+    # Les deux fichiers d'une image sont lus en même temps.
+    with ThreadPoolExecutor(2) as fils:
+        ndvi, fmask = fils.map(lire_couche, ("NDVI", "Fmask"))
+    return ndvi_clair(ndvi, fmask)
 
 
 def carte_du_champ(latitude: float, longitude: float, aujourdhui: pd.Timestamp | None = None,
@@ -212,14 +221,18 @@ def carte_du_champ(latitude: float, longitude: float, aujourdhui: pd.Timestamp |
         return CarteChamp(None, vide.statuts, len(lues), tuile_retenue)
 
     marge = pd.Timedelta(days=DEMI_FENETRE_JOURS)
-    reference = []
-    for annee in range(PREMIERE_ANNEE, cible.year):
+
+    def meme_jour(annee: int) -> pd.Timestamp:
         try:
-            meme_jour = cible.replace(year=annee)
+            return cible.replace(year=annee)
         except ValueError:
-            meme_jour = cible.replace(year=annee, day=28)
-        reference += [i for i in chercheur(lat_catalogue, lon_catalogue, meme_jour - marge, meme_jour + marge)
-                      if tuile(i) == tuile_retenue]
+            return cible.replace(year=annee, day=28)
+
+    # Les recherches des années passées partent en même temps.
+    with ThreadPoolExecutor(FILS) as fils:
+        par_annee = fils.map(lambda a: chercheur(lat_catalogue, lon_catalogue, meme_jour(a) - marge, meme_jour(a) + marge),
+                             range(PREMIERE_ANNEE, cible.year))
+        reference = [i for images in par_annee for i in images if tuile(i) == tuile_retenue]
     lire(reference)
 
     dates = [d for d, _ in lues.values()]
@@ -232,6 +245,26 @@ def carte_du_champ(latitude: float, longitude: float, aujourdhui: pd.Timestamp |
             statuts[ligne, colonne] = etat_vegetation(serie, str(cible.date()))["statut"]
     annees = sorted({d.year for d in dates if d.year != cible.year})
     return CarteChamp(str(cible.date()), statuts, len(lues), tuile_retenue, annees)
+
+
+_cartes_du_jour: dict[tuple[str, float, float], CarteChamp] = {}
+
+
+def carte_du_jour(latitude: float, longitude: float, aujourdhui: pd.Timestamp | None = None, **options) -> CarteChamp:
+    """Carte du champ, recalculée au plus une fois par jour pour une même position à environ 30 m près.
+
+    Gardée en mémoire vive seulement, jamais sur disque, et perdue au redémarrage. Une panne
+    n'est pas gardée, si bien qu'une nouvelle demande réessaie.
+    """
+    jour = (aujourdhui or pd.Timestamp.now()).normalize()
+    cle = (str(jour.date()), round(latitude, ARRONDI_MEMOIRE), round(longitude, ARRONDI_MEMOIRE))
+    if cle not in _cartes_du_jour:
+        for ancienne in [c for c in _cartes_du_jour if c[0] != cle[0]]:
+            del _cartes_du_jour[ancienne]
+        if len(_cartes_du_jour) >= CARTES_GARDEES_MAX:
+            del _cartes_du_jour[next(iter(_cartes_du_jour))]
+        _cartes_du_jour[cle] = carte_du_champ(latitude, longitude, jour, **options)
+    return _cartes_du_jour[cle]
 
 
 def direction(statuts: np.ndarray, statut: str = "faible") -> str | None:

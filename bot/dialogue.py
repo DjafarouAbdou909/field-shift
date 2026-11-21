@@ -57,7 +57,7 @@ from enum import Enum
 from moteur import recommander
 from moteur.criteres import POIDS_PAR_PRIORITE
 from moteur.alerte import alerte_du_lieu
-from moteur.champ import carte_du_champ, dessiner
+from moteur.champ import carte_du_jour, dessiner
 from moteur.climat import climat_du_lieu
 from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC
 from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
@@ -388,7 +388,7 @@ class Conversation:
         def preparer() -> None:
             with CARTES_EN_MEME_TEMPS:
                 try:
-                    carte = carte_du_champ(latitude, longitude)
+                    carte = carte_du_jour(latitude, longitude)
                     if carte.date is not None:
                         self.canal.envoyer_image(self.numero, dessiner(carte, gabarits.date_en_mots),
                                                  "Votre champ vu par satellite")

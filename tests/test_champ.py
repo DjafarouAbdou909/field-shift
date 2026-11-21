@@ -78,6 +78,36 @@ class TestCarteDuChamp(unittest.TestCase):
         self.assertEqual(carte.compte("faible"), 9)
 
 
+class TestMemoireDuJour(unittest.TestCase):
+    def setUp(self):
+        champ._cartes_du_jour.clear()
+        self.addCleanup(champ._cartes_du_jour.clear)
+
+    def test_meme_champ_le_meme_jour_sans_nouvelle_lecture(self):
+        ciel = FauxCiel()
+        lectures = []
+        lecteur = lambda *a: lectures.append(1) or ciel.lecteur(*a)
+        jour = pd.Timestamp("2026-11-20")
+        premiere = champ.carte_du_jour(9.55001, -5.75001, jour, chercheur=ciel.chercheur, lecteur=lecteur)
+        lues = len(lectures)
+        seconde = champ.carte_du_jour(9.55003, -5.74998, jour, chercheur=ciel.chercheur, lecteur=lecteur)
+        self.assertIs(premiere, seconde)
+        self.assertEqual(len(lectures), lues, "aucune image relue")
+        champ.carte_du_jour(9.55001, -5.75001, pd.Timestamp("2026-11-21"), chercheur=ciel.chercheur, lecteur=lecteur)
+        self.assertGreater(len(lectures), lues, "recalculée le lendemain")
+        self.assertEqual(len(champ._cartes_du_jour), 1, "les cartes de la veille sont oubliées")
+
+    def test_une_panne_n_est_pas_gardee(self):
+        jour = pd.Timestamp("2026-11-20")
+
+        def panne(*a):
+            raise RuntimeError("catalogue")
+
+        with self.assertRaises(RuntimeError):
+            champ.carte_du_jour(9.55, -5.75, jour, chercheur=panne)
+        self.assertEqual(champ._cartes_du_jour, {})
+
+
 class TestPannes(unittest.TestCase):
     def test_toutes_les_images_illisibles_est_une_panne_pas_des_nuages(self):
         ciel = FauxCiel()
