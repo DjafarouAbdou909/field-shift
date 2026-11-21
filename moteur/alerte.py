@@ -178,9 +178,11 @@ def alerte_du_lieu(identifiant: str) -> AlerteVegetation:
 
 
 def executer() -> None:
+    from pathlib import Path
+
     from .lieux import LIEUX
 
-    for identifiant in LIEUX:
+    for identifiant in [i for i in LIEUX if (Path(DOSSIER_HLS) / f"hls_{i}").is_dir()]:
         serie = ndvi_de_la_zone(lire_hls(identifiant))
         alerte = alerte_du_lieu(identifiant)
         dates = [str(d.date()) for d in serie.index if d.year < serie.index.max().year]

@@ -49,7 +49,10 @@ def prechauffer() -> None:
     """Charge au démarrage ce qui ralentirait le premier message, les données NASA, Whisper et la voix."""
     import time
 
-    from moteur.lieux import LIEUX
+    from pathlib import Path
+
+    from moteur.alerte import DOSSIER_HLS
+    from moteur.lieux import LIEUX, rotation_disponible
     from moteur.recommander import donnees_du_lieu
 
     from .langage import transcription_locale, voix
@@ -57,8 +60,9 @@ def prechauffer() -> None:
     debut = time.monotonic()
     from moteur.alerte import alerte_du_lieu
 
-    for etape, action in [("données NASA", lambda: [donnees_du_lieu(lieu) for lieu in LIEUX]),
-                          ("alertes de végétation HLS", lambda: [alerte_du_lieu(lieu) for lieu in LIEUX]),
+    avec_images = [lieu for lieu in LIEUX if (Path(DOSSIER_HLS) / f"hls_{lieu}").is_dir()]
+    for etape, action in [("données NASA", lambda: [donnees_du_lieu(lieu) for lieu in LIEUX if rotation_disponible(lieu)]),
+                          ("alertes de végétation HLS", lambda: [alerte_du_lieu(lieu) for lieu in avec_images]),
                           ("Whisper", transcription_locale._modele),
                           ("voix Aethex", lambda: voix.configuree() and voix.voix()),
                           ("notes vocales fixes", preparer_notes_fixes)]:

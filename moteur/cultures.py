@@ -223,13 +223,20 @@ def tableau_cultures() -> list[dict]:
 
 
 # Fenêtres où sèment 70 % des producteurs de coton au nord du 9e parallèle et 80 % au sud,
-# selon l'enquête du CNRA, GNAPI2025, page 1575. Korhogo est au nord, Bouaké au sud.
-FENETRE_SEMIS_COTON = {"korhogo": ("06-01", "06-30"), "bouake": ("06-11", "07-10")}
+# selon l'enquête du CNRA, GNAPI2025, page 1575. Chaque ville prend celle de sa latitude,
+# Korhogo étant au nord et Bouaké au sud.
+FENETRE_SEMIS_COTON = {"nord_du_9e_parallele": ("06-01", "06-30"), "sud_du_9e_parallele": ("06-11", "07-10")}
+
+
+def fenetre_semis_coton(identifiant: str) -> tuple[str, str]:
+    from .lieux import LIEUX
+
+    return FENETRE_SEMIS_COTON["nord_du_9e_parallele" if LIEUX[identifiant]["lat"] >= 9.0 else "sud_du_9e_parallele"]
 
 
 def semis_coton(identifiant: str, position: str = "milieu") -> dict[str, str]:
     """Date de semis du coton au format MM-JJ, début, milieu arrondi au jour inférieur, ou fin de la fenêtre."""
-    debut, fin = (pd.Timestamp(f"2001-{jour}") for jour in FENETRE_SEMIS_COTON[identifiant])
+    debut, fin = (pd.Timestamp(f"2001-{jour}") for jour in fenetre_semis_coton(identifiant))
     date = {"debut": debut, "milieu": debut + (fin - debut) / 2, "fin": fin}[position]
     return {"coton": date.floor("D").strftime("%m-%d")}
 

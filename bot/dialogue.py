@@ -56,11 +56,12 @@ from enum import Enum
 from moteur import recommander
 from moteur.criteres import POIDS_PAR_PRIORITE
 from moteur.alerte import alerte_du_lieu
+from moteur.climat import climat_du_lieu
 from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC
 from moteur.diagnostic import FORMAT_REFUSE, TYPES_IMAGE, diagnostiquer, echec, type_de_base
-from moteur.lieux import LIEUX
+from moteur.lieux import LIEUX, rotation_disponible, ville_la_plus_proche
 
-from . import whatsapp
+from . import geocodage, whatsapp
 from .config import parametres
 from .langage import comprehension, conversation, gabarits, groq, reformulation, transcription_locale, voix
 from .langage.comprehension import normaliser
@@ -68,7 +69,8 @@ from .securite import empreinte_numero
 from .sessions import Session, Sessions
 
 journal = logging.getLogger("bot")
-RAYON_DEGRES = 0.15
+# En deçà, le champ est dans la ville couverte et la distance n'est pas annoncée.
+DISTANCE_ANNONCEE_KM = 10
 COMMANDES_DEBUT = {"bonjour", "bonsoir", "salut", "menu", "recommencer", "start", "hello"}
 COMMANDE_EFFACER = "stop"
 
@@ -120,12 +122,11 @@ def phrases_fixes() -> list[str]:
     """Textes dits à l'identique à chaque fois, préparés en notes vocales au démarrage du bot."""
     avec_choix = [(gabarits.consentement(), gabarits.BOUTONS_CONSENTEMENT),
                   *((gabarits.menu(salut), gabarits.BOUTONS_MENU) for salut in gabarits.SALUTATIONS),
-                  (gabarits.demande_lieu(), gabarits.LIGNES_LIEUX),
                   (gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS),
                   (gabarits.demande_priorite(), gabarits.BOUTONS_PRIORITE),
                   (gabarits.suite(), gabarits.BOUTONS_RESULTAT)]
     seuls = [gabarits.accueil(), gabarits.calcul_en_cours(), gabarits.demande_photo(), gabarits.discussion_indisponible(),
-             gabarits.alerte_indisponible(), gabarits.incompris(), gabarits.efface(), gabarits.zone_non_couverte(),
+             gabarits.alerte_indisponible(), gabarits.incompris(), gabarits.efface(), gabarits.zone_non_couverte(), gabarits.demande_lieu(),
              gabarits.erreur_technique(), gabarits.rassurer_lecture(), gabarits.rassurer_ecriture()]
     return [pour_la_voix(f"{texte}\n{gabarits.choix_a_dire(choix)}") for texte, choix in avec_choix] + \
         [pour_la_voix(texte) for texte in seuls]
@@ -147,7 +148,8 @@ PHRASES_FIXES = _PhrasesFixes()
 def pour_la_voix(texte: str) -> str:
     """Texte à lire à voix haute, sans la mise en forme ni les signes de WhatsApp."""
     sans_lien = re.sub(r"https?://\S+", "", texte)
-    return re.sub(r"[*_~👇📸⚠️]", "", sans_lien).replace("\ufe0f", "").strip()
+    texte = re.sub(r"[*_~👇📸⚠️]", "", sans_lien).replace("\ufe0f", "").strip()
+    return re.sub(r"(?<=\d) mm\b", " millimètres", texte)
 
 
 def sans_produit(texte: str) -> str:
@@ -174,13 +176,6 @@ def transcrire_note(audio: bytes, type_audio: str) -> str | None:
             return voix.transcrire(audio, type_audio)
         except Exception as erreur:
             journal.warning("transcription Aethex indisponible, %s", type(erreur).__name__)
-    return None
-
-
-def lieu_proche(latitude: float, longitude: float) -> str | None:
-    for identifiant, lieu in LIEUX.items():
-        if abs(latitude - lieu["lat"]) <= RAYON_DEGRES and abs(longitude - lieu["lon"]) <= RAYON_DEGRES:
-            return identifiant
     return None
 
 
@@ -270,8 +265,57 @@ class Conversation:
         self.etape(Etat.MENU)
 
     def demander_lieu(self) -> None:
-        self.liste(gabarits.demande_lieu(), gabarits.LIGNES_LIEUX)
+        self.texte(gabarits.demande_lieu())
         self.etape(Etat.LIEU)
+
+    def situer(self, entree: dict) -> str | None:
+        """Ville couverte du champ, choisie, nommée, retrouvée sur OpenStreetMap ou tirée de la position.
+
+        Un village ou une position loin d'une ville couverte est rattaché à la plus proche, ce
+        que le bot annonce. Sans lieu trouvé, le bot le dit et retourne None.
+        """
+        if entree.get("choix") in LIEUX:
+            return entree["choix"]
+        if entree.get("position"):
+            proche = ville_la_plus_proche(*entree["position"])
+            if proche is None:
+                self.texte(gabarits.zone_non_couverte())
+                return None
+            identifiant, distance = proche
+            if distance >= DISTANCE_ANNONCEE_KM:
+                self.texte(gabarits.position_rattachee(LIEUX[identifiant]["nom"], distance))
+            return identifiant
+        texte = entree.get("texte")
+        if not texte:
+            return None
+        if identifiant := geocodage.ville_nommee(texte):
+            return identifiant
+        if (trouve := geocodage.chercher(geocodage.nom_a_chercher(texte))) is not None:
+            latitude, longitude, village = trouve
+            if (proche := ville_la_plus_proche(latitude, longitude)) is not None:
+                identifiant, distance = proche
+                if distance >= DISTANCE_ANNONCEE_KM:
+                    self.texte(gabarits.lieu_rattache(village, LIEUX[identifiant]["nom"], distance))
+                return identifiant
+        if identifiant := comprehension.comprendre(texte, gabarits.LIGNES_LIEUX):
+            return identifiant
+        self.texte(gabarits.zone_non_couverte())
+        return None
+
+    def lieu_choisi(self, lieu: str) -> None:
+        """Suite du conseil de rotation une fois la ville connue, ou ce qui est possible dans le sud."""
+        if not rotation_disponible(lieu):
+            # Sud forestier, décision du 20 novembre 2026, le climat de la zone en attendant des rotations sourcées.
+            try:
+                texte = gabarits.climat(climat_du_lieu(lieu))
+            except Exception as erreur:
+                journal.warning("climat de la zone indisponible, %s", type(erreur).__name__)
+                texte = gabarits.rotation_pas_encore(LIEUX[lieu]["nom"])
+            self.texte(texte)
+            self.etape(Etat.MENU, lieu=lieu)
+            return
+        self.liste(gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS)
+        self.etape(Etat.ROTATION, lieu=lieu)
 
     def demander_photo(self) -> None:
         self.texte(gabarits.demande_photo())
@@ -314,12 +358,14 @@ class Conversation:
         if self.session.lieu:
             self.donner_alerte(self.session.lieu)
         else:
-            self.liste(gabarits.demande_lieu(), gabarits.LIGNES_LIEUX)
+            self.texte(gabarits.demande_lieu())
             self.etape(Etat.ALERTE_LIEU)
 
     def donner_alerte(self, lieu: str) -> None:
         try:
             texte = gabarits.alerte(alerte_du_lieu(lieu))
+        except FileNotFoundError:
+            texte = gabarits.alerte_pas_encore(LIEUX[lieu]["nom"])
         except Exception as erreur:
             journal.warning("alerte de végétation indisponible, %s", type(erreur).__name__)
             texte = gabarits.alerte_indisponible()
@@ -471,27 +517,16 @@ class Conversation:
                 self.montrer_menu()
 
         elif etat == Etat.LIEU:
-            lieu = choisir(entree, gabarits.LIGNES_LIEUX)
-            if lieu is None and entree.get("position"):
-                lieu = lieu_proche(*entree["position"])
-                if lieu is None:
-                    self.texte(gabarits.zone_non_couverte())
-            if lieu:
-                self.liste(gabarits.demande_rotation(), gabarits.LIGNES_ROTATIONS)
-                self.etape(Etat.ROTATION, lieu=lieu)
-            else:
+            if lieu := self.situer(entree):
+                self.lieu_choisi(lieu)
+            elif not entree.get("texte") and not entree.get("position"):
                 self.demander_lieu()
 
         elif etat == Etat.ALERTE_LIEU:
-            lieu = choisir(entree, gabarits.LIGNES_LIEUX)
-            if lieu is None and entree.get("position"):
-                lieu = lieu_proche(*entree["position"])
-                if lieu is None:
-                    self.texte(gabarits.zone_non_couverte())
-            if lieu:
+            if lieu := self.situer(entree):
                 self.donner_alerte(lieu)
-            else:
-                self.liste(gabarits.demande_lieu(), gabarits.LIGNES_LIEUX)
+            elif not entree.get("texte") and not entree.get("position"):
+                self.texte(gabarits.demande_lieu())
 
         elif etat == Etat.ROTATION:
             rotation = choisir(entree, gabarits.LIGNES_ROTATIONS)

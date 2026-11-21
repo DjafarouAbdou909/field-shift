@@ -290,7 +290,7 @@ def resume_interannuel(table: pd.DataFrame) -> pd.DataFrame:
 def executer() -> None:
     from .donnees import DOSSIER_POWER, RACINE, altitude_power, lire_power, pluie_lieu, telecharger_point, voisinage_imerg
     from .cultures import CULTURES, courbes_kc_comparees, mi_saisons_comparees
-    from .lieux import LIEUX
+    from .lieux import LIEUX_ETUDE as LIEUX
 
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 20)

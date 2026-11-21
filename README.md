@@ -6,7 +6,7 @@
 [![Python 3.12](https://img.shields.io/badge/python-3.12-3776AB)](https://www.python.org/)
 [![Tests](https://img.shields.io/badge/tests-unittest-2E7D32)](#testing-and-reproducibility)
 
-Team **CodeX Africa** · Challenge **Field Shift: Adapting Farms with NASA Data** · Pilot regions **Poro** (Korhogo) and **Gbêkê** (Bouaké)
+Team **CodeX Africa** · Challenge **Field Shift: Adapting Farms with NASA Data** · Coverage **all of Côte d’Ivoire**, 33 regional and district capitals, study towns **Korhogo** (Poro) and **Bouaké** (Gbêkê)
 
 ---
 
@@ -41,7 +41,9 @@ In offline mode the phone needs no server, no network and no language model. Voi
 
 | Feature | Description |
 |---|---|
-| **Rotation advice** | Ranks three rotations, including the farmer’s current one, for the farmer’s town and priority: enough water, a good market or a richer soil |
+| **Nationwide coverage** | The farmer names a town or village, or shares a GPS position. Villages are located with OpenStreetMap and attached to the nearest of the 33 regional and district capitals, and the bot says which one |
+| **Rotation advice** | In the 12 savanna capitals of the north and centre, ranks three rotations, including the farmer’s current one, for the farmer’s town and priority: enough water, a good market or a richer soil |
+| **Climate of my area** | In the 21 capitals of the southern forest zone, where the savanna rotations do not apply, summarises 25 years of NASA IMERG rain: annual rain and a dry year, the wettest months of both rainy seasons and the dip between them, and how much March to July rain varies; no rain-onset date is given there, because the onset rule is cut by its 1 March search date in the south |
 | **Vegetation alert** | Compares the latest NASA HLS images of the farmer’s area with the same dates in past years, and never guesses a cause |
 | **Photo diagnosis** | Explains what a plant photo shows, the likely problem and what to do in the field, with no product ever named, in about 3 seconds |
 | **Farming conversation** | Answers free farming questions in two or three sentences, and remembers the last 30 minutes of the conversation, diagnoses and advice included, so “the previous message” is understood |
@@ -158,7 +160,7 @@ AI never produces the rotation ranking, the scores or the vegetation alert, in e
 | **No product advice** | No pesticide, fertiliser, brand or dose is ever named; a filter removes any sentence that would |
 | **No impersonation** | AgriBot never speaks for ANADER and refers serious or uncertain cases to the ANADER advisor |
 | **Consent first** | The first message asks for consent and states that messages and photos go through AI services; “stop” erases everything |
-| **Data minimisation** | Phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; conversation memory kept 30 minutes in RAM only; logs record message type, age and length, never content; third-party processing under each provider’s retention policy |
+| **Data minimisation** | Only the place name typed or said by the farmer is sent to OpenStreetMap to find a village, never the number or the rest of the message; phone numbers stored only as a salted HMAC; photos and voice notes never written to disk; conversation memory kept 30 minutes in RAM only; logs record message type, age and length, never content; third-party processing under each provider’s retention policy |
 | **Honest uncertainty** | Scores carry ranges, fragile rankings name the scenario that would change them, unavailable data is stated as such |
 
 ## Quickstart
@@ -259,6 +261,9 @@ field-shift/
 | No agronomist has reviewed the advice yet | Review by an ANADER advisor before any field use |
 | The rain onset trend at Korhogo is unresolved: the period split is close to the TRMM to GPM transition in IMERG, and MERRA-2 rainfall disagrees with local gauges | Repeat the comparison with a split after 2014, and arbitrate with Ivorian ground stations (SODEXAM) |
 | Bouaké is too cloudy for the HLS vegetation alert | Add a cloud-independent source such as radar |
+| The vegetation alert covers only Korhogo and Bouaké; the other 31 capitals still need their AppEEARS extractions | Run the MCD12Q1 and HLS extractions for every capital |
+| No rotation comparison yet for the southern forest zone, whose two rainy seasons and food crops need sourced rotations, which could not be read | Build southern rotations with CNRA and ANADER sources, and a second-season model |
+| Savanna or forest zone is set by district, a provisional rule; the CNRA cotton-basin survey also lists localities in Marahoué and Haut-Sassandra, whose capitals are counted as forest | Refine the zone per department once a sourced map is read |
 | MODIS at 500 m sees mostly savanna, so the alert covers the area, never a single field | Field-level points once farmers share their location |
 | The offline leaf model recognises healthy leaves only 26 times in 100 and covers maize only | Retrain on field photos from Côte d’Ivoire; add the cocoa model in preparation |
 | The server address is derived from its IP through sslip.io, so it changes with the server | Move to a registered domain, so the WhatsApp webhook and the offline app address never change |

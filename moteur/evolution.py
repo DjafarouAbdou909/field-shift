@@ -100,7 +100,7 @@ def changements_confirmes(identifiant: str) -> list[str]:
 
 
 def executer() -> None:
-    from .lieux import LIEUX
+    from .lieux import LIEUX_ETUDE as LIEUX
 
     pd.set_option("display.width", 200)
     for identifiant in LIEUX:

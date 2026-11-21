@@ -146,6 +146,8 @@ def recommander(lieu: str, rotation_actuelle: str, poids: Poids) -> Recommandati
     """Compare les stratégies retenues, dont la rotation actuelle, pour un lieu couvert."""
     if lieu not in LIEUX:
         raise ValueError(f"lieu hors de la zone couverte, lieux couverts {sorted(LIEUX)}")
+    if LIEUX[lieu]["zone"] != "savane":
+        raise ValueError(f"pas encore de rotations comparées pour la zone {LIEUX[lieu]['zone']} de {lieu}")
     if rotation_actuelle not in {s.id for s in STRATEGIES}:
         raise ValueError(f"rotation inconnue, rotations comparées {[s.id for s in STRATEGIES]}")
     priorite = next((p for p, w in POIDS_PAR_PRIORITE.items() if w == poids), "")

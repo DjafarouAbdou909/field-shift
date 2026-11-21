@@ -31,7 +31,7 @@ def nombre(valeur: float) -> str:
 
 
 def zones_couvertes() -> str:
-    return " et ".join(f"{lieu['nom']}, {lieu['region']}" for lieu in LIEUX.values())
+    return f"les {len(LIEUX)} chefs-lieux de région et de district de la Côte d'Ivoire"
 
 
 # Accueil et consentement à la conversation
@@ -87,16 +87,69 @@ LIBELLE_LISTE = "Choisir"
 # Lieu
 
 def demande_lieu() -> str:
-    return "Avec plaisir. Où se trouve votre champ ? Choisissez votre ville, ou envoyez-moi votre position."
+    return ("Avec plaisir. Où se trouve votre champ ? Dites-moi le nom de votre ville ou de votre village, "
+            "ou envoyez-moi votre position.")
 
 
+# Identifiants et noms des villes couvertes, pour comprendre une réponse libre, jamais affichés en liste,
+# WhatsApp limitant une liste à dix lignes.
 LIGNES_LIEUX = {identifiant: lieu["nom"] for identifiant, lieu in LIEUX.items()}
 
 
 def zone_non_couverte() -> str:
-    villes = " et ".join(lieu["nom"] for lieu in LIEUX.values())
-    return (f"Je suis désolé, pour le moment je connais seulement {villes}. "
-            "Votre conseiller ANADER pourra vous aider pour votre zone.")
+    return ("Je suis désolé, je ne trouve pas ce lieu en Côte d'Ivoire. Dites-moi le nom de la ville la plus "
+            "proche de votre champ, ou envoyez-moi votre position.")
+
+
+def lieu_rattache(village: str, ville: str, distance: float) -> str:
+    """Le village trouvé sur OpenStreetMap, ou la position, est rattaché à la ville couverte la plus proche."""
+    return (f"{village}, d'après OpenStreetMap, est à environ {round(distance)} km de {ville}. "
+            f"Je prends les données de {ville}.")
+
+
+def position_rattachee(ville: str, distance: float) -> str:
+    return f"Votre champ est à environ {round(distance)} km de {ville}. Je prends les données de {ville}."
+
+
+def mm(valeur: float) -> str:
+    """Une quantité de pluie arrondie à la dizaine, sans fausse précision."""
+    return f"{nombre(round(valeur, -1))} mm"
+
+
+def de(nom: str) -> str:
+    """« de » élidé devant une voyelle, d'Abidjan, de Man."""
+    return f"d'{nom}" if nom[0].lower() in "aeiouyéèêâîôû" else f"de {nom}"
+
+
+def climat(c) -> str:
+    """Ce que dit la pluie NASA de 2001 à 2025 pour la zone d'une ville, sans date de début de saison.
+
+    Chaque nombre vient de moteur.climat, arrondi à la dizaine. Le message renvoie au
+    conseiller pour le choix des cultures et des dates de semis.
+    """
+    mois = lambda m: MOIS[m - 1]
+    pluie = c.pluie_par_mois
+    lignes = [
+        f"Voici ce que disent {c.annees[1] - c.annees[0] + 1} ans de mesures satellite de la NASA, de {c.annees[0]} à "
+        f"{c.annees[1]}, pour la zone {de(c.nom)}.",
+        f"Il tombe en général environ {mm(c.pluie_annuelle_mediane)} de pluie par an, et moins de "
+        f"{mm(c.pluie_annuelle_q10)} une année sur dix.",
+        f"Les mois les plus pluvieux sont {mois(c.mois_pic_grande_saison)}, avec environ "
+        f"{mm(pluie[c.mois_pic_grande_saison])}, et {mois(c.mois_pic_seconde)}, avec environ "
+        f"{mm(pluie[c.mois_pic_seconde])}. Entre les deux, {mois(c.mois_creux)} n'en reçoit qu'environ "
+        f"{mm(pluie[c.mois_creux])}.",
+        f"De mars à juillet, la pluie change beaucoup d'une année à l'autre, d'environ {mm(c.grande_saison_q10)} "
+        f"les années sèches à environ {mm(c.grande_saison_q90)} les années humides.",
+        "Pour choisir vos cultures et vos dates de semis, parlez-en avec votre conseiller ANADER. La comparaison des "
+        "rotations pour votre zone arrive bientôt.",
+    ]
+    return "\n".join(lignes)
+
+
+def rotation_pas_encore(ville: str) -> str:
+    return (f"Pour {ville} et le sud forestier, la comparaison des rotations arrive bientôt, avec les cultures "
+            "et les deux saisons des pluies de votre zone. En attendant, je peux regarder la photo d'une plante "
+            "malade ou répondre à vos questions.")
 
 
 # Rotation actuelle et priorité
@@ -131,7 +184,9 @@ def scenario(reco: Recommandation) -> str | None:
     """La phrase de l'avertissement du moteur qui dit ce qui changerait le conseil, en mots simples."""
     for phrase in reco.avertissement.split(". "):
         if phrase.startswith("Ce classement change si"):
-            return "Ce conseil peut changer si" + phrase.removeprefix("Ce classement change si").rstrip(".") + "."
+            texte = "Ce conseil peut changer si" + phrase.removeprefix("Ce classement change si").rstrip(".") + "."
+            # Le résumé se comprend à la première écoute, sans chiffre.
+            return texte.replace("de 20 %", "d'un cinquième").replace("de 14 jours", "de deux semaines")
     return None
 
 
@@ -223,6 +278,11 @@ def alerte_indisponible() -> str:
     return "Désolé, je n'arrive pas à voir la végétation de votre zone pour le moment. Réessayez un peu plus tard."
 
 
+def alerte_pas_encore(ville: str) -> str:
+    return (f"Je n'ai pas encore les images satellite de la zone de {ville}. Elles arrivent bientôt. "
+            "Pour l'instant, je les ai pour Korhogo et Bouaké.")
+
+
 # Diagnostic par photo
 
 def demande_photo() -> str:
@@ -245,8 +305,8 @@ MOTS_CLES = {
     "rotation": ["quoi semer", "rotation", "conseil", "rotations", "cultiver", "cultures", "semer", "planter", "quoi semer"],
     "photo": ["photo", "maladie", "malade", "feuille", "feuilles", "diagnostic", "image", "plante malade"],
     "vegetation": ["vegetation", "satellite", "verdure", "etat de ma zone", "ma zone"],
-    "korhogo": ["korhogo", "poro", "nord"],
-    "bouake": ["bouake", "gbeke", "centre"],
+    **{identifiant: [lieu["nom"]] + ([] if lieu["region"].startswith("District") else [lieu["region"]])
+       for identifiant, lieu in LIEUX.items()},
     "coton_mais": ["coton+mais", "coton puis mais", "coton et mais", "coton mais", "coton avec mais", "coton et le mais"],
     "coton_niebe_mais": ["coton+niebe", "niebe", "coton niebe", "coton et niebe", "coton niebe mais"],
     "sorgho_niebe": ["sorgho+niebe", "sorgho", "sorgho niebe", "sorgho et niebe", "sorgho puis niebe"],

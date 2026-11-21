@@ -115,7 +115,7 @@ def executer() -> None:
     from bot.langage.garde_fou import ecarts
 
     from .criteres import POIDS_PAR_PRIORITE, parts_par_culture
-    from .lieux import LIEUX
+    from .lieux import LIEUX_ETUDE as LIEUX
     from .recommander import donnees_du_lieu, recommander
 
     pd.set_option("display.width", 200)

@@ -27,8 +27,8 @@ from .voix import DUREE_MAX_SECONDES, TAUX_TRANSCRIPTION, _pcm_mono
 
 journal = logging.getLogger("bot")
 DOSSIER_MODELES = "data/modeles"
-AMORCE = ("Korhogo, Bouaké, Poro, Gbêkê, coton, maïs, sorgho, niébé, mil, igname, arachide, rotation, champ, "
-          "ANADER.")
+AMORCE = ("Korhogo, Bouaké, Ferkessédougou, Odienné, Séguéla, Yamoussoukro, Daloa, Gagnoa, San-Pédro, Man, "
+          "Abengourou, coton, maïs, sorgho, niébé, mil, igname, arachide, cacao, manioc, rotation, champ, ANADER.")
 
 
 def taille() -> str:

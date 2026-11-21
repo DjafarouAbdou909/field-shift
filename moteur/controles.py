@@ -20,7 +20,7 @@ import pandas as pd
 from .donnees import (DOSSIER_POWER, PRODUITS, STATIONS_GHCN, centre_case_imerg, lire_pluie_station, lire_power, lire_tmax_station,
                       telecharger_point, telecharger_station, voisinage_imerg)
 from .indicateurs import rayonnement_extraterrestre
-from .lieux import LIEUX
+from .lieux import LIEUX, LIEUX_ETUDE
 
 SEUIL_CUMUL_SUSPECT = 200.0
 
@@ -216,7 +216,7 @@ def executer() -> None:
     debut, fin = DEBUT_SERIES, FIN_SERIES
     pd.set_option("display.width", 200)
     pd.set_option("display.max_columns", 20)
-    for identifiant, lieu in LIEUX.items():
+    for identifiant, lieu in LIEUX_ETUDE.items():
         lat, lon = lieu["lat"], lieu["lon"]
         series = charger_lieu(identifiant)
         power, cases, imerg = series["power"], series["cases"], series["imerg"]

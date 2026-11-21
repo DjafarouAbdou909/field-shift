@@ -16,7 +16,7 @@ import streamlit as st
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from moteur import recommander  # noqa: E402
 from moteur.criteres import LIBELLES, POIDS_PAR_PRIORITE  # noqa: E402
-from moteur.lieux import LIEUX  # noqa: E402
+from moteur.lieux import LIEUX, rotation_disponible  # noqa: E402
 from moteur.rotations import STRATEGIES  # noqa: E402
 
 st.set_page_config(page_title="Field Shift CI", layout="wide")
@@ -41,7 +41,8 @@ def lisible(indicateur) -> str:
     return f"{nombre(indicateur.valeur)}{unite}, de {nombre(indicateur.bas)} à {nombre(indicateur.haut)}{unite}"
 
 
-identifiants_lieux = list(LIEUX)
+# Le conseil de rotation ne couvre que la savane, décision du 20 novembre 2026.
+identifiants_lieux = [i for i in LIEUX if rotation_disponible(i)]
 identifiants_rotations = [s.id for s in STRATEGIES]
 with st.sidebar:
     lieu = st.selectbox("Lieu", identifiants_lieux, format_func=lambda i: LIEUX[i]["nom"],

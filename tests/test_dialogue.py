@@ -72,7 +72,8 @@ class Base(unittest.TestCase):
         self.sans_reseau = [mock.patch.object(dialogue.voix, "synthetiser", return_value=b"OggS-voix"),
                             mock.patch.object(dialogue.voix, "synthetiser_phrase_fixe", return_value=b"OggS-voix"),
                             mock.patch.object(dialogue.transcription_locale, "transcrire",
-                                              side_effect=RuntimeError("modèle non chargé"))]
+                                              side_effect=RuntimeError("modèle non chargé")),
+                            mock.patch.object(dialogue.geocodage, "chercher", return_value=None)]
         for patch in self.sans_reseau:
             patch.start()
 
@@ -145,7 +146,7 @@ class TestConseilDeRotation(Base):
     def test_parcours_complet_sur_donnees_reelles(self):
         self.consentir()
         envois = self.envoyer(bouton("rotation"))
-        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+        self.assertEqual(envois[-1][2], gabarits.demande_lieu())
         envois = self.envoyer(ligne("korhogo"))
         self.assertEqual(envois[-1][3], gabarits.LIGNES_ROTATIONS)
         envois = self.envoyer(ligne("coton_mais"))
@@ -173,11 +174,46 @@ class TestConseilDeRotation(Base):
         self.assertEqual(self.session().lieu, "korhogo")
 
     def test_position_hors_zone(self):
+        """Bamako est à plus de 150 km de toute ville couverte."""
+        self.consentir()
+        self.envoyer(bouton("rotation"))
+        envois = self.envoyer(position(12.64, -8.0))
+        self.assertEqual(envois[0][2], gabarits.zone_non_couverte())
+        self.assertEqual(self.session().etat, "lieu")
+
+    def test_position_loin_d_une_ville_annoncee(self):
+        self.consentir()
+        self.envoyer(bouton("rotation"))
+        envois = self.envoyer(position(9.75, -5.95))
+        self.assertTrue(envois[0][2].startswith("Votre champ est à environ"), envois[0][2])
+        self.assertEqual(self.session().lieu, "korhogo")
+
+    def test_nouvelle_ville_de_savane_nommee_dans_une_phrase(self):
+        self.consentir()
+        self.envoyer(bouton("rotation"))
+        envois = self.envoyer(texte("mon champ est vers Ferké"))
+        self.assertEqual((self.session().lieu, self.session().etat), ("ferkessedougou", "rotation"))
+        self.assertEqual(envois[-1][3], gabarits.LIGNES_ROTATIONS)
+
+    def test_village_retrouve_sur_openstreetmap(self):
+        """Un village fictif près de Korhogo, qui n'est pas une ville couverte, est rattaché à la plus proche."""
+        self.consentir()
+        self.envoyer(bouton("rotation"))
+        with mock.patch.object(dialogue.geocodage, "chercher", return_value=(9.55, -5.75, "Villagetest")) as cherche:
+            envois = self.envoyer(texte("j'habite à Villagetest"))
+        cherche.assert_called_once_with("villagetest")
+        self.assertIn("Villagetest, d'après OpenStreetMap, est à environ", envois[0][2])
+        self.assertIn("Korhogo", envois[0][2])
+        self.assertEqual(self.session().lieu, "korhogo")
+
+    def test_sud_forestier_sans_rotation_pour_l_instant(self):
         self.consentir()
         self.envoyer(bouton("rotation"))
         envois = self.envoyer(position(5.35, -4.0))
-        self.assertEqual(envois[0][2], gabarits.zone_non_couverte())
-        self.assertEqual(self.session().etat, "lieu")
+        self.assertTrue(envois[-1][2].startswith("Voici ce que disent 25 ans de mesures satellite de la NASA"))
+        self.assertIn("zone d'Abidjan", envois[-1][2])
+        self.assertIn("conseiller ANADER", envois[-1][2])
+        self.assertEqual((self.session().lieu, self.session().etat), ("abidjan", "menu"))
 
     def test_question_libre_sous_garde_fou(self):
         self.consentir()
@@ -214,7 +250,7 @@ class TestAlerteDeVegetation(Base):
         self.consentir()
         with mock.patch.object(dialogue, "alerte_du_lieu", return_value=self.alerte()) as calcul:
             envois = self.envoyer(bouton("vegetation"))
-            self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+            self.assertEqual(envois[-1][2], gabarits.demande_lieu())
             self.assertEqual(self.session().etat, "alerte_lieu")
             envois = self.envoyer(ligne("korhogo"))
         calcul.assert_called_once_with("korhogo")
@@ -236,13 +272,19 @@ class TestAlerteDeVegetation(Base):
                 mock.patch.object(dialogue.groq, "repondre") as groq:
             envois = self.envoyer(texte("Comment va la végétation chez moi ?"))
         groq.assert_not_called()
-        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+        self.assertEqual(envois[-1][2], gabarits.demande_lieu())
 
     def test_alerte_en_panne(self):
         self.consentir()
-        with mock.patch.object(dialogue, "alerte_du_lieu", side_effect=FileNotFoundError("hls")):
+        with mock.patch.object(dialogue, "alerte_du_lieu", side_effect=ValueError("hls")):
             envois = self.envoyer(bouton("vegetation"), ligne("bouake"))
         self.assertEqual(envois[-1][2], gabarits.alerte_indisponible())
+
+    def test_ville_sans_images_satellite(self):
+        """Une nouvelle ville n'a pas encore d'extraction HLS, le bot le dit au lieu d'une panne."""
+        self.consentir()
+        envois = self.envoyer(bouton("vegetation"), texte("Odienné"))
+        self.assertEqual(envois[-1][2], gabarits.alerte_pas_encore("Odienné"))
 
 
 class TestPhoto(Base):
@@ -355,8 +397,7 @@ class TestVocal(Base):
         self.consentir()
         self.avec_groq(repondre=("rotation", ""))
         envois = self.vocal("Je voudrais savoir quelle rotation faire")
-        self.assertEqual(self.types(envois), ["audio", "liste"])
-        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+        self.assertEqual(self.types(envois), ["audio"], "la ville est demandée à voix haute, sans liste")
         self.assertEqual(self.session().etat, "lieu")
 
     def test_choix_dits_jusqu_au_resultat(self):
@@ -551,7 +592,7 @@ class TestDiscussion(Base):
         with mock.patch.object(dialogue.groq, "configure", return_value=True), \
                 mock.patch.object(dialogue.groq, "repondre", return_value=("rotation", "")):
             envois = self.envoyer(texte("Je veux un conseil de rotation pour mon champ"))
-        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+        self.assertEqual(envois[-1][2], gabarits.demande_lieu())
 
     def test_groq_indisponible(self):
         """Sans Groq, une question libre reçoit un message honnête, une demande de rotation est comprise."""
@@ -559,7 +600,7 @@ class TestDiscussion(Base):
         envois = self.envoyer(texte("Quand semer le maïs ?"))
         self.assertEqual(envois, [("texte", NUMERO, gabarits.discussion_indisponible())])
         envois = self.envoyer(texte("Je veux un conseil de rotation"))
-        self.assertEqual(envois[-1][3], gabarits.LIGNES_LIEUX)
+        self.assertEqual(envois[-1][2], gabarits.demande_lieu())
 
     def test_diagnostic_sans_produit(self):
         self.consentir()

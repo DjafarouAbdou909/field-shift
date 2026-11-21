@@ -33,8 +33,8 @@ class Strategie:
 
 DUREE_DU_COTON = Appui(
     "La durée du cycle du coton, 195 jours selon une ligne de FAO-56 établie hors d'Afrique de l'Ouest, n'est pas "
-    "propre aux variétés ivoiriennes. Avec 180 jours, le classement pour l'eau change à Korhogo, et avec 150 jours, "
-    "durée hypothétique, il change aussi à Bouaké.", "hypothese", "FAO56_T11_T12")
+    "propre aux variétés ivoiriennes. Le classement pour l'eau peut changer avec une autre durée, comme à Korhogo "
+    "avec 180 jours, et à Bouaké avec 150 jours, durée hypothétique.", "hypothese", "FAO56_T11_T12")
 
 DEGRADATION_DU_SOL = Appui(
     "La culture continue sans restitution organique fait baisser les rendements, la matière organique et le pH "
@@ -55,8 +55,8 @@ STRATEGIES = (
         benefices=(Appui("Au nord du Nigeria, le maïs qui suit un niébé a un rendement supérieur au maïs continu, "
                          "page 915.", "hypothese", "YUSUF2009"),),
         lacunes=(DUREE_DU_COTON,
-                 Appui("L'effet du niébé y dépend de la variété et reste inférieur à celui du soja, pages 915 et 920. "
-                       "Il n'est pas mesuré dans le Poro.", "hypothese", "YUSUF2009"),
+                 Appui("L'effet du niébé y dépend de la variété, pages 915 et 920. Il n'est pas mesuré en Côte "
+                       "d'Ivoire.", "hypothese", "YUSUF2009"),
                  Appui("La durée du cycle du niébé vient d'une seule ligne du tableau 11 de FAO-56, établie pour le "
                        "climat méditerranéen.", "hypothese", "FAO56_T11_T12")),
         risques=(Appui("Une année de plus sans coton réduit le revenu monétaire, non chiffré faute de prix sourcés.",

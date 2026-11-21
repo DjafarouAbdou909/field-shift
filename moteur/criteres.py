@@ -253,7 +253,7 @@ def comparer_semis(strategies, contextes_par_semis: dict[str, dict[str, Contexte
 
 def executer() -> None:
     from .cultures import avec_stades_coton, variantes_duree_coton
-    from .lieux import LIEUX
+    from .lieux import LIEUX_ETUDE as LIEUX
     from .rotations import STRATEGIES
 
     pd.set_option("display.width", 200)

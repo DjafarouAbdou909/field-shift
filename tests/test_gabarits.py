@@ -6,7 +6,7 @@ from moteur import charger_exemple, charger_exemple_alerte, charger_exemple_diag
 from moteur.contrat import AVERTISSEMENT_DIAGNOSTIC, Diagnostic
 from moteur.criteres import POIDS_PAR_PRIORITE
 from moteur.diagnostic import ORIGINE
-from moteur.lieux import LIEUX
+from moteur.lieux import LIEUX, lieux_de_zone
 from moteur.rotations import STRATEGIES
 
 
@@ -20,7 +20,7 @@ def diagnostic(texte="*Diagnostic probable* : rouille.", statut="analyse"):
 class TestGabaritsSurDonneesReelles(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.recos = [recommander(lieu, rotation.id, poids) for lieu in LIEUX for rotation in STRATEGIES
+        cls.recos = [recommander(lieu, rotation.id, poids) for lieu in lieux_de_zone("savane") for rotation in STRATEGIES
                      for poids in POIDS_PAR_PRIORITE.values()]
 
     def test_messages_du_resultat_fideles(self):
@@ -45,7 +45,7 @@ class TestGabarits(unittest.TestCase):
                         gabarits.BOUTONS_MENU):
             self.assertLessEqual(len(boutons), 3)
             self.assertTrue(all(len(titre) <= 20 for titre in boutons.values()), boutons)
-        for lignes in (gabarits.LIGNES_LIEUX, gabarits.LIGNES_ROTATIONS):
+        for lignes in (gabarits.LIGNES_ROTATIONS,):
             self.assertLessEqual(len(lignes), 10)
             self.assertTrue(all(len(titre) <= 24 for titre in lignes.values()), lignes)
 
@@ -66,9 +66,10 @@ class TestGabarits(unittest.TestCase):
         self.assertIn("photos", gabarits.consentement())
         self.assertFalse(hasattr(gabarits, "consentement_photo"))
 
-    def test_zone_non_couverte_nomme_les_zones(self):
+    def test_zone_non_couverte_propose_une_suite(self):
         texte = gabarits.zone_non_couverte()
-        self.assertTrue(all(lieu["nom"] in texte for lieu in LIEUX.values()))
+        self.assertIn("ville la plus proche", texte)
+        self.assertIn("position", texte)
 
     def test_diagnostic_rendu_tel_quel(self):
         for d in (diagnostic(), diagnostic("Je n'ai pas pu lire cette image.", statut="echec")):
@@ -122,7 +123,7 @@ if __name__ == "__main__":
 class TestResumeSimple(unittest.TestCase):
     def test_court_fidele_et_sans_chiffre(self):
         import re
-        for lieu in LIEUX:
+        for lieu in lieux_de_zone("savane"):
             for rotation in STRATEGIES:
                 reco = recommander(lieu, rotation.id, POIDS_PAR_PRIORITE["eau"])
                 texte = gabarits.resume(reco)
